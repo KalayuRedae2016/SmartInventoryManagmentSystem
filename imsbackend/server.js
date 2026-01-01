@@ -39,7 +39,7 @@ const initializeServer = async () => {
       // http://192.168.43.104:8085
       http.createServer(app).listen(PORT, "127.0.0.1", () => {
         console.log(`HTTP Server is running on http://localhost:${PORT}`);
-        console.log("Format Date Utility Loaded:", formatDate);
+        //console.log("Format Date Utility Loaded:", formatDate);
       }).on("error", (err) => {
         console.log("Error starting HTTP server:", err);
       });
