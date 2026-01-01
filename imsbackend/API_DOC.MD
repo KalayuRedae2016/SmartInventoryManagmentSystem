@@ -20,8 +20,6 @@ PUT    /api/ims/categories/:id
 DELETE /api/ims/categories/:id
 ```
 
----
-
 # ## **📁 Brand**
 
 ### **Model**
