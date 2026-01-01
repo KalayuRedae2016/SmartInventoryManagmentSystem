@@ -1,0 +1,25 @@
+'use strict';
+const { Model } = require('sequelize');
+
+module.exports = (sequelize, DataTypes) => {
+  class StockAdjustment extends Model {
+    static associate(models) {
+      StockAdjustment.belongsTo(models.Product, { foreignKey: 'productId', as: 'product' });
+    }
+  }
+
+  StockAdjustment.init({
+    id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+    productId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    quantity: { type: DataTypes.INTEGER, allowNull: false },
+    reason: { type: DataTypes.STRING, allowNull: false },
+    note: { type: DataTypes.STRING, allowNull: true },
+  }, {
+    sequelize,
+    modelName: 'StockAdjustment',
+    tableName: 'StockAdjustments',
+    timestamps: true,
+  });
+
+  return StockAdjustment;
+};
