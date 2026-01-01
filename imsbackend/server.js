@@ -22,8 +22,8 @@ const initializeServer = async () => {
     const PORT = process.env.PORT || 8085;
     const SSL = process.env.SSL
     if (SSL === "true") {
-      const SSL_KEY_PATH = process.env.SSL_KEY_PATH || "/etc/letsencrypt/live/banapvs.com/privkey.pem";
-      const SSL_CERT_PATH = process.env.SSL_CERT_PATH || "/etc/letsencrypt/live/banapvs.com/fullchain.pem";
+      const SSL_KEY_PATH = process.env.SSL_KEY_PATH || "/etc/letsencrypt/live/grandinventory.com/privkey.pem";
+      const SSL_CERT_PATH = process.env.SSL_CERT_PATH || "/etc/letsencrypt/live/grandinventory.com/fullchain.pem";
       const key = fs.readFileSync(SSL_KEY_PATH, "utf8");
       const cert = fs.readFileSync(SSL_CERT_PATH, "utf8");
       // Start HTTPS server

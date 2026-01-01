@@ -14,7 +14,7 @@ exports.formatUser = (userInstance) => {
 }
 
 exports.generateAnimalCode = async () => {
-  const prefix = 'mvet';
+  const prefix = 'ims';
 
   const lastAnimal = await Animal.findOne({
     where: { identificationMark: { [Op.like]: `${prefix}%` } },
@@ -31,7 +31,7 @@ exports.generateAnimalCode = async () => {
     }
   }
 
-  const code = prefix + String(nextNumber).padStart(4, '0'); // e.g., mvet0001
+  const code = prefix + String(nextNumber).padStart(4, '0'); // e.g., ims0001
   return code;
 }
 

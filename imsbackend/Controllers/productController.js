@@ -357,8 +357,8 @@ console.log('Profile Image to save:', images);
 //     const emailMessage = message
 //       ? `Dear ${user.name},\n\n${message}`
 //       : `Hi ${user.name},\n\nWelcome to Our Platform! We're excited to have you on board.\n\nPlease use the following link to access our platform:\n- Login Link: ${
-//           process.env.NODE_ENV === 'development' ? 'http://localhost:8085' : 'https://mvet.com'
-//         }\n\nIf you have any questions or need assistance, feel free to contact our support team.\n\nBest regards,\nThe Bana Marketing Group Team`;
+//           process.env.NODE_ENV === 'development' ? 'http://localhost:8085' : 'https://grandinventory.com'
+//         }\n\nIf you have any questions or need assistance, feel free to contact our support team.\n\nBest regards,\nThe Inventory Team`;
 
 //     return sendEmail({ email: user.email, subject: emailSubject, message: emailMessage });
 //   });
