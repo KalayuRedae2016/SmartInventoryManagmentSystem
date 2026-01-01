@@ -89,8 +89,6 @@ module.exports = {
 # 4 run migrations
 npx sequelize-cli db:migrate
 
-
-
 # Case B Update model and migration
 # 1 Adding columns(update models ) manually
     price: DataTypes.DECIMAL,
