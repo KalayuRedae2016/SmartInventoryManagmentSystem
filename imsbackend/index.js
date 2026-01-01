@@ -28,8 +28,8 @@ const listEndpoints = require('express-list-endpoints');
 app.get("/", (req, res) => {
   res.send(`
     <div style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-      <h1 style="color:rgba(23, 204, 111, 1);">🌟Welcome to <strong>Inventory Managment System</strong>🌟</h1>
-      <h2 style="color:rgba(46, 5, 104, 1);">Stay tuned for incredible changes ahead!</strong></h2>
+      <h1 style="color:rgba(23, 204, 111, 1);">🌟Welcome to <strong> Grand Smart Inventory Managment System</strong>🌟</h1>
+      <h2 style="color:rgba(46, 5, 104, 1);">Stay calm!</strong></h2>
     </div>
   `);
 });
