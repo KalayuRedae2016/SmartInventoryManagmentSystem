@@ -6,7 +6,7 @@ const authoController=require("../Controllers/authoController")
 const userController=require("../Controllers/userController")
 const {createMulterMiddleware}=require("../utils/fileController");
 
-app.use(function (req, res, next) {
+router.use(function (req, res, next) {
   res.header(
     'Access-Control-Allow-Headers',
     'x-access-token, Origin, Content-Type, Accept'
@@ -26,7 +26,7 @@ exports.uploadFilesMiddleware = attachments.fields([
   { name: 'documents', maxCount: 10 }, // Up to 10 files for documents
 ]);
 
-router.post("/signup",this.uploadFilesMiddleware,authoController.signup)
+router.post("/signup",exports.uploadFilesMiddleware,authoController.signup)
 router.post("/login",authoController.login)
 
 router.post('/forgetPassword', authoController.forgetPassword);
