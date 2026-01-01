@@ -161,3 +161,30 @@ router.post("/product", uploadProductImages, controller.createProduct); -->
   { name: "documents", maxCount: 10 }     // multiple documents
 ]);
 router.post("/product", uploadProductFiles, controller.createProduct); -->
+
+
+
+
+
+<!-- 
+
+1. users
+2. roles and permission -to be added
+3. units
+4. categories
+5. brands
+6. suppliers
+7. customers
+8. warehouses
+9. products
+10. product_stocks
+11. stock_transactions
+12. purchases
+13. purchase_items
+14. sales
+15. sales_items
+16. payments
+17. expenses
+18. audit_logs 
+
+-->
