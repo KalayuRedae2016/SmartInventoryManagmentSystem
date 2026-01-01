@@ -4,7 +4,7 @@ const router=express.Router()
 
 const authoController=require("../Controllers/authoController")
 const userController=require("../Controllers/userController")
-const {createMulterMiddleware}=require("../Utils/fileController");
+const {createMulterMiddleware}=require("../utils/fileController");
 
 app.use(function (req, res, next) {
   res.header(

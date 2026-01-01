@@ -1,5 +1,5 @@
-const AppError = require("../Utils/appError");
-// const { logError } = require('../Utils/logUtils');
+const AppError = require("../utils/appError");
+// const { logError } = require('../utils/logUtils');
 const { ValidationError, UniqueConstraintError, DatabaseError } = require('sequelize');
 
 // Sequelize-specific handlers

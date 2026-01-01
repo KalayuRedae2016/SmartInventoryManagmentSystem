@@ -4,14 +4,14 @@ const db = require('../Models');
 const { Op, where } = require('sequelize');
 const User = db.User;
 
-const catchAsync = require("../Utils/catchAsync")
-const AppError = require("../Utils/appError")
+const catchAsync = require("../utils/catchAsync")
+const AppError = require("../utils/appError")
 require('dotenv').config();
 
 //console.log("Loading model: ", db);
-const { sendEmail, sendWelcomeEmail } = require('../Utils/email');
-// const {logAction}=require("../Utils/logUtils")
-const { deleteFile, createMulterMiddleware, processUploadFilesToSave } = require('../Utils/fileController');
+const { sendEmail, sendWelcomeEmail } = require('../utils/email');
+// const {logAction}=require("../utils/logUtils")
+const { deleteFile, createMulterMiddleware, processUploadFilesToSave } = require('../utils/fileController');
 
 const signInToken = (user) => {
   const payload = { id: user.id, role: user.role };

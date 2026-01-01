@@ -5,12 +5,12 @@ const { Op, where } = require('sequelize');
 const validator = require('validator');
 const Supplier  = db.Supplier;
 
-const catchAsync = require("../Utils/catchAsync")
-const AppError = require("../Utils/appError")
+const catchAsync = require("../utils/catchAsync")
+const AppError = require("../utils/appError")
 require('dotenv').config();
 const { formatDate } = require("../utils/formatDate")
 
-const {createMulterMiddleware,processUploadFilesToSave} = require('../Utils/fileController');
+const {createMulterMiddleware,processUploadFilesToSave} = require('../utils/fileController');
 
 // // Configure multer for user file uploads
 // const userFileUpload = createMulterMiddleware(

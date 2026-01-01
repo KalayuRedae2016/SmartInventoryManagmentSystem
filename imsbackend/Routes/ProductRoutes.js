@@ -4,7 +4,7 @@ const app = express();
 const router=express.Router();
 const authoController=require("../Controllers/authoController")
 const productController=require("../Controllers/productController")
-const {createMulterMiddleware}=require("../Utils/fileController");
+const {createMulterMiddleware}=require("../utils/fileController");
 
 app.use(function (req, res, next) {
   res.header(

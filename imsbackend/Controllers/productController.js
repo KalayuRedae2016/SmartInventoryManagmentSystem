@@ -10,10 +10,10 @@ const Category = db.Category;
 const Brand = db.brand;
 const Unit= db.Unit;
 
-const catchAsync = require("../Utils/catchAsync")
-const AppError = require("../Utils/appError")
+const catchAsync = require("../utils/catchAsync")
+const AppError = require("../utils/appError")
 const { formatDate } = require("../utils/formatDate")
-const {processUploadFilesToSave,deleteFile} = require('../Utils/fileController');
+const {processUploadFilesToSave,deleteFile} = require('../utils/fileController');
 
 require('dotenv').config();
 
