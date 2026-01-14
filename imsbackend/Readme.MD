@@ -1,4 +1,5 @@
 ## Smart Grand Inventory & Business Management System (Backend)
+AI-Powered Inventory Management System
 Multi-tenant inventory, sales, purchase, and reporting system designed for
 auditability, scalability, and clean stock control.
 
