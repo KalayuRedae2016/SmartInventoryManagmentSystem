@@ -10,10 +10,15 @@ module.exports = (sequelize, DataTypes) => {
 
   StockAdjustment.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+    tenantId:{type:DataTypes.INTEGER.UNSIGNED,allowNull:false},
+    fromWarehouseId:{ type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    toWarehouseId:{ type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     productId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     quantity: { type: DataTypes.INTEGER, allowNull: false },
-    reason: { type: DataTypes.STRING, allowNull: false },
+    status:{type:DataTypes.ENUM,values:['in','out'],allowNull:false},
     note: { type: DataTypes.STRING, allowNull: true },
+
+
   }, {
     sequelize,
     modelName: 'StockAdjustment',

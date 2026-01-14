@@ -11,26 +11,23 @@ module.exports = (sequelize, DataTypes) => {
 
   Unit.init(
     {
-      name: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        unique: true,
+      id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        autoIncrement: true,
+        primaryKey: true
+      },
+      name: {type: DataTypes.STRING,allowNull: false,unique: true,
         set(value) {
           this.setDataValue('name', value.trim());
         }
       },
-      symbol: {
-        type: DataTypes.STRING,
-        allowNull: true
-      },
-      description: {
-        type: DataTypes.TEXT,
-        allowNull: true
-      },
-      isActive: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: true
-      }
+      tenantId:{type:DataTypes.INTEGER.UNSIGNED},
+      symbol: {type: DataTypes.STRING,allowNull: true},
+      baseUnit:{type:DataTypes.STRING},
+      operator:{type:DataTypes.STRING},
+      operationValue:{type:DataTypes.STRING},
+      description: {type: DataTypes.TEXT,allowNull: true},
+      isActive: {type: DataTypes.BOOLEAN,defaultValue: true}
     },
     {
       sequelize,

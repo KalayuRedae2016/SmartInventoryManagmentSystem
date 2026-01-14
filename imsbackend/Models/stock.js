@@ -2,17 +2,7 @@
 const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
-  class Category extends Model {
-    static associate(models) {
-      // A category has many products
-      Category.hasMany(models.Product, {
-        foreignKey: 'categoryId',
-        as: 'products'
-      });
-    }
-  }
-
-  Category.init(
+  Stock.init(
     {
       id: {
         type: DataTypes.INTEGER.UNSIGNED,
@@ -20,15 +10,17 @@ module.exports = (sequelize, DataTypes) => {
         primaryKey: true,
       },
       tenantId:{type:DataTypes.INTEGER.UNSIGNED},
+      warehouseId:{ type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
+      proudctId:{ type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
       name: { pe: DataTypes.STRING, allowNull: false },
-      description: { type: DataTypes.TEXT},
-      isActive: { type: DataTypes.BOOLEAN, defaultValue: true},
-      
+      quantity:{type:DataTypes.INTEGER.UNSIGNED,default:0},
+      stockAlert:{type:DataTypes.INTEGER.UNSIGNED,default:0}, 
+      description: { type: DataTypes.TEXT},       
     },
     {
       sequelize,
-      modelName: 'Category',
-      tableName: 'Categories',
+      modelName: 'Stock',
+      tableName: 'Stocks',
       timestamps: true,
     }
   );

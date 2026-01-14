@@ -1,190 +1,160 @@
-# Inventory managment systems
+## Smart Grand Inventory & Business Management System (Backend)
+Multi-tenant inventory, sales, purchase, and reporting system designed for
+auditability, scalability, and clean stock control.
 
-# 1) Creating Model and Migration for the first time
-a) Create new table(Ex:User)
-# npx sequelize-cli model:generate --name User --attributes name:string,
-# it creates a model/user.js and an migration/xxx-createUser.js migration file
-or Create Model using manually make sure tablename should be (smaller and plural)
-and create miggration using npx sequelize-cli migration:generate --name create-users
+## System Architecture Overview
 
-b) Run migration
-# npx sequelize-cli db:migrate
+- **Multi-tenant** (each business is isolated by `tenant_id`)
+- **Document-based operations** (Purchase, Sale, Transfer, Adjustment)
+- **System-controlled stock** (no manual stock edits)
+- **Append-only stock history**
+- **Configurable costing** (FIFO, LIFO, Average, Moving Average)
+- **Read-only reporting layer**
 
-# 2)  Updating the Model (Adding/Changing Fields) Model and Migration
-a) Edit the model with newFields (Ex:adding phoneNumber to user)
-   # phoneNumber: {type: DataTypes.STRING,allowNull: true}
+## Major Modules & Sub-Modules
+## 1. Settings & Configuration Module
+_System access and defaults_
 
-b) Create a new migration for this change
-# npx sequelize-cli migration:generate --name add-phoneNumber-to-user
+### Sub-Modules
+- Roles
+- Permissions
+- Role–Permission Mapping
+- System Settings
+  - Default warehouse
+  - Default customer
+  - Default language
+- Account Status (Active / Inactive)
 
-c) edit the new generated file:
-# // in up()
-await queryInterface.addColumn('Users', 'phoneNumber', {
-  type: Sequelize.STRING,
-  allowNull: true
-});
-# // in down()
-await queryInterface.removeColumn('Users', 'phoneNumber');
+### Key Rules
+- RBAC enforced at service layer
+- Permissions are action-based (create, view, update, delete, report)
 
-d) Run migration
-# npx sequelize-cli db:migrate
+## 2. Business (Tenant) Module 
+-Multi-tenant foundation
+### Sub-Modules
+- Tenant (Business / Company)
+- Subscription
+- Subscription Plans
+- Subscription Payments
+- Warehouse Management
 
-# 3)  for Mistakes(dev Only)
-undo last migrations: npx sequelize-cli db:migrate:undo
-undo all migrations: npx sequelize-cli db:migrate:undo:all
-edit files and re-run: npx sequelize-cli db:migrate
+### Key Rules
+- All data belongs to exactly one tenant
+- Warehouses are physical stock locations
 
-# P: Database Table and Sequelize Model(user.init()) mismatch
-# P: Sequelize queried columns that did not exist
-S1: Add missing columns via a Sequelize migration
-S2: Remove extra fields from the model if they are not needed.
+## 3. Product Module
+_Product master data_
 
+### Sub-Modules
+- Category
+- Brand
+- Unit (supports unit conversion)
+- Product
+- Product Images
+- Product Label Printing
+### Key Rules
+- Products depend on Category, Brand, and Unit
+- No stock is created at product creation
+## 4. People Module
+_All parties interacting with the system_
+### Sub-Modules
+- System Users
+- User Role Assignment
+- Customers
+- Suppliers
+- Customer Online Requests (Pending/Approved)
+- Supplier Online Requests (Pending/Approved)
+### Key Rules
+- Users are for authentication/authorization
+- Customers and Suppliers are business entities
+## 5. Inventory Operations Module
+_Business documents that change stock_
+### Sub-Modules
+- Purchases
+- Purchase Items
+- Purchase Returns
+- Sales
+- Sale Items
+- Sales Returns
+- Stock Transfers
+- Stock Transfer Items
+- Stock Adjustments
+- Stock Adjustment Items
 
-# Note
-1) Model = Defines structure in code (models/)
-2) Migration = Applies changes to actual DB (migrations/)
-3) Migration files should never be edited once run
-4) Always create new migrations for updates
-5) Sequelize tracks executed migrations in SequelizeMeta table
+### Key Rules
+- Every document = Header + Items
+- Documents are immutable after completion
+- No direct stock manipulation
+## 6. Stock Module (System-Controlled)
+_Physical inventory state and audit_
 
-# Case A model creation and migration
-# 1 create models manually or using cmd for now let's create using manual model creation
-      module.exports = (sequelize, DataTypes) => {
-        const Product = sequelize.define("Product", {
-          name: DataTypes.STRING,
-          sku: DataTypes.STRING,
-          price: DataTypes.DECIMAL,
-        });
+### Sub-Modules
+- Stock Snapshot (Current Stock)
+- Stock Transactions (History / Ledger)
 
-        return Product;
-      };
+### Key Rules
+- No CRUD APIs
+- StockSnapshot updated only by operations
+- StockTransactions are append-only
+- One record per (product + warehouse)
 
+## 7. Accounting & Costing Module
+_Financial logic_
 
-# 2 Generate an empty migration files
-npx sequelize-cli migration:generate --name create-product-table
+### Sub-Modules
+- Costing Engine
+  - FIFO
+  - LIFO
+  - Average Cost
+  - Moving Average Cost
+- Payments
+  - Sales Payments
+  - Purchase Payments
+  - Sales Return Payments
+  - Purchase Return Payments
+- Expenses (optional)
 
-# 3 edit migrations file
+### Key Rules
+- Cost is calculated from stock transactions
+- Payments are separate from documents
 
-module.exports = {
-  up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable("Products", {
-      id: {
-        type: Sequelize.INTEGER,
-        autoIncrement: true,
-        primaryKey: true,
-      },
-      name: Sequelize.STRING,
-      sku: Sequelize.STRING,
-      price: Sequelize.DECIMAL,
-      createdAt: Sequelize.DATE,
-      updatedAt: Sequelize.DATE,
-    });
-  },
+## 8. Reports Module
+_Read-only generated data_
 
-  down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable("Products");
-  }
-};
+### Sub-Modules
+- User Reports
+- Sales Reports
+- Purchase Reports
+- Inventory Reports
+- Warehouse Reports
+- Customer Reports
+- Supplier Reports
+- Profit & Loss Reports
+- Payment Reports
 
-# 4 run migrations
-npx sequelize-cli db:migrate
+### Key Rules
+- No direct data modification
+- Generated via queries or views
+- Filtered by date, warehouse, and entity
 
-# Case B Update model and migration
-# 1 Adding columns(update models ) manually
-    price: DataTypes.DECIMAL,
-    weight: DataTypes.FLOAT,
+## 9. Utility / Support Module (Optional)
+_Cross-cutting features_
 
-# 2 Generate an empty migration files
-npx sequelize-cli migration:generate --name add-priceandweight-to-product
+### Sub-Modules
+- Import / Export (Excel, PDF, Print)
+- Audit Logs
+- Activity Logs
+- Notifications
+- File Uploads
+- Barcode / QR Code Generator
 
-# 3 edit migrations file
-module.exports = {
-  up: async (queryInterface, Sequelize) => {
-    await queryInterface.addColumn("Products", "price", {
-      type: Sequelize.FLOAT,
-    });
-    await queryInterface.addColumn("Products", "weight", {
-      type: Sequelize.FLOAT,
-    });
-  },
+## Core Design Principles
 
-  down: async (queryInterface, Sequelize) => {
-    await queryInterface.removeColumn("Products", "price");
-     await queryInterface.removeColumn("Products", "weight");
-  }
-};
+- **Tenant Isolation:** All tables include `tenant_id`
+- **Stock Integrity:** Stock updated only through transactions
+- **Auditability:** No delete/update on stock history
+- **Scalability:** Item-level tables for all documents
+- **Extensibility:** Ready for batches, serials, expiry dates
 
-# 4 run migrations
-npx sequelize-cli db:migrate
+## High-Level Module Interaction
 
-
-# Case C Delete model and migration
-# 1 remove fields models manually
-# 2 Generate an empty migration files
-px sequelize-cli migration:generate --name add-weight-to-produc
-
-# 3 edit migrations file
-module.exports = {
-  up: async (queryInterface, Sequelize) => {
-    await queryInterface.addColumn("Products", "weight", {
-      type: Sequelize.FLOAT,
-    });
-  },
-
-  down: async (queryInterface, Sequelize) => {
-    await queryInterface.removeColumn("Products", "weight");
-  }
-};
-
-# 4 run migrations
-npx sequelize-cli db:migrate
-
-
-
-# Creating Multer Instance
-<!-- const uploadProfile = createMulterMiddleware(
-  "users/profileImages", "user", ["image/jpeg", "image/png"]
-).single("profileImage"); // single file from 'profileImage'
-router.post("/profile", uploadProfile, controller.updateProfile); -->
-
-
-<!-- const uploadProductImages = createMulterMiddleware(
-  "products/images", "product", ["image/jpeg", "image/png"]
-).array("images", 10); // multiple files from 'images', max 10
-router.post("/product", uploadProductImages, controller.createProduct); -->
-
-
-<!-- const uploadProductFiles = createMulterMiddleware(
-  "products/files", "product", ["image/jpeg", "image/png", "application/pdf"]
-).fields([
-  { name: "images", maxCount: 10 },       // multiple images
-  { name: "documents", maxCount: 10 }     // multiple documents
-]);
-router.post("/product", uploadProductFiles, controller.createProduct); -->
-
-
-
-
-
-<!-- 
-
-1. users
-2. roles and permission -to be added
-3. units
-4. categories
-5. brands
-6. suppliers
-7. customers
-8. warehouses
-9. products
-10. product_stocks
-11. stock_transactions
-12. purchases
-13. purchase_items
-14. sales
-15. sales_items
-16. payments
-17. expenses
-18. audit_logs 
-
--->

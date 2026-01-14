@@ -12,8 +12,14 @@ module.exports = (sequelize, DataTypes) => {
   Purchase.init(
     {
       id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+      tenantId:{type:DataTypes.INTEGER.UNSIGNED,allowNull:false},
+      warehouseId:{ type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
       supplierId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
       totalAmount: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
+      status:{type:DataTypes.BOOLEAN},
+      paymentMethod:{type:DataTypes.STRING,Enum:{"cash","credit"}},
+      due:{type:DataTypes.STRING},
+
     },
     {
       sequelize,

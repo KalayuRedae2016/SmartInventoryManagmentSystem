@@ -23,30 +23,16 @@ module.exports = (sequelize, DataTypes) => {
         primaryKey: true
       },
 
-      customerId: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: true
-      },
-
-      userId: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: true
-      },
-
-      invoiceNumber: {
-        type: DataTypes.STRING,
-        allowNull: false
-      },
-
-      saleDate: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
-      },
-
-      totalAmount: {
-        type: DataTypes.DECIMAL(10, 2),
-        allowNull: false
-      }
+      tenantId:{type:DataTypes.INTEGER.UNSIGNED,allowNull:false},
+      warehouseId:{ type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+      customerId: {type: DataTypes.INTEGER.UNSIGNED,allowNull: true},
+      invoiceNumber: {type: DataTypes.STRING,allowNull: false},
+      saleDate: {type: DataTypes.DATE,defaultValue: DataTypes.NOW},
+      totalAmount: {type: DataTypes.DECIMAL(10, 2),allowNull: false},
+      paymentMethod:{type:DataTypes.STRING,ENum: ['cash','bank_transfer','mobile_payment'],allowNull:false},
+      userId: {type: DataTypes.INTEGER.UNSIGNED,allowNull: false},
+      status:{type:DataTypes.BOOLEAN},
+      due:{type:DataTypes.STRING},
     },
     {
       sequelize,

@@ -12,9 +12,12 @@ module.exports = (sequelize, DataTypes) => {
   PurchaseItem.init(
     {
       purchaseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+      tenantId:{type:DataTypes.INTEGER.UNSIGNED,allowNull:false},
+      warehouseId:{ type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
       productId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
       quantity: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-      price: { type: DataTypes.FLOAT, allowNull: false },
+      unitPrice: { type: DataTypes.FLOAT, allowNull: false },
+      total:{type:DataTypes.INTEGER,allowNull:true}
     },
     {
       sequelize,

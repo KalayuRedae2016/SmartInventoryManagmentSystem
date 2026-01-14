@@ -18,20 +18,12 @@ module.exports = (sequelize, DataTypes) => {
         autoIncrement: true,
         primaryKey: true
       },
-      name: { 
-        type: DataTypes.STRING, 
-        allowNull: false 
-      },
-      country: { 
-        type: DataTypes.STRING 
-      },
-      description: { 
-        type: DataTypes.TEXT 
-      },
-      isActive: { 
-        type: DataTypes.BOOLEAN, 
-        defaultValue: true 
-      },
+      tenantId:{type:DataTypes.INTEGER.UNSIGNED},
+      name: { type: DataTypes.STRING, allowNull: false},
+      country: {type: DataTypes.STRING},
+      description: {type: DataTypes.TEXT},
+      image:{type:DataTypes.STRING},
+      isActive: {type: DataTypes.BOOLEAN, defaultValue: true },
     },
     {
       sequelize,

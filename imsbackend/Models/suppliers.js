@@ -11,9 +11,18 @@ module.exports = (sequelize, DataTypes) => {
   Supplier.init(
     {
       id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+      tenantId:{type:DataTypes.INTEGER.UNSIGNED},
+      code: { type: DataTypes.STRING, allowNull: false },
       name: { type: DataTypes.STRING, allowNull: false },
       phone: { type: DataTypes.STRING },
-      address: { type: DataTypes.STRING }
+      email:{type:DataTypes.STRING},
+      country:{type:DataTypes.STRING},
+      city:{type:DataTypes.STRING},
+      address: { type: DataTypes.STRING },
+      taxNumber:{type:DataTypes.STRING},
+      totalPurchaseDue:{type:DataTypes.INTEGER},
+      totalPurchaseReturnDue:{type:DataTypes},
+      additionalInfo:{type:DataTypes.STRING}
     },
     {
       sequelize,
