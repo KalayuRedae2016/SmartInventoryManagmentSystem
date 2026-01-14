@@ -11,15 +11,16 @@ const morgan=require("morgan")
 const AppError = require("./utils/appError");
 const globalErrorHandler = require('./Controllers/errorController');
 
-const userRouter = require('./Routes/userRoutes');
-const customerRouter = require('./Routes/customerRoutes');
-const supplierRouter = require('./Routes/supplierRoutes');
-const categoryRouter = require('./Routes/categoryRoutes');
-const wharehouseRouter = require('./Routes/wharehouseRoutes');
-const brandRouter = require('./Routes/brandRoutes');
-const unitRouter = require('./Routes/unitRoutes');
-const productRouter = require('./Routes/ProductRoutes');
-// const transactionRouter = require('./Routes/transactionRoutes');
+const userRouter = require('./routes/userRoutes');
+const authRouter = require('./routes/authRoutes');
+const customerRouter = require('./routes/customerRoutes');
+const supplierRouter = require('./routes/supplierRoutes');
+const categoryRouter = require('./routes/categoryRoutes');
+const wharehouseRouter = require('./routes/wharehouseRoutes');
+const brandRouter = require('./routes/brandRoutes');
+const unitRouter = require('./routes/unitRoutes');
+const productRouter = require('./routes/ProductRoutes');
+// const transactionRouter = require('./routes/transactionRoutes');
 
 const app = express(); //start Express app
 
@@ -130,6 +131,7 @@ app.use((req, res, next) => {
 
 //  #2 Routers
 app.use('/api/ims/users',userRouter);
+app.use('/api/ims/auth',authRouter);
 app.use('/api/ims/customers',customerRouter);
 app.use('/api/ims/suppliers',supplierRouter);
 

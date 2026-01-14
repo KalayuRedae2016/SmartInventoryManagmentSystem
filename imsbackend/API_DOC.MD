@@ -1,328 +1,177 @@
-# **📦 Inventory Management System API Documentation**
-
-# ## **📁 Category**
-
-### **Model**
-
-* id *(INT)*
-* name *(STRING)*
-* description *(STRING)*
-* createdAt *(DATETIME)*
-* updatedAt *(DATETIME)*
-
-### **Endpoints**
-
-```
-GET    /api/ims/categories
-POST   /api/ims/categories
-GET    /api/ims/categories/:id
-PUT    /api/ims/categories/:id
-DELETE /api/ims/categories/:id
-```
-
-# ## **📁 Brand**
-
-### **Model**
-
-* id *(INT)*
-* name *(STRING)*
-* description *(STRING)*
-* createdAt *(DATETIME)*
-* updatedAt *(DATETIME)*
-
-### **Endpoints**
-
-```
-GET    /api/ims/brands
-POST   /api/ims/brands
-GET    /api/ims/brands/:id
-PUT    /api/ims/brands/:id
-DELETE /api/ims/brands/:id
-```
-
----
-
-# ## **📁 Unit**
-
-### **Model**
-
-* id *(INT)*
-* name *(STRING)*
-* symbol *(STRING)*
-* createdAt *(DATETIME)*
-* updatedAt *(DATETIME)*
-
-### **Endpoints**
-
-```
-GET    /api/ims/units
-POST   /api/ims/units
-GET    /api/ims/units/:id
-PUT    /api/ims/units/:id
-DELETE /api/ims/units/:id
-```
-
----
-
-# ## **📦 Product**
-
-### **Model**
-
-* id *(INT)*
-* productName *(STRING)*
-* categoryId *(INT, FK)*
-* brandId *(INT, FK)*
-* unitId *(INT, FK)*
-* sku *(STRING)*
-* barcode *(STRING)*
-* reorderLevel *(INT)*
-* createdAt *(DATETIME)*
-* updatedAt *(DATETIME)*
-
-### **Endpoints**
-
-```
-GET    /api/ims/products
-POST   /api/ims/products
-GET    /api/ims/products/:id
-PUT    /api/ims/products/:id
-DELETE /api/ims/products/:id
-```
-
-### **Queries**
-
-```
-GET /api/ims/products?search=oil&categoryId=1&brandId=2
-```
-
----
-
-# ## **📁 Supplier**
-
-### **Model**
-
-* id *(INT)*
-* name *(STRING)*
-* phone *(STRING)*
-* email *(STRING)*
-* address *(STRING)*
-* createdAt *(DATETIME)*
-* updatedAt *(DATETIME)*
-
-### **Endpoints**
-
-```
-GET    /api/ims/suppliers
-POST   /api/ims/suppliers
-GET    /api/ims/suppliers/:id
-PUT    /api/ims/suppliers/:id
-DELETE /api/ims/suppliers/:id
-```
-
----
-
-# ## **📁 Customer**
-
-### **Model**
-
-* id *(INT)*
-* name *(STRING)*
-* phone *(STRING)*
-* email *(STRING)*
-* address *(STRING)*
-* createdAt *(DATETIME)*
-* updatedAt *(DATETIME)*
-
-### **Endpoints**
-
-```
-GET    /api/ims/customers
-POST   /api/ims/customers
-GET    /api/ims/customers/:id
-PUT    /api/ims/customers/:id
-DELETE /api/ims/customers/:id
-```
-
----
-
-# ## **🛒 Purchase**
-
-### **Model**
-
-* id *(INT)*
-* supplierId *(INT, FK)*
-* invoiceNumber *(STRING)*
-* purchaseDate *(DATE)*
-* totalAmount *(DECIMAL)*
-* createdAt *(DATETIME)*
-* updatedAt *(DATETIME)*
-
-### **Endpoints**
-
-```
-GET    /api/ims/purchases
-POST   /api/ims/purchases
-GET    /api/ims/purchases/:id
-PUT    /api/ims/purchases/:id
-DELETE /api/ims/purchases/:id
-```
-
----
-
-# ## **🛒 Purchase Items**
-
-### **Model**
-
-* id *(INT)*
-* purchaseId *(INT, FK)*
-* productId *(INT, FK)*
-* qty *(INT)*
-* unitPrice *(DECIMAL)*
-* totalPrice *(DECIMAL)*
-* createdAt *(DATETIME)*
-* updatedAt *(DATETIME)*
-
-### **Endpoints**
-
-```
-GET    /api/ims/purchase-items?purchaseId=1
-POST   /api/ims/purchase-items
-PUT    /api/ims/purchase-items/:id
-DELETE /api/ims/purchase-items/:id
-```
-
----
-
-# ## **🧾 Sales**
-
-### **Model**
-
-* id *(INT)*
-* customerId *(INT, FK)*
-* invoiceNumber *(STRING)*
-* salesDate *(DATE)*
-* totalAmount *(DECIMAL)*
-* createdAt *(DATETIME)*
-* updatedAt *(DATETIME)*
-
-### **Endpoints**
-
-```
-GET    /api/ims/sales
-POST   /api/ims/sales
-GET    /api/ims/sales/:id
-PUT    /api/ims/sales/:id
-DELETE /api/ims/sales/:id
-```
-
----
-
-# ## **🧾 Sales Items**
-
-### **Model**
-
-* id *(INT)*
-* salesId *(INT, FK)*
-* productId *(INT, FK)*
-* qty *(INT)*
-* unitPrice *(DECIMAL)*
-* totalPrice *(DECIMAL)*
-* createdAt *(DATETIME)*
-* updatedAt *(DATETIME)*
-
-### **Endpoints**
-
-```
-GET    /api/ims/sales-items?salesId=1
-POST   /api/ims/sales-items
-PUT    /api/ims/sales-items/:id
-DELETE /api/ims/sales-items/:id
-```
-
----
-
-# ## **📉 Sales Adjustment**
-
-### **Model**
-
-* id *(INT)*
-* salesId *(INT, FK)*
-* adjustmentType *(ENUM: discount | refund | correction)*
-* amount *(DECIMAL)*
-* note *(STRING)*
-* createdAt *(DATETIME)*
-* updatedAt *(DATETIME)*
-
-### **Endpoints**
-
-```
-GET    /api/ims/sales-adjustments
-POST   /api/ims/sales-adjustments
-GET    /api/ims/sales-adjustments/:id
-PUT    /api/ims/sales-adjustments/:id
-DELETE /api/ims/sales-adjustments/:id
-```
-
----
-
-# ## **📦 Stock Transactions**
-
-### **Model**
-
-* id *(INT)*
-* productId *(INT, FK)*
-* transactionType *(ENUM: IN | OUT)*
-* referenceType *(ENUM: purchase | sale | adjustment)*
-* referenceId *(INT)*
-* qty *(INT)*
-* createdAt *(DATETIME)*
-
-### **Endpoints**
-
-```
-GET /api/ims/stock-transactions
-GET /api/ims/stock-transactions?productId=1
-```
-
----
-
-# ## **📦 Stock Movement**
-
-### **Model**
-
-* id *(INT)*
-* productId *(INT, FK)*
-* previousStock *(INT)*
-* newStock *(INT)*
-* difference *(INT)*
-* reason *(STRING)*
-* createdAt *(DATETIME)*
-
-### **Endpoints**
-
-```
-GET /api/ims/stock-movements
-GET /api/ims/stock-movements?productId=1
-```
-
----
-
-# ## **👤 Users**
-
-### **Model**
-
-* id *(INT)*
-* name *(STRING)*
-* email *(STRING)*
-* password *(STRING)*
-* role *(ENUM: admin | employee)*
-* createdAt *(DATETIME)*
-* updatedAt *(DATETIME)*
-
-### **Auth Endpoints**
-
-```
-POST /api/ims/auth/register
-POST /api/ims/auth/login
-GET  /api/ims/auth/me
-```
+# 📦 Inventory Management System (IMS) API Documentation
+
+**Base URL:** `/api/ims`  
+**Authentication:** JWT (Bearer Token)  
+**RBAC Middleware:** `requirePermission('module.action')`, `requirePermissionOrSelf('module.action')`  
+
+**Common Query Params:** `?page=&limit=&sortBy=&order=&search=&status=active|inactive`  
+
+
+
+# Success Response Format:
+  return res.status(200).json({
+      error: false,
+      status: 1,
+      message:"Success Message",
+      result:items.length,
+      items: items,
+    });
+    
+# Error Response Format:**
+return res.status(500,404,400,401).json({
+      error: true,
+      message:"Error Message"
+      items: [],
+    });
+
+# Category
+Model: id(INT), name(STRING), description(STRING), createdAt(DATETIME), updatedAt(DATETIME)
+Endpoints:
+    GET    /categories
+    POST   /categories
+    GET    /categories/:id
+    PUT    /categories/:id
+    DELETE /categories/:id
+    POST   /categories/import
+    GET    /categories/export/excel
+    GET    /categories/export/pdf
+    PATCH  /categories/:id/status
+# Brand
+Model: id(INT), name(STRING), country(STRING), description(STRING), image(STRING), isActive(BOOLEAN), createdAt(DATETIME), updatedAt(DATETIME)
+Endpoints:
+    GET    /brands
+    POST   /brands
+    GET    /brands/:id
+    PUT    /brands/:id
+    DELETE /brands/:id
+    POST   /brands/import
+    GET    /brands/export/excel
+    GET    /brands/export/pdf
+    PATCH  /brands/:id/status
+# Unit
+Model: id(INT), name(STRING), symbol(STRING), baseUnit(STRING), operator(STRING), operationValue(DECIMAL), description(STRING), isActive(BOOLEAN), createdAt(DATETIME), updatedAt(DATETIME)
+Endpoints:
+    GET    /units
+    POST   /units
+    GET    /units/:id
+    PUT    /units/:id
+    DELETE /units/:id
+    POST   /units/import
+    GET    /units/export/excel
+    GET    /units/export/pdf
+    PATCH  /units/:id/status
+# Product
+Model: id(INT), name(STRING), categoryId(INT), brandId(INT), unitId(INT), costPrice(DECIMAL), sellingPrice(DECIMAL), reorderLimit(INT), hasVariants(BOOLEAN), hasSerialNumbers(BOOLEAN), hasBatches(BOOLEAN), SKU(STRING), barcode(STRING), description(STRING), isActive(BOOLEAN), createdAt(DATETIME), updatedAt(DATETIME)
+Endpoints:
+    GET    /products
+    POST   /products
+    GET    /products/:id
+    PUT    /products/:id
+    DELETE /products/:id
+    PATCH  /products/:id/status
+    POST   /products/labels/print
+    POST   /products/import
+    GET    /products/export/excel
+    GET    /products/export/pdf
+# Warehouse
+Model: id(INT), name(STRING), code(STRING), location(STRING), managerName(STRING), contactPhone(STRING), isActive(BOOLEAN), createdAt(DATETIME), updatedAt(DATETIME)
+Endpoints:
+    GET    /warehouses
+    POST   /warehouses
+    GET    /warehouses/:id
+    PUT    /warehouses/:id
+    DELETE /warehouses/:id
+    PATCH  /warehouses/:id/status
+    POST   /warehouses/import
+    GET    /warehouses/export/excel
+    GET    /warehouses/export/pdf
+# User
+Model: id(INT), code(STRING), fullName(STRING), phone(STRING), email(STRING), password(STRING), roleId(INT), permissions(JSON/ARRAY), isActive(BOOLEAN), createdAt(DATETIME), updatedAt(DATETIME)
+Endpoints:
+    GET    /users
+    POST   /users
+    GET    /users/:id
+    PUT    /users/:id
+    DELETE /users/:id
+    PATCH  /users/:id/status
+    POST   /users/import
+    GET    /users/export/excel
+    GET    /users/export/pdf
+# Customer
+Model: id(INT), code(STRING), name(STRING), phone(STRING), email(STRING), country(STRING), city(STRING), address(STRING), taxNumber(STRING), totalSaleDue(DECIMAL), totalSaleReturnDue(DECIMAL), additionalInfo(STRING), createdAt(DATETIME), updatedAt(DATETIME)
+Endpoints:
+    GET    /customers
+    POST   /customers
+    GET    /customers/:id
+    PUT    /customers/:id
+    DELETE /customers/:id
+    POST   /customers/import
+    GET    /customers/export/excel
+    GET    /customers/export/pdf
+    PATCH  /customers/:id/status
+# Supplier
+Model: id(INT), code(STRING), name(STRING), phone(STRING), email(STRING), country(STRING), city(STRING), address(STRING), taxNumber(STRING), totalPurchaseDue(DECIMAL), totalPurchaseReturnDue(DECIMAL), additionalInfo(STRING), createdAt(DATETIME), updatedAt(DATETIME)
+Endpoints:
+    GET    /suppliers
+    POST   /suppliers
+    GET    /suppliers/:id
+    PUT    /suppliers/:id
+    DELETE /suppliers/:id
+    POST   /suppliers/import
+    GET    /suppliers/export/excel
+    GET    /suppliers/export/pdf
+    PATCH  /suppliers/:id/status
+# Purchase
+Model: id(INT), supplierId(INT), warehouseId(INT), totalAmount(DECIMAL), paidAmount(DECIMAL), status(STRING), createdAt(DATETIME), updatedAt(DATETIME)
+Endpoints:
+    GET    /purchases
+    POST   /purchases
+    GET    /purchases/:id
+    POST   /purchases/:id/return
+    POST   /purchases/import
+    GET    /purchases/export/excel
+    GET    /purchases/export/pdf
+# Sale
+Model: id(INT), customerId(INT), warehouseId(INT), totalAmount(DECIMAL), paidAmount(DECIMAL), status(STRING), createdAt(DATETIME), updatedAt(DATETIME)
+Endpoints:
+    GET    /sales
+    POST   /sales
+    GET    /sales/:id
+    POST   /sales/:id/return
+    POST   /sales/import
+    GET    /sales/export/excel
+    GET    /sales/export/pdf
+# Stock
+Model: id(INT), productId(INT), warehouseId(INT), quantity(DECIMAL), alertQuantity(DECIMAL), createdAt(DATETIME), updatedAt(DATETIME)
+Endpoints:
+GET    /stock
+GET    /stock/:productId
+# Stock Transaction
+Model: id(INT), productId(INT), warehouseId(INT), type(ENUM: IN, OUT, TRANSFER, ADJUSTMENT), quantity(DECIMAL), referenceType(STRING), referenceId(INT), performedBy(INT), remarks(STRING), valueDate(DATE), createdAt(DATETIME), updatedAt(DATETIME)
+Endpoints:
+GET    /stock-transactions
+POST   /stock-transactions
+# Stock Transfer
+Endpoints:
+GET    /stock-transfers
+POST   /stock-transfers
+# Stock Adjustment
+Endpoints:
+GET    /stock-adjustments
+POST   /stock-adjustments
+# Reports
+Endpoints:
+    GET /reports/stock
+    GET /reports/stock-alerts
+    GET /reports/product
+    GET /reports/sales
+    GET /reports/sales-products
+    GET /reports/best-customers
+    GET /reports/purchases
+    GET /reports/purchase-products
+    GET /reports/suppliers
+    GET /reports/profit-loss
+# Bulk & Export Operations
+POST /{module}/import
+GET  /{module}/export/excel
+GET  /{module}/export/pdf

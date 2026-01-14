@@ -26,25 +26,10 @@ exports.uploadFilesMiddleware = attachments.fields([
   { name: 'documents', maxCount: 10 }, // Up to 10 files for documents
 ]);
 
-router.post("/signup",exports.uploadFilesMiddleware,authoController.signup)
-router.post("/login",authoController.login)
-
-router.post('/forgetPassword', authoController.forgetPassword);
-router.post('/verifyOTP', authoController.verifyOTP);
-router.patch('/resetPassword',authoController.resetPassword);
 
 // // Protect all routes after this middleware
 
 router.use(authoController.authenticationJwt);
-
-router.patch('/updatePassword',authoController.updatePassword);
-//router.patch('/getMe',authoController.uploadFilesMiddleware,authoController.getMe);
-// router.patch('/updateMe',authoController.uploadFilesMiddleware,authoController.updateMe);
-
-//router.use(authoController.requiredRole('admin'));
-
-router.patch('/resetPasswordByAdmin/:userId',authoController.resetPasswordByAdmin);
-// router.patch('/edituserPermission',userController.toggleEdiUserPermission);
 
 router.route('/')
       .get(userController.getAllUsers)
@@ -54,7 +39,6 @@ router.route('/:userId')
   .get(userController.getUser)
   //.patch(authoController.uploadFilesMiddleware,userController.updateUserProfile)
   .delete(userController.deleteUser);
-
 
 // router.route('/active-deactive/:userId').put(userController.activateDeactiveUser);
 router.route('/sendEmails').post(userController.sendEmailMessages)
