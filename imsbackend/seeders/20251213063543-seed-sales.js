@@ -1,23 +1,10 @@
 'use strict';
-
 module.exports = {
   async up(queryInterface) {
-    await queryInterface.bulkInsert('Sales', [{
-      tenantId: 1,
-      warehouseId: 1,
-      customerId: 1,
-      userId: 1,
-      invoiceNumber: 'INV-0001',
-      saleDate: new Date(),
-      totalAmount: 500,
-      paidAmount: 500,
-      dueAmount: 0,
-      paymentMethod: 'cash',
-      status: 'completed',
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }]);
+    await queryInterface.bulkInsert('Sales', [
+      { id: 1, tenantId: 1, warehouseId: 1, customerId: 1, invoiceNumber: 'INV-001', totalAmount: 500, paymentMethod: 'cash', userId: 1, status: true, due: 0, createdAt: new Date(), updatedAt: new Date() },
+      { id: 2, tenantId: 1, warehouseId: 1, customerId: 2, invoiceNumber: 'INV-002', totalAmount: 300, paymentMethod: 'bank_transfer', userId: 2, status: true, due: 0, createdAt: new Date(), updatedAt: new Date() }
+    ]);
   },
 
   async down(queryInterface) {

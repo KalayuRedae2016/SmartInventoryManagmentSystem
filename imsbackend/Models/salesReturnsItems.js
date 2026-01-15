@@ -10,27 +10,14 @@ module.exports = (sequelize, DataTypes) => {
   }
 
   SaleReturnItem.init({
-    id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-
     saleReturnId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-
     tenantId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-
     productId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-
     quantity: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-
-    unitPrice: { type: DataTypes.DECIMAL(10,2), allowNull: false },
-
-    total: { type: DataTypes.DECIMAL(10,2), allowNull: false }
-
-  }, {
-    sequelize,
-    modelName: 'SaleReturnItem',
-    tableName: 'SaleReturnItems',
-    timestamps: true
-  });
+    unitPrice: { type: DataTypes.FLOAT, allowNull: false },
+    total: { type: DataTypes.FLOAT, allowNull: false }
+  }, { sequelize, modelName: 'SaleReturnItem', tableName: 'SaleReturnItems', timestamps: true });
 
   return SaleReturnItem;
 };
