@@ -4,30 +4,38 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class Warehouse extends Model {
     static associate(models) {
-      // Warehouse.hasMany(models.Stock, { foreignKey: 'warehouseId' });
-      // Warehouse.hasMany(models.StockTransaction, { foreignKey: 'warehouseId' });
-      // Warehouse.hasMany(models.Purchase, { foreignKey: 'warehouseId' });
-      // Warehouse.hasMany(models.Sale, { foreignKey: 'warehouseId' });
+      Warehouse.belongsTo(models.Business, {foreignKey: 'businessId'});
+      Warehouse.hasMany(models.Stock, {foreignKey: 'warehouseId'});
+      Warehouse.hasMany(models.StockTransaction, {foreignKey: 'warehouseId'});  
     }
   }
 
   Warehouse.init(
     {
-      id: {type: DataTypes.INTEGER.UNSIGNED,autoIncrement: true,primaryKey: true},
-      tenantId:{type:DataTypes.INTEGER.UNSIGNED},
-      name: {type: DataTypes.STRING,allowNull: false,unique: true},
-      code: {type: DataTypes.STRING,allowNull: false,unique: true},
-      location: {type: DataTypes.STRING,allowNull: true},
-      managerName: {type: DataTypes.STRING,allowNull: true},
-      phone: {type: DataTypes.STRING,allowNull: true},
-      email: {type: DataTypes.STRING,allowNull: true},
-      isActive: {type: DataTypes.BOOLEAN,defaultValue: true},
-      },
+      id: {type: DataTypes.INTEGER.UNSIGNED,autoIncrement: true, primaryKey: true},
+      businessId: {type: DataTypes.INTEGER.UNSIGNED,allowNull: false},
+
+      name: {type: DataTypes.STRING,allowNull: false},
+      code: {type: DataTypes.STRING,allowNull: false},
+  
+      location: DataTypes.STRING,
+      managerName: DataTypes.STRING,
+      phone: DataTypes.STRING,
+      email: DataTypes.STRING,
+
+      isActive: {type: DataTypes.BOOLEAN,defaultValue: true}
+    },
     {
       sequelize,
       modelName: 'Warehouse',
       tableName: 'Warehouses',
-      timestamps: true
+      timestamps: true,
+      indexes: [
+        {
+          unique: true,
+          fields: ['businessId', 'code']
+        }
+      ]
     }
   );
 

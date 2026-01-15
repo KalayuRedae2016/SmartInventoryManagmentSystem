@@ -1,12 +1,10 @@
 # 📦 Inventory Management System (IMS) API Documentation
 
 **Base URL:** `/api/ims`  
-**Authentication:** JWT (Bearer Token)  
+**Authentication:** Baerer (Bearer Token)  
 **RBAC Middleware:** `requirePermission('module.action')`, `requirePermissionOrSelf('module.action')`  
 
 **Common Query Params:** `?page=&limit=&sortBy=&order=&search=&status=active|inactive`  
-
-
 
 # Success Response Format:
   return res.status(200).json({

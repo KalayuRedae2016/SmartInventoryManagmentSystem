@@ -6,40 +6,34 @@ module.exports = {
       id: {
         type: Sequelize.INTEGER.UNSIGNED,
         autoIncrement: true,
-        primaryKey: true,
-        allowNull: false
+        primaryKey: true
+      },
+
+      businessId: {
+        type: Sequelize.INTEGER.UNSIGNED,
+        allowNull: false,
+        references: {
+          model: 'Businesses',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'RESTRICT'
       },
 
       name: {
         type: Sequelize.STRING,
-        allowNull: false,
-        unique: true
+        allowNull: false
       },
 
       code: {
         type: Sequelize.STRING,
-        allowNull: false,
-        unique: true
+        allowNull: false
       },
 
-      location: {
-        type: Sequelize.STRING,
-        allowNull: true
-      },
-
-      phone: {
-        type: Sequelize.STRING,
-        allowNull: true
-      },
-      email: {
-        type: Sequelize.STRING,
-        allowNull: true
-      },
-
-      managerName: {
-        type: Sequelize.STRING,
-        allowNull: true
-      },
+      location: Sequelize.STRING,
+      managerName: Sequelize.STRING,
+      phone: Sequelize.STRING,
+      email: Sequelize.STRING,
 
       isActive: {
         type: Sequelize.BOOLEAN,
@@ -56,6 +50,13 @@ module.exports = {
         type: Sequelize.DATE
       }
     });
+
+    // Composite unique index
+    await queryInterface.addIndex(
+      'Warehouses',
+      ['businessId', 'code'],
+      { unique: true }
+    );
   },
 
   async down(queryInterface) {

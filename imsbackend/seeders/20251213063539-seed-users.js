@@ -2,45 +2,47 @@
 const bcrypt = require('bcryptjs');
 
 module.exports = {
-  async up(queryInterface, Sequelize) {
-    try {
-      // 1. Get admin role
-      const [adminRole] = await queryInterface.sequelize.query(
-        `SELECT id FROM Roles WHERE code = 'SYS_ADMIN' LIMIT 1`,
-        { type: Sequelize.QueryTypes.SELECT }
-      );
+  async up(queryInterface) {
+    const now = new Date();
 
-      if (!adminRole) {
-        throw new Error('SYS_ADMIN role not found. Seed roles first.');
+    // Get SUPER_ADMIN role
+    const [roles] = await queryInterface.sequelize.query(
+      "SELECT id FROM Roles WHERE code='SUPER_ADMIN' LIMIT 1;"
+    );
+    if (!roles || roles.length === 0) throw new Error('SUPER_ADMIN role not found. Seed roles first.');
+    const superAdminRoleId = roles[0].id;
+    const adminRoleId = superAdminRoleId + 1; // Assuming ADMIN role follows SUPER_ADMIN
+
+    const passwordHash = await bcrypt.hash('123456', 10);
+    const adminPasswordHash = await bcrypt.hash('Admin@123', 10);
+
+    await queryInterface.bulkInsert('Users', [
+      {
+        tenantId: 1,
+        roleId: superAdminRoleId,
+        fullName: 'System Admin',
+        email: 'kalayureda2016@gmail.com',
+        phoneNumber: '1234567890',
+        password: passwordHash,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        tenantId: 1,
+        roleId: adminRoleId,
+        fullName: 'Admin',
+        email: 'kalayuredae2@gmail.com',
+        phoneNumber: '123456780',
+        password: adminPasswordHash,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now
       }
-
-      // 2. Check if admin user exists
-      const [existing] = await queryInterface.sequelize.query(
-        `SELECT id FROM Users WHERE email = 'admin@sophor.com' LIMIT 1`,
-        { type: Sequelize.QueryTypes.SELECT }
-      );
-
-      // 3. Insert if not exists
-      if (!existing) {
-        await queryInterface.bulkInsert('Users', [{
-          fullName: 'System Administrator',
-          email: 'admin@sophor.com',
-          phoneNumber: '0900000000',
-          password: await bcrypt.hash('Admin@123', 10),
-          roleId: adminRole.id,
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }]);
-      }
-
-    } catch (e) {
-      console.error('User seed failed:', e);
-      throw e;
-    }
+    ]);
   },
 
   async down(queryInterface) {
-    await queryInterface.bulkDelete('Users', { email: 'admin@sophor.com' });
+    await queryInterface.bulkDelete('Users', null, {});
   }
 };

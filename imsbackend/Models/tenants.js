@@ -1,42 +1,44 @@
-
 'use strict';
 const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
-  class Warehouse extends Model {
+  class Business extends Model {
     static associate(models) {
-      // Warehouse.hasMany(models.Stock, { foreignKey: 'warehouseId' });
-      // Warehouse.hasMany(models.StockTransaction, { foreignKey: 'warehouseId' });
-      // Warehouse.hasMany(models.Purchase, { foreignKey: 'warehouseId' });
-      // Warehouse.hasMany(models.Sale, { foreignKey: 'warehouseId' });
+      Business.hasMany(models.Warehouse, { foreignKey: 'businessId' });
+      Business.hasMany(models.User, { foreignKey: 'businessId' });
     }
   }
 
-  Warehouse.init(
+  Business.init(
     {
       id: {type: DataTypes.INTEGER.UNSIGNED,autoIncrement: true,primaryKey: true},
-      businessName: {type: DataTypes.STRING,allowNull: false,unique: true},
-      ownerName:{type: DataTypes.STRING,allowNull: false,unique: true},
-      location: {type: DataTypes.STRING,allowNull: true},
-      phone: {type: DataTypes.STRING,allowNull: true},
-      email: {type: DataTypes.STRING,allowNull: true},
-      logo: {type: DataTypes.STRING,allowNull: false,unique: true},
-      subscription_status:{type:DataTypes.STRING,ENUM('trial','pending','active','expired')},
-      trial_start:{type:DataTypes.STRING},
-      trial_end:{type:DataTypes.STRING},
-      
-      isActive: {type: DataTypes.BOOLEAN,defaultValue: true},
-      },
+
+      name: {type: DataTypes.STRING,allowNull: false},
+      ownerName: {type: DataTypes.STRING,allowNull: false},
+
+      phone: DataTypes.STRING,
+      email: DataTypes.STRING,
+      address: DataTypes.STRING,
+      logo: DataTypes.STRING,
+
+      subscriptionStatus: {type: DataTypes.ENUM('trial', 'pending', 'active', 'expired'),defaultValue: 'trial'},
+
+      trialStart: DataTypes.DATE,
+      trialEnd: DataTypes.DATE,
+
+      isActive: {type: DataTypes.BOOLEAN,defaultValue: true}
+    },
     {
       sequelize,
-      modelName: 'Tenant',
-      tableName: 'Tenants',
+      modelName: 'Business',
+      tableName: 'Businesses',
       timestamps: true
     }
   );
 
-  return Tenants;
+  return Business;
 };
+
 
 
 // subscriptions
