@@ -2,18 +2,17 @@
 
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('PurchaseItems', {
+    await queryInterface.createTable('PurchaseReturns', {
       id: { type: Sequelize.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
 
-      purchaseId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       tenantId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
+      purchaseId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
+      supplierId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       warehouseId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
-      productId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
 
-      quantity: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
-      unitPrice: { type: Sequelize.FLOAT, allowNull: false },
-      total: { type: Sequelize.FLOAT, allowNull: false },
-
+      totalAmount: { type: Sequelize.FLOAT, defaultValue: 0 },
+      reason: { type: Sequelize.STRING },
+      status: { type: Sequelize.STRING },
       isActive: { type: Sequelize.BOOLEAN, defaultValue: true },
 
       createdAt: { type: Sequelize.DATE, allowNull: false },
@@ -22,6 +21,6 @@ module.exports = {
   },
 
   async down(queryInterface) {
-    await queryInterface.dropTable('PurchaseItems');
+    await queryInterface.dropTable('PurchaseReturns');
   }
 };

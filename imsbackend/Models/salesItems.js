@@ -2,29 +2,31 @@
 const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
-  class SalesItem extends Model {
+  class SaleItem extends Model {
     static associate(models) {
-      // Each SalesItem belongs to a Sale
-      SalesItem.belongsTo(models.Sale, { foreignKey: 'saleId', as: 'sale' });
-
-      // Each SalesItem belongs to a Product
-      SalesItem.belongsTo(models.Product, { foreignKey: 'productId', as: 'product' });
+      SaleItem.belongsTo(models.Sale, { foreignKey: 'saleId' });
+      SaleItem.belongsTo(models.Product, { foreignKey: 'productId' });
     }
   }
 
-  SalesItem.init({
+  SaleItem.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+
     saleId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    tenantId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     productId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+
     quantity: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     unitPrice: { type: DataTypes.DECIMAL(10,2), allowNull: false },
-    subtotal: { type: DataTypes.DECIMAL(10,2), allowNull: false },
+    total: { type: DataTypes.DECIMAL(10,2), allowNull: false }
+
   }, {
     sequelize,
-    modelName: 'SalesItem',
-    tableName: 'SalesItems',
-    timestamps: true,
+    modelName: 'SaleItem',
+    tableName: 'SaleItems',
+    timestamps: true
   });
 
-  return SalesItem;
+  return SaleItem;
 };

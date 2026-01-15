@@ -4,16 +4,23 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('Purchases', {
       id: { type: Sequelize.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-      supplierId: {
-        type: Sequelize.INTEGER.UNSIGNED,
-        allowNull: false,
-        references: { model: 'Suppliers', key: 'id' },
-        onUpdate: 'CASCADE',
-        onDelete: 'RESTRICT', // prevent deleting supplier if purchases exist
-      },
+
+      tenantId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
+      warehouseId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
+      supplierId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
+
       totalAmount: { type: Sequelize.FLOAT, allowNull: false, defaultValue: 0 },
-      createdAt: { allowNull: false, type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
-      updatedAt: { allowNull: false, type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
+      paidAmount: { type: Sequelize.FLOAT, allowNull: false, defaultValue: 0 },
+      dueAmount: { type: Sequelize.FLOAT, allowNull: false, defaultValue: 0 },
+
+      paymentMethod: { type: Sequelize.ENUM('cash', 'credit'), defaultValue: 'cash' },
+      status: { type: Sequelize.ENUM('pending', 'partial', 'paid'), defaultValue: 'pending' },
+
+      note: { type: Sequelize.STRING },
+      isActive: { type: Sequelize.BOOLEAN, defaultValue: true },
+
+      createdAt: { type: Sequelize.DATE, allowNull: false },
+      updatedAt: { type: Sequelize.DATE, allowNull: false }
     });
   },
 
