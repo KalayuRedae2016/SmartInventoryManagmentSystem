@@ -5,7 +5,7 @@ module.exports = (sequelize, DataTypes) => {
   class Brand extends Model {
     static associate(models) {
       Brand.hasMany(models.Product, { foreignKey: 'brandId', as: 'products' });
-      Brand.belongsTo(models.Tenant, { foreignKey: 'tenantId', as: 'tenant' });
+      Brand.belongsTo(models.Business, { foreignKey: 'tenantId', as: 'tenant' });
     }
   }
 

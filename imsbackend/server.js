@@ -10,7 +10,7 @@ const { connectDB, sequelize } = require("./config/db");
 const envFile = process.env.NODE_ENV === "production" ? ".env.production" : ".env.development";
 
 
-const { formatDate } = require("./utils/formatDate");
+const { formatDate } = require("./utils/dateUtils");
 
 dotenv.config({ path: envFile });
 
@@ -35,8 +35,7 @@ const initializeServer = async () => {
         console.log(`HTTPS Server is running on https://localhost:${PORT}`);
       });
     } else {
-      // Start HTTP server
-      // http://192.168.43.104:8085
+      
       http.createServer(app).listen(PORT, "127.0.0.1", () => {
         console.log(`HTTP Server is running on http://localhost:${PORT}`);
         //console.log("Format Date Utility Loaded:", formatDate);

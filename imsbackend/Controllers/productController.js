@@ -1,5 +1,5 @@
 
-const db = require('../Models');
+const db = require('../models');
 const { Op, where } = require('sequelize');
 const validator = require('validator');
 const bcrypt = require('bcryptjs');
@@ -12,8 +12,8 @@ const Unit= db.Unit;
 
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
-const { formatDate } = require("../utils/formatDate")
-const {processUploadFilesToSave,deleteFile} = require('../utils/fileController');
+const { formatDate } = require("../utils/dateUtils")
+const {processUploadFilesToSave,deleteFile} = require('../utils/fileUtils');
 
 require('dotenv').config();
 

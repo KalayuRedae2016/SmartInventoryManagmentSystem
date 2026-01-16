@@ -9,17 +9,17 @@ const helmet = require('helmet');
 const hpp = require('hpp');
 const morgan=require("morgan")
 const AppError = require("./utils/appError");
-const globalErrorHandler = require('./Controllers/errorController');
+const globalErrorHandler = require('./controllers/errorController');
 
 const userRouter = require('./routes/userRoutes');
 const authRouter = require('./routes/authRoutes');
 const customerRouter = require('./routes/customerRoutes');
-const supplierRouter = require('./routes/supplierRoutes');
-const categoryRouter = require('./routes/categoryRoutes');
-const wharehouseRouter = require('./routes/wharehouseRoutes');
-const brandRouter = require('./routes/brandRoutes');
-const unitRouter = require('./routes/unitRoutes');
-const productRouter = require('./routes/ProductRoutes');
+// const supplierRouter = require('./routes/supplierRoutes');
+// const categoryRouter = require('./routes/categoryRoutes');
+// const wharehouseRouter = require('./routes/wharehouseRoutes');
+// const brandRouter = require('./routes/brandRoutes');
+// const unitRouter = require('./routes/unitRoutes');
+// const productRouter = require('./routes/ProductRoutes');
 // const transactionRouter = require('./routes/transactionRoutes');
 
 const app = express(); //start Express app
@@ -132,16 +132,16 @@ app.use((req, res, next) => {
 //  #2 Routers
 app.use('/api/ims/users',userRouter);
 app.use('/api/ims/auth',authRouter);
-app.use('/api/ims/customers',customerRouter);
-app.use('/api/ims/suppliers',supplierRouter);
+// app.use('/api/ims/customers',customerRouter);
+// app.use('/api/ims/suppliers',supplierRouter);
 
   //Swagger UI setup
 
-app.use('/api/ims/categories',categoryRouter);
-app.use('/api/ims/brands',brandRouter);
-app.use('/api/ims/units',unitRouter);
-app.use('/api/ims/warehouses',wharehouseRouter);
-app.use('/api/ims/products',productRouter);
+// app.use('/api/ims/categories',categoryRouter);
+// app.use('/api/ims/brands',brandRouter);
+// app.use('/api/ims/units',unitRouter);
+// app.use('/api/ims/warehouses',wharehouseRouter);
+// app.use('/api/ims/products',productRouter);
 // app.use('/api/ims/purchases',purchaseRouter);
 // app.use('/api/ims/purchaseItems',purchaseItemRouter);
 // app.use('/api/ims/sales',saleRouter);

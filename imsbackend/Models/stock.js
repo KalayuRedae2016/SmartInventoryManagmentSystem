@@ -2,13 +2,13 @@
 const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
-  class StockTransaction extends Model {
+  class Stock extends Model {
     static associate(models) {
-      StockTransaction.belongsTo(models.Product, { foreignKey: 'productId', as: 'product' });
+      Stock.belongsTo(models.Product, { foreignKey: 'productId', as: 'product' });
     }
   }
 
-  StockTransaction.init({
+  Stock.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
     tenantId:{type:DataTypes.INTEGER.UNSIGNED,allowNull:false},
     warehouseId:{ type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
@@ -19,13 +19,13 @@ module.exports = (sequelize, DataTypes) => {
     referenceId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
     performedBy:{type:DataTypes.INTEGER.UNSIGNED,allowNull:true},
     note: { type: DataTypes.STRING, allowNull: true },
-    valueDate:{type:DataTypes.STRING,defaultValue:timestamps}
+    valueDate:{type:DataTypes.STRING,defaultValue:DataTypes.NOW}
   }, {
     sequelize,
-    modelName: 'Transaction',
-    tableName: 'Transactions',
+    modelName: 'Stock',
+    tableName: 'Stocks',
     timestamps: true,
   });
 
-  return StockTransaction;
+  return Stock;
 };

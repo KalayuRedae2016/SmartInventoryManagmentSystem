@@ -5,7 +5,7 @@ module.exports = (sequelize, DataTypes) => {
   class Supplier extends Model {
     static associate(models) {
       Supplier.hasMany(models.Purchase, { foreignKey: 'supplierId', as: 'purchases' });
-      Supplier.belongsTo(models.Tenant, { foreignKey: 'tenantId', as: 'tenant' });
+      Supplier.belongsTo(models.Business, { foreignKey: 'tenantId', as: 'tenant' });
     }
   }
 

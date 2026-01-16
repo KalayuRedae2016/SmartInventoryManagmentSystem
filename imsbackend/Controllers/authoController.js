@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const db = require('../Models');
+const db = require('../models');
 const { Op, where } = require('sequelize');
 const User = db.User;
 
@@ -9,9 +9,11 @@ const AppError = require("../utils/appError")
 require('dotenv').config();
 
 //console.log("Loading model: ", db);
-const { sendEmail, sendWelcomeEmail } = require('../utils/email');
+const { sendEmail, sendWelcomeEmail } = require('../utils/emailUtils');
 // const {logAction}=require("../utils/logUtils")
-const { deleteFile, createMulterMiddleware, processUploadFilesToSave } = require('../utils/fileController');
+const { deleteFile, createMulterMiddleware, processUploadFilesToSave } = require('../utils/fileUtils');
+const path = require('path');
+const { formatDate } = require('../utils/dateUtils');
 
 const signInToken = (user) => {
   const payload = { id: user.id, role: user.role };

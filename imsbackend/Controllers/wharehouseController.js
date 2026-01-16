@@ -1,4 +1,4 @@
-const { Warehouse, Stock } = require('../Models');
+const { Warehouse, Stock } = require('../models');
 const { Op } = require('sequelize');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
