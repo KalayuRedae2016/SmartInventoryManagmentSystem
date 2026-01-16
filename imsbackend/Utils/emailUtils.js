@@ -70,7 +70,7 @@ exports.emailBusinessDetail = async (user, password) => {
   const subject='Welcome to Smart Inventory Managment System!'
   const email = user.email;
   const loginLink = process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:8083'
+    ? 'https://grandinventory.com or http://localhost:8083'
     : 'https://grandinventory.com';
 
   const message = `Hi ${user.fullName},
