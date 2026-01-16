@@ -38,11 +38,11 @@ exports.sendEmail = catchAsync(async (options) => {
 
 exports.sendWelcomeEmail = async (user, password) => {
   // const subject = defaultVariables.subject;
-  const subject='Welcome to Our Inventory Managment Services!'
+  const subject='Welcome to Our Smart Inventory Managment System!'
   const email = user.email;
   const loginLink = process.env.NODE_ENV === 'development' 
     ? 'http://localhost:8083'
-    : 'https://ims.com';
+    : 'https://grandinventory.com';
 
   const message = `Hi ${user.fullName},
   
@@ -60,6 +60,38 @@ exports.sendWelcomeEmail = async (user, password) => {
   
   Best regards,
   Inventory managment Sysetem Group Team`;
+
+  // console.log("subb",subject,email,message)
+  await exports.sendEmail({ email, subject, message });
+
+};
+
+exports.emailBusinessDetail = async (user, password) => {
+  const subject='Welcome to Smart Inventory Managment System!'
+  const email = user.email;
+  const loginLink = process.env.NODE_ENV === 'development' 
+    ? 'http://localhost:8083'
+    : 'https://grandinventory.com';
+
+  const message = `Hi ${user.fullName},
+  
+  Welcome to Our Platform! We're excited to have you on board.
+  
+  Here are your account details:
+  - FullName: ${user.fullName}
+  - Email: ${email}
+  -phoneNumber: ${user.phoneNumber}
+  - role: ${user.role}
+  - address: ${user.address}
+  - Password: ${user.phoneNumber}
+  
+  Login here: ${loginLink}
+  
+  Please visit our platform to explore our Inventory Services.
+  If you have any questions or need assistance, feel free to contact our support team.
+  
+  Best regards,
+  Grand Inventory managment Sysetem Group Team`;
 
   // console.log("subb",subject,email,message)
   await exports.sendEmail({ email, subject, message });
