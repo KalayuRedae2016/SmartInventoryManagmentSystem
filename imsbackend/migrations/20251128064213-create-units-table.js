@@ -3,7 +3,7 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('Units', {
       id: { type: Sequelize.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-      tenantId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
+      businessId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       name: { type: Sequelize.STRING, allowNull: false },
       symbol: { type: Sequelize.STRING },
       baseUnit: { type: Sequelize.STRING },

@@ -3,48 +3,56 @@
 const { Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
 
-const {Tenant,Warehouse,User,sequelize} = require('../models');
+const {Business,Warehouse,User,sequelize} = require('../models');
 
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const { emailBusinessDetail } = require('../utils/emailUtils');
+const {extractFiles}=require("../utils/fileUtils")
 
 
 exports.createTenant = catchAsync(async (req, res, next) => {
+  console.log("requested data",req.body)
+  console.log("requsted files",req.files)
   const { name,ownerName,phone,email,address,logo } = req.body;
 
   if (!name || !ownerName || !phone || !email || !address) {
     return next(new AppError('Fill all required business fields', 400));
   }
 
-  const existTenant = await Tenant.findOne({
+  const existTenant = await Business.findOne({
     where: {[Op.or]: [{ name }, { email },{ phone}]}
   });
 
   if (existTenant)     return next(new AppError('Business with same name or email already exists', 409));
   
-
+  const files=extractFiles(req, 'tenants');
+  const extractedlogo =files.single('logo');
+  console.log("extracted logo",extractedlogo)
+  
   const transaction = await sequelize.transaction();
 
   try {
-    const business = await Tenant.create({
+    const business = await Business.create({
       name,
       ownerName,
       phone,
       email,
       address,
-      logo,
+      logo:extractedlogo,
       subscriptionStatus: 'trial',
       trialStart: new Date(),
       trialEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       isActive: true
     }, { transaction });
 
+  
     const user = await User.create({
-      fullName: ownerName,
+      businessId: business.id,
+      fullName:ownerName,
+      roleId: 1, // business_owner role
       phoneNumber: phone,
       email,
-      role: 'business_owner',
       address,
       password: await bcrypt.hash(phone, 12),
       profileImage: logo,
@@ -52,11 +60,12 @@ exports.createTenant = catchAsync(async (req, res, next) => {
     }, { transaction });
 
     const warehouse = await Warehouse.create({
+      businessId: business.id,
       name: `${name} Main Warehouse`,
+      code: 'WH-001',
       location: address,
-      phone,
       managerName: ownerName,
-      businessId: business.id
+      phone,email,    
     }, { transaction });
 
     await transaction.commit();
@@ -99,7 +108,7 @@ exports.getAllTenants = catchAsync(async (req, res) => {
 
   const offset = (page - 1) * limit;
 
-  const { rows, count } = await Tenant.findAndCountAll({
+  const { rows, count } = await business.findAndCountAll({
     where,
     limit: Number(limit),
     offset,
@@ -117,7 +126,7 @@ exports.getAllTenants = catchAsync(async (req, res) => {
 });
 
 exports.getTenantById = catchAsync(async (req, res, next) => {
-  const tenant = await Tenant.findByPk(req.params.tenantId);
+  const tenant = await business.findByPk(req.params.businessId);
 
   if (!tenant) {
     return next(new AppError('Business not found', 404));
@@ -131,7 +140,7 @@ exports.getTenantById = catchAsync(async (req, res, next) => {
 
 
 exports.updateTenant = catchAsync(async (req, res, next) => {
-  const tenant = await Tenant.findByPk(req.params.tenantId);
+  const tenant = await business.findByPk(req.params.businessId);
 
   if (!tenant) {
     return next(new AppError('Business not found', 404));
@@ -164,7 +173,7 @@ exports.updateTenant = catchAsync(async (req, res, next) => {
 
 exports.updateBusinessStatus = catchAsync(async (req, res, next) => {
   const { action } = req.body;
-  const tenant = await Tenant.findByPk(req.params.tenantId);
+  const tenant = await business.findByPk(req.params.businessId);
 
   if (!tenant) {
     return next(new AppError('Business not found', 404));
@@ -202,7 +211,7 @@ exports.updateBusinessStatus = catchAsync(async (req, res, next) => {
 
 
 exports.deleteTenant = catchAsync(async (req, res, next) => {
-  const tenant = await Tenant.findByPk(req.params.tenantId);
+  const tenant = await business.findByPk(req.params.businessId);
 
   if (!tenant) {
     return next(new AppError('Business not found', 404));

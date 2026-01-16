@@ -4,7 +4,7 @@ module.exports = {
     const now = new Date();
     await queryInterface.bulkInsert('Suppliers', [
       {
-        tenantId: 1,
+        businessId: 1,
         code: 'SUPP001',
         name: 'Global Supplies Ltd',
         phone: '1234567899',
@@ -20,7 +20,7 @@ module.exports = {
         updatedAt: now
       },
       {
-        tenantId: 1,
+        businessId: 1,
         code: 'SUPP002',
         name: 'Tech Distributors Inc',
         phone: '0987654321',

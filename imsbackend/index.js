@@ -13,7 +13,8 @@ const globalErrorHandler = require('./controllers/errorController');
 
 const userRouter = require('./routes/userRoutes');
 const authRouter = require('./routes/authRoutes');
-const customerRouter = require('./routes/customerRoutes');
+const tenantRouter=require('./routes/tenantRoutes');
+// const customerRouter = require('./routes/customerRoutes');
 // const supplierRouter = require('./routes/supplierRoutes');
 // const categoryRouter = require('./routes/categoryRoutes');
 // const wharehouseRouter = require('./routes/wharehouseRoutes');
@@ -132,6 +133,9 @@ app.use((req, res, next) => {
 //  #2 Routers
 app.use('/api/ims/users',userRouter);
 app.use('/api/ims/auth',authRouter);
+
+app.use('/api/ims/tenants',tenantRouter);
+
 // app.use('/api/ims/customers',customerRouter);
 // app.use('/api/ims/suppliers',supplierRouter);
 

@@ -9,7 +9,7 @@ module.exports = {
         primaryKey: true
       },
 
-      tenantId: {
+      businessId: {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: false,
         references: { model: 'Businesses', key: 'id' },

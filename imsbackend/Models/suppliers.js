@@ -5,13 +5,13 @@ module.exports = (sequelize, DataTypes) => {
   class Supplier extends Model {
     static associate(models) {
       Supplier.hasMany(models.Purchase, { foreignKey: 'supplierId', as: 'purchases' });
-      Supplier.belongsTo(models.Business, { foreignKey: 'tenantId', as: 'tenant' });
+      Supplier.belongsTo(models.Business, { foreignKey: 'businessId', as: 'tenant' });
     }
   }
 
   Supplier.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-    tenantId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     code: { type: DataTypes.STRING, allowNull: false },
     name: { type: DataTypes.STRING, allowNull: false },
     phone: { type: DataTypes.STRING },

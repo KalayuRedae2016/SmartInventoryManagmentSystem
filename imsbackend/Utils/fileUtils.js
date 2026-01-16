@@ -7,71 +7,210 @@ const multer = require('multer');
 const catchAsync = require('./catchAsync');
 const AppError = require('./appError');
 
+const fsp = require('fs').promises;
 
-exports.createMulterMiddleware = (destinationFolder, filenamePrefix, allowedTypes = []) => {
-  if (!fs.existsSync(destinationFolder)) fs.mkdirSync(destinationFolder, { recursive: true });
+exports.createMulterMiddleware = (destinationFolder,filenamePrefix,allowedTypes = [],maxFileSizeMB = 5) => {
+  if (!fs.existsSync(destinationFolder)) {
+    fs.mkdirSync(destinationFolder, { recursive: true });
+  }
 
-  const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, destinationFolder),
-    filename: (req, file, cb) => {
-      const timestamp = Date.now();
-      const { name, ext } = path.parse(file.originalname);
-      const uniqueFilename = `${filenamePrefix}-${name}-${timestamp}${path.extname(file.originalname)}`;
-      cb(null, uniqueFilename);
+  const storage = multer.diskStorage({destination: (req, file, cb) => {
+      cb(null, destinationFolder);
     },
+
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      const name = path
+        .basename(file.originalname, ext)
+        .replace(/\s+/g, '-')
+        .toLowerCase();
+
+      const uniqueName = `${filenamePrefix}-${name}-${Date.now()}${ext}`;
+      cb(null, uniqueName);
+    }
   });
 
   const fileFilter = (req, file, cb) => {
-    if (!allowedTypes.length || allowedTypes.includes(file.mimetype)) cb(null, true);
-    else cb(new Error("Unsupported file type"), false);
+    if (!allowedTypes.length || allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(
+        new AppError(
+          `Unsupported file type: ${file.mimetype}`,
+          400
+        ),
+        false
+      );
+    }
   };
 
-  return multer({ storage, fileFilter });
+  return multer({
+    storage,
+    fileFilter,
+    limits: {
+      fileSize: maxFileSizeMB * 1024 * 1024
+    }
+  });
 };
 
-exports.deleteFile = async (filePath) => {
-  if (!filePath) return;
-  const absolutePath = path.join(__dirname, "..", filePath);
-  try {
-    await fs.promises.access(absolutePath);
-    await fs.promises.unlink(absolutePath);
-    console.log("Deleted:", absolutePath);
-  } catch (err) {
-    console.warn("File not found or error deleting:", absolutePath, err.message);
+exports.extractFiles = (req, folder = '') => {
+  const files = req.files || {};
+
+  const getSingle = (field) =>files[field]?.[0]? `/uploads/${folder}/${files[field][0].filename}`: null;
+
+  const getMultiple = (field) =>(files[field] || []).map(file => ({
+      fileName: file.filename,
+      fileType: file.mimetype,
+      path: `/uploads/${folder}/${file.filename}`
+    }));
+
+  return {
+    single: getSingle,
+    multiple: getMultiple
+  };
+};
+
+
+exports.processUploadFilesToSave = async (req,files = {},body = {},existingModel = null,folder = '') => {
+  const baseUrl = `${req.protocol}://${req.get('host')}/uploads/${folder}/`;
+
+  /* ---------- PROFILE IMAGE (SINGLE) ---------- */
+  let profileImage = existingModel?.profileImage || null;
+
+  if (files.profileImage?.length) {
+    profileImage = `${baseUrl}${files.profileImage[0].filename}`;
   }
-};
 
-exports.processUploadFilesToSave = async (req, files = {}, body = {}, existingModel = null, folder = "") => {
-  const baseUrl = `${req.protocol}://${req.get("host")}/uploads/${folder}`;
-
-  // Process profileImage if exists
-  let profileImage = files.profileImage?.[0] ? `${baseUrl}${files.profileImage[0].filename}` : existingModel?.profileImage || null;
-
-  // Process images array
+  /* ---------- IMAGES (MULTIPLE) ---------- */
   const newImages = (files.images || []).map(file => ({
     fileName: file.filename,
     fileType: file.mimetype,
     url: `${baseUrl}${file.filename}`,
-    uploadDate: new Date().toISOString()
+    uploadedAt: new Date()
   }));
 
-  const images = existingModel ? [...(existingModel.images || []), ...newImages] : newImages;
+  const images = existingModel
+    ? [...(existingModel.images || []), ...newImages]
+    : newImages;
 
-  // Process documents array
+  /* ---------- DOCUMENTS (MULTIPLE) ---------- */
   const newDocuments = (files.documents || []).map(file => ({
     fileName: file.filename,
     fileType: file.mimetype,
     url: `${baseUrl}${file.filename}`,
-    uploadDate: new Date().toISOString()
+    uploadedAt: new Date()
   }));
 
-  const documents = existingModel ? [...(existingModel.documents || []), ...newDocuments] : newDocuments;
+  const documents = existingModel
+    ? [...(existingModel.documents || []), ...newDocuments]
+    : newDocuments;
 
-  // Fallback profile image
-  if (!profileImage) profileImage = `${req.protocol}://${req.get("host")}/uploads/default.png`;
+  /* ---------- DEFAULT PROFILE IMAGE ---------- */
+  if (!profileImage) {
+    profileImage = `${req.protocol}://${req.get('host')}/uploads/default.png`;
+  }
 
-  return { profileImage, images, documents };
+  return {
+    profileImage,
+    images,
+    documents
+  };
 };
+
+exports.deleteFile = async (fileUrl) => {
+  if (!fileUrl) return;
+
+  try {
+    const relativePath = fileUrl.split('/uploads/')[1];
+    if (!relativePath) return;
+
+    const absolutePath = path.join(
+      __dirname,
+      '..',
+      'uploads',
+      relativePath
+    );
+
+    await fsp.access(absolutePath);
+    await fsp.unlink(absolutePath);
+  } catch (err) {
+    console.warn('File delete skipped:', err.message);
+  }
+};
+exports.deleteMultipleFiles = async (fileArray = []) => {
+  if (!Array.isArray(fileArray)) return;
+
+  for (const file of fileArray) {
+    if (file?.url) {
+      await exports.deleteFile(file.url);
+    }
+  }
+};
+
+// exports.createMulterMiddleware = (destinationFolder, filenamePrefix, allowedTypes = []) => {
+//   if (!fs.existsSync(destinationFolder)) fs.mkdirSync(destinationFolder, { recursive: true });
+
+//   const storage = multer.diskStorage({
+//     destination: (req, file, cb) => cb(null, destinationFolder),
+//     filename: (req, file, cb) => {
+//       const timestamp = Date.now();
+//       const { name, ext } = path.parse(file.originalname);
+//       const uniqueFilename = `${filenamePrefix}-${name}-${timestamp}${path.extname(file.originalname)}`;
+//       cb(null, uniqueFilename);
+//     },
+//   });
+
+//   const fileFilter = (req, file, cb) => {
+//     if (!allowedTypes.length || allowedTypes.includes(file.mimetype)) cb(null, true);
+//     else cb(new Error("Unsupported file type"), false);
+//   };
+
+//   return multer({ storage, fileFilter });
+// };
+
+// exports.deleteFile = async (filePath) => {
+//   if (!filePath) return;
+//   const absolutePath = path.join(__dirname, "..", filePath);
+//   try {
+//     await fs.promises.access(absolutePath);
+//     await fs.promises.unlink(absolutePath);
+//     console.log("Deleted:", absolutePath);
+//   } catch (err) {
+//     console.warn("File not found or error deleting:", absolutePath, err.message);
+//   }
+// };
+
+// exports.processUploadFilesToSave = async (req, files = {}, body = {}, existingModel = null, folder = "") => {
+//   const baseUrl = `${req.protocol}://${req.get("host")}/uploads/${folder}`;
+
+//   // Process profileImage if exists
+//   let profileImage = files.profileImage?.[0] ? `${baseUrl}${files.profileImage[0].filename}` : existingModel?.profileImage || null;
+
+//   // Process images array
+//   const newImages = (files.images || []).map(file => ({
+//     fileName: file.filename,
+//     fileType: file.mimetype,
+//     url: `${baseUrl}${file.filename}`,
+//     uploadDate: new Date().toISOString()
+//   }));
+
+//   const images = existingModel ? [...(existingModel.images || []), ...newImages] : newImages;
+
+//   // Process documents array
+//   const newDocuments = (files.documents || []).map(file => ({
+//     fileName: file.filename,
+//     fileType: file.mimetype,
+//     url: `${baseUrl}${file.filename}`,
+//     uploadDate: new Date().toISOString()
+//   }));
+
+//   const documents = existingModel ? [...(existingModel.documents || []), ...newDocuments] : newDocuments;
+
+//   // Fallback profile image
+//   if (!profileImage) profileImage = `${req.protocol}://${req.get("host")}/uploads/default.png`;
+
+//   return { profileImage, images, documents };
+// };
 
 exports.importFromExcel = catchAsync(async (req,Model, transformFn) => {
     console.log("hereexcel")

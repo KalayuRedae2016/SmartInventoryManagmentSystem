@@ -18,7 +18,7 @@ module.exports = {
 
     await queryInterface.bulkInsert('Users', [
       {
-        tenantId: 1,
+        businessId: 1,
         roleId: superAdminRoleId,
         fullName: 'System Admin',
         email: 'kalayureda2016@gmail.com',
@@ -29,7 +29,7 @@ module.exports = {
         updatedAt: now
       },
       {
-        tenantId: 1,
+        businessId: 1,
         roleId: adminRoleId,
         fullName: 'Admin',
         email: 'kalayuredae2@gmail.com',

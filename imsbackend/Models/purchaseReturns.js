@@ -14,7 +14,7 @@ module.exports = (sequelize, DataTypes) => {
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
 
     purchaseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-    tenantId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     supplierId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
 

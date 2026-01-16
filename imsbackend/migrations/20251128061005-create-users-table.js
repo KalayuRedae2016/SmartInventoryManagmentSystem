@@ -3,7 +3,7 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('Users', {
       id: { type: Sequelize.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-      tenantId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
+      businessId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       roleId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       fullName: { type: Sequelize.STRING, allowNull: false },
       phoneNumber: { type: Sequelize.STRING, allowNull: false, unique: true },

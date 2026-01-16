@@ -27,7 +27,7 @@ exports.uploadFilesMiddleware = attachments.fields([
 ]);
 
 
-// // Protect all routes after this middleware
+// Protect all routes after this middleware
 
 router.use(authoController.authenticationJwt);
 

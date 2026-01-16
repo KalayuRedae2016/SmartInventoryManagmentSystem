@@ -5,7 +5,7 @@ module.exports = {
 
     await queryInterface.bulkInsert('Customers', [
       {
-        tenantId: 1,
+        businessId: 1,
         code: 'CUST001',
         name: 'John Doe Enterprises',
         phone: '1112223333',
@@ -21,7 +21,7 @@ module.exports = {
         updatedAt: now
       },
       {
-        tenantId: 1,
+        businessId: 1,
         code: 'CUST002',
         name: 'Acme Corp',
         phone: '4445556666',

@@ -138,12 +138,12 @@ exports.VerifyToken = (req, res, next) => {
 exports.generateCode = async ({
   model,
   prefix,
-  tenantId,
+  businessId,
   transaction = null
 }) => {
   const lastRecord = await model.findOne({
     where: {
-      tenant_id: tenantId,
+      tenant_id: businessId,
       code: { [Op.like]: `${prefix}%` }
     },
     order: [['createdAt', 'DESC']],

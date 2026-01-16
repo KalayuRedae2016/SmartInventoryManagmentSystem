@@ -12,7 +12,7 @@ module.exports = (sequelize, DataTypes) => {
 
   StockAdjustment.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-    tenantId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     productId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     userId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },

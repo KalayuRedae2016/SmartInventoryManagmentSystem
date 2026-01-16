@@ -6,14 +6,14 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       Purchase.belongsTo(models.Supplier, { foreignKey: 'supplierId', as: 'supplier' });
       Purchase.belongsTo(models.Warehouse, { foreignKey: 'warehouseId', as: 'warehouse' });
-      Purchase.belongsTo(models.Business, { foreignKey: 'tenantId', as: 'business' });
+      Purchase.belongsTo(models.Business, { foreignKey: 'businessId', as: 'business' });
     }
   }
 
   Purchase.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
 
-    tenantId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     supplierId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
 

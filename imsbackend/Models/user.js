@@ -23,7 +23,7 @@ module.exports = (sequelize, DataTypes) => {
 
   User.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-    tenantId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     roleId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     fullName: { type: DataTypes.STRING, allowNull: false },
     phoneNumber: { type: DataTypes.STRING, allowNull: false, unique: true },
@@ -48,7 +48,7 @@ module.exports = (sequelize, DataTypes) => {
 
   User.associate = (models) => {
     User.belongsTo(models.Role, { foreignKey: 'roleId', as: 'role' });
-    User.belongsTo(models.Business, { foreignKey: 'tenantId', as: 'tenant' });
+    User.belongsTo(models.Business, { foreignKey: 'businessId', as: 'tenant' });
   };
 
   return User;

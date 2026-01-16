@@ -12,7 +12,7 @@ module.exports = (sequelize, DataTypes) => {
   PurchaseReturnItem.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
     purchaseReturnId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-    tenantId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     productId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     quantity: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },

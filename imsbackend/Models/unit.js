@@ -21,7 +21,7 @@ module.exports = (sequelize, DataTypes) => {
           this.setDataValue('name', value.trim());
         }
       },
-      tenantId:{type:DataTypes.INTEGER.UNSIGNED},
+      businessId:{type:DataTypes.INTEGER.UNSIGNED},
       symbol: {type: DataTypes.STRING,allowNull: true},
       baseUnit:{type:DataTypes.STRING},
       operator:{type:DataTypes.STRING},

@@ -13,7 +13,7 @@ module.exports = (sequelize, DataTypes) => {
   SaleReturn.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
     saleId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-    tenantId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     customerId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     totalAmount: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },

@@ -6,7 +6,7 @@ module.exports = {
       id: { type: Sequelize.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
 
       purchaseId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
-      tenantId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
+      businessId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       warehouseId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       productId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
 

@@ -5,7 +5,7 @@ module.exports = {
     await queryInterface.createTable('Purchases', {
       id: { type: Sequelize.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
 
-      tenantId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
+      businessId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       warehouseId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       supplierId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
 

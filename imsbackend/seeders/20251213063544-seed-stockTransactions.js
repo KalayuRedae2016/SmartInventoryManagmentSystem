@@ -4,7 +4,7 @@ module.exports = {
   async up(queryInterface) {
     await queryInterface.bulkInsert('StockTransactions', [
       {
-        tenantId: 1,
+        businessId: 1,
         warehouseId: 1,
         productId: 1,
         type: 'IN',

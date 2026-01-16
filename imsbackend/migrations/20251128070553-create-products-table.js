@@ -4,7 +4,7 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('Products', {
       id: { type: Sequelize.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true, allowNull: false },
-      tenantId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false, references: { model: 'Businesses', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
+      businessId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false, references: { model: 'Businesses', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
       name: { type: Sequelize.STRING, allowNull: false },
       sku: { type: Sequelize.STRING, unique: true },
       partNumber: { type: Sequelize.STRING },

@@ -4,7 +4,7 @@ module.exports = {
     await queryInterface.createTable('SaleReturnItems', {
       id: { type: Sequelize.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
       saleReturnId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false, references: { model: 'SaleReturns', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
-      tenantId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
+      businessId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       warehouseId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       productId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false, references: { model: 'Products', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'RESTRICT' },
       quantity: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },

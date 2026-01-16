@@ -3,7 +3,7 @@
 module.exports = {
   async up(queryInterface) {
     await queryInterface.bulkInsert('PurchaseReturns', [{
-      tenantId: 1,
+      businessId: 1,
       purchaseId: 1,
       supplierId: 1,
       warehouseId: 1,

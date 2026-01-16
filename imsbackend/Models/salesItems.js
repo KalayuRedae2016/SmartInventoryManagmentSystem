@@ -11,7 +11,7 @@ module.exports = (sequelize, DataTypes) => {
 
   SaleItem.init({
     saleId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-    tenantId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     productId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     quantity: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
