@@ -66,7 +66,7 @@ exports.sendWelcomeEmail = async (user, password) => {
 
 };
 
-exports.emailBusinessDetail = async (user, password) => {
+exports.emailBusinessDetail = async (user, role,password) => {
   const subject='Welcome to Smart Inventory Managment System!'
   const email = user.email;
   const loginLink = process.env.NODE_ENV === 'development' 
@@ -79,13 +79,12 @@ exports.emailBusinessDetail = async (user, password) => {
   
   Here are your account details:
   - FullName: ${user.fullName}
+  -role: ${role}
   - Email: ${email}
   -phoneNumber: ${user.phoneNumber}
-  - role: ${user.role}
   - address: ${user.address}
-  - Password: ${user.phoneNumber}
-  
-  Login here: ${loginLink}
+  - Password: ${password}
+  -Login here: ${loginLink}
   
   Please visit our platform to explore our Inventory Services.
   If you have any questions or need assistance, feel free to contact our support team.

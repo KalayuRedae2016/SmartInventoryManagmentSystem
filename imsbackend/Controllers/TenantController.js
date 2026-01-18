@@ -70,7 +70,7 @@ exports.createTenant = catchAsync(async (req, res, next) => {
 
     await transaction.commit();
 
-    await emailBusinessDetail(user);
+    await emailBusinessDetail(user,"business_owner",phone);
 
     res.status(201).json({
       status: 'success',
