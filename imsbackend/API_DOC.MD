@@ -558,36 +558,6 @@ Endpoints:
     POST   /sale-return-items/import
     GET    /sale-return-items/export/excel
     GET    /sale-return-items/export/pdf
-# StockTransaction
-Model:
-    id(INT, PK, autoIncrement),
-    businessId(INT, not null),
-    warehouseId(INT, not null),
-    productId(INT, not null),
-    type(ENUM: 'IN', 'OUT', 'TRANSFER', 'ADJUST', not null),
-    quantity(INT, not null),
-    referenceType(ENUM: 'PURCHASE','SALE','RETURN','ADJUSTMENT','TRANSFER', nullable),
-    referenceId(INT, nullable),
-    performedBy(INT, nullable),
-    note(STRING, nullable),
-    createdAt(DATETIME),
-    updatedAt(DATETIME)
-
-Relationships:
-    StockTransaction → Business (belongsTo)
-    StockTransaction → Warehouse (belongsTo)
-    StockTransaction → Product (belongsTo)
-    StockTransaction → User (belongsTo)
-
-Endpoints:
-    GET    /stock-transactions
-    POST   /stock-transactions
-    GET    /stock-transactions/:id
-    PUT    /stock-transactions/:id
-    DELETE /stock-transactions/:id
-    POST   /stock-transactions/import
-    GET    /stock-transactions/export/excel
-    GET    /stock-transactions/export/pdf
 # StockTransfer
 Model:
     id(INT, PK, autoIncrement),
@@ -644,3 +614,33 @@ Endpoints:
     POST   /stocks/import
     GET    /stocks/export/excel
     GET    /stocks/export/pdf
+# StockTransaction
+Model:
+    id(INT, PK, autoIncrement),
+    businessId(INT, not null),
+    warehouseId(INT, not null),
+    productId(INT, not null),
+    type(ENUM: 'IN', 'OUT', 'TRANSFER', 'ADJUST', not null),
+    quantity(INT, not null),
+    referenceType(ENUM: 'PURCHASE','SALE','RETURN','ADJUSTMENT','TRANSFER', nullable),
+    referenceId(INT, nullable),
+    performedBy(INT, nullable),
+    note(STRING, nullable),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    StockTransaction → Business (belongsTo)
+    StockTransaction → Warehouse (belongsTo)
+    StockTransaction → Product (belongsTo)
+    StockTransaction → User (belongsTo)
+
+Endpoints:
+    GET    /stock-transactions
+    POST   /stock-transactions
+    GET    /stock-transactions/:id
+    PUT    /stock-transactions/:id
+    DELETE /stock-transactions/:id
+    POST   /stock-transactions/import
+    GET    /stock-transactions/export/excel
+    GET    /stock-transactions/export/pdf
