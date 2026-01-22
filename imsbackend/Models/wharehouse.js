@@ -14,15 +14,12 @@ module.exports = (sequelize, DataTypes) => {
     {
       id: {type: DataTypes.INTEGER.UNSIGNED,autoIncrement: true, primaryKey: true},
       businessId: {type: DataTypes.INTEGER.UNSIGNED,allowNull: false},
-
       name: {type: DataTypes.STRING,allowNull: false},
       code: {type: DataTypes.STRING,allowNull: false},
-  
       location: DataTypes.STRING,
       managerName: DataTypes.STRING,
       phone: DataTypes.STRING,
       email: DataTypes.STRING,
-
       isActive: {type: DataTypes.BOOLEAN,defaultValue: true}
     },
     {

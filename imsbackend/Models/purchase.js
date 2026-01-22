@@ -12,18 +12,14 @@ module.exports = (sequelize, DataTypes) => {
 
   Purchase.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-
     businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     supplierId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-
     totalAmount: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
     paidAmount: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
     dueAmount: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
-
     paymentMethod: { type: DataTypes.ENUM('cash', 'credit'), allowNull: false, defaultValue: 'cash' },
     status: { type: DataTypes.ENUM('pending', 'partial', 'paid'), defaultValue: 'pending' },
-
     note: { type: DataTypes.STRING },
     isActive: { type: DataTypes.BOOLEAN, defaultValue: true }
   }, {

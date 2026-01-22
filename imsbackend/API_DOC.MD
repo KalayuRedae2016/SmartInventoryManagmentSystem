@@ -7,72 +7,103 @@
 **Common Query Params:** `?page=&limit=&sortBy=&order=&search=&status=active|inactive`  
 
 # Success Response Format:
-  return res.status(200).json({
+  return res.status(200.201).json({
       error: false,
       status: 1,
       message:"Success Message",
-      result:items.length,
-      items: items,
+      result:data.length,
+      data: datas,
     });
     
 # Error Response Format:**
 return res.status(500,404,400,401).json({
       error: true,
+      status:0,
       message:"Error Message"
-      items: [],
+      data: [],
     });
 
-# Category
-Model: id(INT), name(STRING), description(STRING), createdAt(DATETIME), updatedAt(DATETIME)
+# Business (Tenant)
+Model:
+    id(INT),
+    name(STRING),
+    ownerName(STRING),
+    phone(STRING),
+    email(STRING),
+    address(STRING),
+    logo(STRING),
+    subscriptionStatus(ENUM: trial | pending | active | expired),
+    trialStart(DATETIME),
+    trialEnd(DATETIME),
+    isActive(BOOLEAN),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
 Endpoints:
-    GET    /categories
-    POST   /categories
-    GET    /categories/:id
-    PUT    /categories/:id
-    DELETE /categories/:id
-    POST   /categories/import
-    GET    /categories/export/excel
-    GET    /categories/export/pdf
-    PATCH  /categories/:id/status
-# Brand
-Model: id(INT), name(STRING), country(STRING), description(STRING), image(STRING), isActive(BOOLEAN), createdAt(DATETIME), updatedAt(DATETIME)
+    GET    /businesses
+    POST   /businesses
+    GET    /businesses/:id
+    PUT    /businesses/:id
+    DELETE /businesses/:id
+    PATCH  /businesses/:id/status
+    POST   /businesses/:id/activate
+    POST   /businesses/:id/expire
+    POST   /businesses/:id/disable
+# Subscription Payment
+Model:
+    id(INT),
+    subscriptionId(INT),
+    amount(DECIMAL),
+    paymentMethod(STRING),
+    paymentSlipUrl(STRING),
+    status(ENUM: pending | approved | rejected),
+    reviewedBy(INT),
+    reviewedAt(DATETIME),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
 Endpoints:
-    GET    /brands
-    POST   /brands
-    GET    /brands/:id
-    PUT    /brands/:id
-    DELETE /brands/:id
-    POST   /brands/import
-    GET    /brands/export/excel
-    GET    /brands/export/pdf
-    PATCH  /brands/:id/status
-# Unit
-Model: id(INT), name(STRING), symbol(STRING), baseUnit(STRING), operator(STRING), operationValue(DECIMAL), description(STRING), isActive(BOOLEAN), createdAt(DATETIME), updatedAt(DATETIME)
+    GET    /subscription-payments
+    POST   /subscription-payments
+    GET    /subscription-payments/:id
+    PUT    /subscription-payments/:id
+    DELETE /subscription-payments/:id
+    PATCH  /subscription-payments/:id/status
+    GET    /subscriptions/:subscriptionId/payments
+# Role
+Model:
+    id(INT),
+    businessId(INT),
+    name(STRING),
+    code(STRING),
+    permissions(JSON),
+    description(STRING),
+    isActive(BOOLEAN),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
 Endpoints:
-    GET    /units
-    POST   /units
-    GET    /units/:id
-    PUT    /units/:id
-    DELETE /units/:id
-    POST   /units/import
-    GET    /units/export/excel
-    GET    /units/export/pdf
-    PATCH  /units/:id/status
-# Product
-Model: id(INT), name(STRING), categoryId(INT), brandId(INT), unitId(INT), costPrice(DECIMAL), sellingPrice(DECIMAL), reorderLimit(INT), hasVariants(BOOLEAN), hasSerialNumbers(BOOLEAN), hasBatches(BOOLEAN), SKU(STRING), barcode(STRING), description(STRING), isActive(BOOLEAN), createdAt(DATETIME), updatedAt(DATETIME)
-Endpoints:
-    GET    /products
-    POST   /products
-    GET    /products/:id
-    PUT    /products/:id
-    DELETE /products/:id
-    PATCH  /products/:id/status
-    POST   /products/labels/print
-    POST   /products/import
-    GET    /products/export/excel
-    GET    /products/export/pdf
+    GET    /roles
+    POST   /roles
+    GET    /roles/:id
+    PUT    /roles/:id
+    DELETE /roles/:id
+    PATCH  /roles/:id/status
+    GET    /businesses/:businessId/roles
 # Warehouse
-Model: id(INT), name(STRING), code(STRING), location(STRING), managerName(STRING), contactPhone(STRING), isActive(BOOLEAN), createdAt(DATETIME), updatedAt(DATETIME)
+Model:
+    id(INT),
+    businessId(INT),
+    name(STRING),
+    code(STRING),
+    location(STRING),
+    managerName(STRING),
+    phone(STRING),
+    email(STRING),
+    isActive(BOOLEAN),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
 Endpoints:
     GET    /warehouses
     POST   /warehouses
@@ -80,11 +111,25 @@ Endpoints:
     PUT    /warehouses/:id
     DELETE /warehouses/:id
     PATCH  /warehouses/:id/status
-    POST   /warehouses/import
-    GET    /warehouses/export/excel
-    GET    /warehouses/export/pdf
+    GET    /businesses/:businessId/warehouses
 # User
-Model: id(INT), code(STRING), fullName(STRING), phone(STRING), email(STRING), password(STRING), roleId(INT), permissions(JSON/ARRAY), isActive(BOOLEAN), createdAt(DATETIME), updatedAt(DATETIME)
+Model:
+    id(INT),
+    businessId(INT),
+    roleId(INT),
+    fullName(STRING),
+    phoneNumber(STRING),
+    email(STRING),
+    password(STRING),
+    profileImage(STRING),
+    address(STRING),
+    isActive(BOOLEAN),
+    passwordResetOTP(STRING),
+    passwordResetOTPExpires(DATETIME),
+    changePassword(BOOLEAN),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
 Endpoints:
     GET    /users
     POST   /users
@@ -92,84 +137,510 @@ Endpoints:
     PUT    /users/:id
     DELETE /users/:id
     PATCH  /users/:id/status
+
+    GET    /businesses/:businessId/users
+    GET    /roles/:roleId/users
+
+    POST   /users/login
+    POST   /users/logout
+    POST   /users/forgot-password
+    POST   /users/reset-password
+    PATCH  /users/change-password
+
     POST   /users/import
     GET    /users/export/excel
     GET    /users/export/pdf
-# Customer
-Model: id(INT), code(STRING), name(STRING), phone(STRING), email(STRING), country(STRING), city(STRING), address(STRING), taxNumber(STRING), totalSaleDue(DECIMAL), totalSaleReturnDue(DECIMAL), additionalInfo(STRING), createdAt(DATETIME), updatedAt(DATETIME)
+# Category
+Model:
+    id(INT),
+    businessId(INT),
+    name(STRING),
+    description(TEXT),
+    isActive(BOOLEAN),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
 Endpoints:
-    GET    /customers
-    POST   /customers
-    GET    /customers/:id
-    PUT    /customers/:id
-    DELETE /customers/:id
-    POST   /customers/import
-    GET    /customers/export/excel
-    GET    /customers/export/pdf
-    PATCH  /customers/:id/status
+    GET    /categories
+    POST   /categories
+    GET    /categories/:id
+    PUT    /categories/:id
+    DELETE /categories/:id
+    PATCH  /categories/:id/status
+
+    GET    /businesses/:businessId/categories
+
+    POST   /categories/import
+    GET    /categories/export/excel
+    GET    /categories/export/pdf
+# Brand
+Model:
+    id(INT),
+    businessId(INT),
+    name(STRING),
+    country(STRING),
+    description(TEXT),
+    image(STRING),
+    isActive(BOOLEAN),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Endpoints:
+    GET    /brands
+    POST   /brands
+    GET    /brands/:id
+    PUT    /brands/:id
+    DELETE /brands/:id
+    PATCH  /brands/:id/status
+
+    GET    /businesses/:businessId/brands
+
+    POST   /brands/import
+    GET    /brands/export/excel
+    GET    /brands/export/pdf
+# Unit
+Model:
+    id(INT),
+    businessId(INT),
+    name(STRING),
+    symbol(STRING),
+    baseUnit(STRING),
+    operator(STRING),
+    operationValue(STRING),
+    description(TEXT),
+    isActive(BOOLEAN),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Endpoints:
+    GET    /units
+    POST   /units
+    GET    /units/:id
+    PUT    /units/:id
+    DELETE /units/:id
+    PATCH  /units/:id/status
+
+    GET    /businesses/:businessId/units
+
+    POST   /units/import
+    GET    /units/export/excel
+    GET    /units/export/pdf
+# Product
+Model:
+    id(INT),
+    businessId(INT),
+    name(STRING),
+    sku(STRING),
+    partNumber(STRING),
+    serialTracking(BOOLEAN),
+    categoryId(INT),
+    brandId(INT),
+    unitId(INT),
+    defaultCostPrice(FLOAT),
+    defaultSellingPrice(FLOAT),
+    lastPurchaseCost(FLOAT),
+    minimumStock(INT),
+    preferredCostMethod(ENUM: FIFO | LIFO | AVERAGE),
+    barcode(STRING),
+    images(JSON),
+    isActive(BOOLEAN),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    Product → Business (belongsTo)
+    Product → Category (belongsTo)
+    Product → Brand (belongsTo)
+    Product → Unit (belongsTo)
+
+Endpoints:
+    GET    /products
+    POST   /products
+    GET    /products/:id
+    PUT    /products/:id
+    DELETE /products/:id
+    PATCH  /products/:id/status
+
+    GET    /businesses/:businessId/products
+    GET    /categories/:categoryId/products
+    GET    /brands/:brandId/products
+
+    POST   /products/import
+    GET    /products/export/excel
+    GET    /products/export/pdf
 # Supplier
-Model: id(INT), code(STRING), name(STRING), phone(STRING), email(STRING), country(STRING), city(STRING), address(STRING), taxNumber(STRING), totalPurchaseDue(DECIMAL), totalPurchaseReturnDue(DECIMAL), additionalInfo(STRING), createdAt(DATETIME), updatedAt(DATETIME)
+Model:
+    id(INT),
+    businessId(INT),
+    code(STRING),
+    name(STRING),
+    phone(STRING),
+    email(STRING),
+    country(STRING),
+    city(STRING),
+    address(STRING),
+    taxNumber(STRING),
+    totalPurchaseDue(FLOAT),
+    totalPurchaseReturnDue(FLOAT),
+    additionalInfo(STRING),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    Supplier → Business (belongsTo)
+    Supplier → Purchase (hasMany)
+
 Endpoints:
     GET    /suppliers
     POST   /suppliers
     GET    /suppliers/:id
     PUT    /suppliers/:id
     DELETE /suppliers/:id
+    PATCH  /suppliers/:id/status
     POST   /suppliers/import
     GET    /suppliers/export/excel
     GET    /suppliers/export/pdf
-    PATCH  /suppliers/:id/status
+# Customer
+Model:
+    id(INT),
+    businessId(INT),
+    code(STRING),
+    name(STRING),
+    phone(STRING),
+    email(STRING),
+    country(STRING),
+    city(STRING),
+    address(STRING),
+    taxNumber(STRING),
+    totalSaleDue(FLOAT),
+    totalSalesReturnDue(FLOAT),
+    additionalInfo(STRING),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    Customer → Business (belongsTo)
+    Customer → Sale (hasMany)
+
+Endpoints:
+    GET    /customers
+    POST   /customers
+    GET    /customers/:id
+    PUT    /customers/:id
+    DELETE /customers/:id
+    PATCH  /customers/:id/status
+    POST   /customers/import
+    GET    /customers/export/excel
+    GET    /customers/export/pdf
 # Purchase
-Model: id(INT), supplierId(INT), warehouseId(INT), totalAmount(DECIMAL), paidAmount(DECIMAL), status(STRING), createdAt(DATETIME), updatedAt(DATETIME)
+Model:
+    id(INT),
+    businessId(INT),
+    warehouseId(INT),
+    supplierId(INT),
+    totalAmount(FLOAT),
+    paidAmount(FLOAT),
+    dueAmount(FLOAT),
+    paymentMethod(ENUM: 'cash','credit'),
+    status(ENUM: 'pending','partial','paid'),
+    note(STRING),
+    isActive(BOOLEAN),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    Purchase → Supplier (belongsTo)
+    Purchase → Warehouse (belongsTo)
+    Purchase → Business (belongsTo)
+
 Endpoints:
     GET    /purchases
     POST   /purchases
     GET    /purchases/:id
-    POST   /purchases/:id/return
+    PUT    /purchases/:id
+    DELETE /purchases/:id
+    PATCH  /purchases/:id/status
     POST   /purchases/import
     GET    /purchases/export/excel
     GET    /purchases/export/pdf
+# PurchaseItem
+Model:
+    id(INT),
+    purchaseId(INT),
+    businessId(INT),
+    warehouseId(INT),
+    productId(INT),
+    quantity(INT),
+    unitPrice(FLOAT),
+    total(FLOAT),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    PurchaseItem → Purchase (belongsTo)
+    PurchaseItem → Product (belongsTo)
+
+Endpoints:
+    GET    /purchase-items
+    POST   /purchase-items
+    GET    /purchase-items/:id
+    PUT    /purchase-items/:id
+    DELETE /purchase-items/:id
+    PATCH  /purchase-items/:id/status
+    POST   /purchase-items/import
+    GET    /purchase-items/export/excel
+    GET    /purchase-items/export/pdf
+# PurchaseReturn
+Model:
+    id(INT),
+    purchaseId(INT),
+    businessId(INT),
+    warehouseId(INT),
+    supplierId(INT),
+    totalAmount(FLOAT),
+    reason(STRING),
+    status(ENUM('pending', 'completed')),
+    isActive(BOOLEAN),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    PurchaseReturn → Purchase (belongsTo)
+    PurchaseReturn → Supplier (belongsTo)
+    PurchaseReturn → Warehouse (belongsTo)
+
+Endpoints:
+    GET    /purchase-returns
+    POST   /purchase-returns
+    GET    /purchase-returns/:id
+    PUT    /purchase-returns/:id
+    DELETE /purchase-returns/:id
+    PATCH  /purchase-returns/:id/status
+    POST   /purchase-returns/import
+    GET    /purchase-returns/export/excel
+    GET    /purchase-returns/export/pdf
+# PurchaseReturnItem
+Model:
+    id(INT),
+    purchaseReturnId(INT),
+    businessId(INT),
+    warehouseId(INT),
+    productId(INT),
+    quantity(INT),
+    unitPrice(FLOAT),
+    total(FLOAT),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    PurchaseReturnItem → PurchaseReturn (belongsTo)
+    PurchaseReturnItem → Product (belongsTo)
+
+Endpoints:
+    GET    /purchase-return-items
+    POST   /purchase-return-items
+    GET    /purchase-return-items/:id
+    PUT    /purchase-return-items/:id
+    DELETE /purchase-return-items/:id
+    PATCH  /purchase-return-items/:id/status
+    POST   /purchase-return-items/import
+    GET    /purchase-return-items/export/excel
+    GET    /purchase-return-items/export/pdf
 # Sale
-Model: id(INT), customerId(INT), warehouseId(INT), totalAmount(DECIMAL), paidAmount(DECIMAL), status(STRING), createdAt(DATETIME), updatedAt(DATETIME)
+Model:
+    id(INT),
+    businessId(INT),
+    warehouseId(INT),
+    customerId(INT),
+    invoiceNumber(STRING),
+    saleDate(DATETIME),
+    totalAmount(DECIMAL),
+    paymentMethod(ENUM: 'cash','bank_transfer','mobile_payment'),
+    userId(INT),
+    status(BOOLEAN),
+    due(DECIMAL),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    Sale → SaleItem (hasMany)
+    Sale → SaleReturn (hasMany)
+    Sale → Customer (belongsTo)
+    Sale → User (belongsTo)
+
 Endpoints:
     GET    /sales
     POST   /sales
     GET    /sales/:id
-    POST   /sales/:id/return
+    PUT    /sales/:id
+    DELETE /sales/:id
+    PATCH  /sales/:id/status
     POST   /sales/import
     GET    /sales/export/excel
     GET    /sales/export/pdf
+# SaleItem
+Model:
+    saleId(INT),
+    businessId(INT),
+    warehouseId(INT),
+    productId(INT),
+    quantity(INT),
+    unitPrice(FLOAT),
+    total(FLOAT),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    SaleItem → Sale (belongsTo)
+    SaleItem → Product (belongsTo)
+
+Endpoints:
+    GET    /sale-items
+    POST   /sale-items
+    GET    /sale-items/:id
+    PUT    /sale-items/:id
+    DELETE /sale-items/:id
+    PATCH  /sale-items/:id/status
+    POST   /sale-items/import
+    GET    /sale-items/export/excel
+    GET    /sale-items/export/pdf
+# SaleReturn
+Model:
+    id(INT, PK),
+    saleId(INT),
+    businessId(INT),
+    warehouseId(INT),
+    customerId(INT),
+    totalAmount(DECIMAL),
+    status(BOOLEAN),
+    paymentMethod(ENUM: 'cash','bank_transfer','mobile_payment'),
+    returnDate(DATETIME),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    SaleReturn → Sale (belongsTo)
+    SaleReturn → Customer (belongsTo)
+    SaleReturn → SaleReturnItem (hasMany)
+
+Endpoints:
+    GET    /sale-returns
+    POST   /sale-returns
+    GET    /sale-returns/:id
+    PUT    /sale-returns/:id
+    DELETE /sale-returns/:id
+    PATCH  /sale-returns/:id/status
+    POST   /sale-returns/import
+    GET    /sale-returns/export/excel
+    GET    /sale-returns/export/pdf
+# SaleReturnItem
+Model:
+    saleReturnId(INT),
+    businessId(INT),
+    warehouseId(INT),
+    productId(INT),
+    quantity(INT),
+    unitPrice(FLOAT),
+    total(FLOAT),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    SaleReturnItem → SaleReturn (belongsTo)
+    SaleReturnItem → Product (belongsTo)
+
+Endpoints:
+    GET    /sale-return-items
+    POST   /sale-return-items
+    GET    /sale-return-items/:id
+    PUT    /sale-return-items/:id
+    DELETE /sale-return-items/:id
+    POST   /sale-return-items/import
+    GET    /sale-return-items/export/excel
+    GET    /sale-return-items/export/pdf
+# StockTransaction
+Model:
+    id(INT, PK, autoIncrement),
+    businessId(INT, not null),
+    warehouseId(INT, not null),
+    productId(INT, not null),
+    type(ENUM: 'IN', 'OUT', 'TRANSFER', 'ADJUST', not null),
+    quantity(INT, not null),
+    referenceType(ENUM: 'PURCHASE','SALE','RETURN','ADJUSTMENT','TRANSFER', nullable),
+    referenceId(INT, nullable),
+    performedBy(INT, nullable),
+    note(STRING, nullable),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    StockTransaction → Business (belongsTo)
+    StockTransaction → Warehouse (belongsTo)
+    StockTransaction → Product (belongsTo)
+    StockTransaction → User (belongsTo)
+
+Endpoints:
+    GET    /stock-transactions
+    POST   /stock-transactions
+    GET    /stock-transactions/:id
+    PUT    /stock-transactions/:id
+    DELETE /stock-transactions/:id
+    POST   /stock-transactions/import
+    GET    /stock-transactions/export/excel
+    GET    /stock-transactions/export/pdf
+# StockTransfer
+Model:
+    id(INT, PK, autoIncrement),
+    businessId(INT, not null),
+    fromWarehouseId(INT, not null),
+    toWarehouseId(INT, not null),
+    productId(INT, not null),
+    userId(INT, not null),
+    quantity(INT, not null),
+    note(STRING, nullable),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    StockTransfer → Product (belongsTo)
+    StockTransfer → Warehouse (fromWarehouse, belongsTo)
+    StockTransfer → Warehouse (toWarehouse, belongsTo)
+    StockTransfer → User (belongsTo)
+
+Endpoints:
+    GET    /stock-transfers
+    POST   /stock-transfers
+    GET    /stock-transfers/:id
+    PUT    /stock-transfers/:id
+    DELETE /stock-transfers/:id
+    POST   /stock-transfers/import
+    GET    /stock-transfers/export/excel
+    GET    /stock-transfers/export/pdf
 # Stock
-Model: id(INT), productId(INT), warehouseId(INT), quantity(DECIMAL), alertQuantity(DECIMAL), createdAt(DATETIME), updatedAt(DATETIME)
+Model:
+    id(INT, PK, autoIncrement),
+    businessId(INT, not null),
+    warehouseId(INT, not null),
+    productId(INT, not null),
+    quantity(INT, not null),
+    type(ENUM: 'IN', 'OUT', 'TRANSFER', 'ADJUST', not null),
+    referenceId(INT, nullable),
+    performedBy(INT, nullable),
+    note(STRING, nullable),
+    valueDate(DATETIME, default NOW),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    Stock → Product (belongsTo)
+
 Endpoints:
-GET    /stock
-GET    /stock/:productId
-# Stock Transaction
-Model: id(INT), productId(INT), warehouseId(INT), type(ENUM: IN, OUT, TRANSFER, ADJUSTMENT), quantity(DECIMAL), referenceType(STRING), referenceId(INT), performedBy(INT), remarks(STRING), valueDate(DATE), createdAt(DATETIME), updatedAt(DATETIME)
-Endpoints:
-GET    /stock-transactions
-POST   /stock-transactions
-# Stock Transfer
-Endpoints:
-GET    /stock-transfers
-POST   /stock-transfers
-# Stock Adjustment
-Endpoints:
-GET    /stock-adjustments
-POST   /stock-adjustments
-# Reports
-Endpoints:
-    GET /reports/stock
-    GET /reports/stock-alerts
-    GET /reports/product
-    GET /reports/sales
-    GET /reports/sales-products
-    GET /reports/best-customers
-    GET /reports/purchases
-    GET /reports/purchase-products
-    GET /reports/suppliers
-    GET /reports/profit-loss
-# Bulk & Export Operations
-POST /{module}/import
-GET  /{module}/export/excel
-GET  /{module}/export/pdf
+    GET    /stocks
+    POST   /stocks
+    GET    /stocks/:id
+    PUT    /stocks/:id
+    DELETE /stocks/:id
+    PATCH  /stocks/:id/adjust
+    POST   /stocks/import
+    GET    /stocks/export/excel
+    GET    /stocks/export/pdf

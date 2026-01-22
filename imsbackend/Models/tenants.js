@@ -12,20 +12,15 @@ module.exports = (sequelize, DataTypes) => {
   Business.init(
     {
       id: {type: DataTypes.INTEGER.UNSIGNED,autoIncrement: true,primaryKey: true},
-
       name: {type: DataTypes.STRING,allowNull: false},
       ownerName: {type: DataTypes.STRING,allowNull: false},
-
       phone: DataTypes.STRING,
       email: DataTypes.STRING,
       address: DataTypes.STRING,
       logo: DataTypes.STRING,
-
       subscriptionStatus: {type: DataTypes.ENUM('trial', 'pending', 'active', 'expired'),defaultValue: 'trial'},
-
       trialStart: DataTypes.DATE,
       trialEnd: DataTypes.DATE,
-
       isActive: {type: DataTypes.BOOLEAN,defaultValue: true}
     },
     {

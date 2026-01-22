@@ -12,16 +12,13 @@ module.exports = (sequelize, DataTypes) => {
 
   PurchaseReturn.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-
     purchaseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     supplierId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-
     totalAmount: { type: DataTypes.FLOAT, defaultValue: 0 },
     reason: { type: DataTypes.STRING },
     status: { type: DataTypes.ENUM('pending', 'completed'), defaultValue: 'completed' },
-
     isActive: { type: DataTypes.BOOLEAN, defaultValue: true }
   }, {
     sequelize,
