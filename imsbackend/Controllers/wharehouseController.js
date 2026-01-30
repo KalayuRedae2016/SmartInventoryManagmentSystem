@@ -4,10 +4,11 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 exports.createWarehouse = catchAsync(async (req, res, next) => {
-  const { name, code, location, phone, managerName } = req.body;
+  const {businessId,name, code, location,managerName,phone,email,isActive } = req.body;
+  console.log("warhouse req.body",req.body);
 
-  if (!name || !code) {
-    return next(new AppError('Warehouse name and code are required', 400));
+  if (!businessId || !name || !code) {
+    return next(new AppError('Business ID, Warehouse name and code are required', 400));
   }
 
   const exists = await Warehouse.findOne({ where: { code } });
@@ -16,11 +17,14 @@ exports.createWarehouse = catchAsync(async (req, res, next) => {
   }
 
   const warehouse = await Warehouse.create({
+    businessId,
     name,
     code,
     location,
-    phone,
     managerName,
+    phone,
+    email,
+    isActive
   });
 
   res.status(201).json({
@@ -51,6 +55,7 @@ exports.getAllWarehouses = catchAsync(async (req, res) => {
       { code: { [Op.like]: `%${search}%` } },
       { location: { [Op.like]: `%${search}%` } },
       { phone: { [Op.like]: `%${search}%` } },
+      { email: { [Op.like]: `%${search}%` } },
       { managerName: { [Op.like]: `%${search}%` } },
     ];
   }
@@ -80,25 +85,26 @@ exports.getAllWarehouses = catchAsync(async (req, res) => {
 });
 
 exports.getWarehouseById = catchAsync(async (req, res, next) => {
-  const warehouse = await Warehouse.findByPk(req.params.id);
+  const warehouse = await Warehouse.findByPk(req.params.warehouseId);
 
   if (!warehouse) {
     return next(new AppError('Warehouse not found', 404));
   }
 
   res.status(200).json({
-    status: 'success',
+    status: 1,
+    message: 'Warehouse retrieved successfully',
     data: warehouse,
   });
 });
 
 exports.updateWarehouse = catchAsync(async (req, res, next) => {
-  const warehouse = await Warehouse.findByPk(req.params.id);
+  const warehouse = await Warehouse.findByPk(req.params.warehouseId);
   if (!warehouse) {
     return next(new AppError('Warehouse not found', 404));
   }
 
-  const allowedFields = ['name', 'location', 'phone', 'managerName', 'isActive'];
+  const allowedFields = ['name', 'location', 'phone', 'email','managerName', 'isActive'];
   const updates = {};
 
   allowedFields.forEach((field) => {
@@ -116,7 +122,7 @@ exports.updateWarehouse = catchAsync(async (req, res, next) => {
 });
 
 exports.toggleWarehouseStatus = catchAsync(async (req, res, next) => {
-  const warehouse = await Warehouse.findByPk(req.params.id);
+  const warehouse = await Warehouse.findByPk(req.params.warehouseId);
   if (!warehouse) {
     return next(new AppError('Warehouse not found', 404));
   }
@@ -125,13 +131,14 @@ exports.toggleWarehouseStatus = catchAsync(async (req, res, next) => {
   await warehouse.save();
 
   res.status(200).json({
-    status: 'success',
+    status: 1,
+    message:`${warehouse.isActive ? 'Activated' : 'Deactivated'} successfully`,
     isActive: warehouse.isActive,
   });
 });
 
-exports.deleteWarehouse = catchAsync(async (req, res, next) => {
-  const warehouse = await Warehouse.findByPk(req.params.id);
+exports.deleteWarehouseById = catchAsync(async (req, res, next) => {
+  const warehouse = await Warehouse.findByPk(req.params.warehouseId);
   if (!warehouse) {
     return next(new AppError('Warehouse not found', 404));
   }
@@ -148,5 +155,8 @@ exports.deleteWarehouse = catchAsync(async (req, res, next) => {
 
   await warehouse.destroy();
 
-  res.status(204).json({ status: 'success' });
+  res.status(204).json({ 
+    status: 1, 
+    message: 'Warehouse deleted successfully'
+   });
 });

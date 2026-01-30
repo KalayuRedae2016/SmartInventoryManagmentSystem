@@ -15,11 +15,12 @@ const bussinessRouter=require('./routes/businessRoutes');
 const authRouter = require('./routes/authRoutes');
 const roleRouter=require("./routes/roleRoutes");
 const userRouter = require('./routes/userRoutes');
+const wharehouseRouter = require('./routes/wharehouseRoutes');
 
 // const customerRouter = require('./routes/customerRoutes');
 // const supplierRouter = require('./routes/supplierRoutes');
 // const categoryRouter = require('./routes/categoryRoutes');
-// const wharehouseRouter = require('./routes/wharehouseRoutes');
+
 // const brandRouter = require('./routes/brandRoutes');
 // const unitRouter = require('./routes/unitRoutes');
 // const productRouter = require('./routes/ProductRoutes');
@@ -136,6 +137,8 @@ app.use((req, res, next) => {
 
 app.use('/api/ims/business',bussinessRouter);
 app.use('/api/ims/roles',roleRouter);
+app.use('/api/ims/warehouses',wharehouseRouter);
+
 app.use('/api/ims/users',userRouter);
 app.use('/api/ims/auth',authRouter);
 
@@ -147,10 +150,11 @@ app.use('/api/ims/auth',authRouter);
 // app.use('/api/ims/categories',categoryRouter);
 // app.use('/api/ims/brands',brandRouter);
 // app.use('/api/ims/units',unitRouter);
-// app.use('/api/ims/warehouses',wharehouseRouter);
 // app.use('/api/ims/products',productRouter);
+
 // app.use('/api/ims/purchases',purchaseRouter);
 // app.use('/api/ims/purchaseItems',purchaseItemRouter);
+
 // app.use('/api/ims/sales',saleRouter);
 // app.use('/api/ims/saleItems',saleItemRouter);
 //app.use('/api/ims/stockAdjustments',stockAdjustmentRouter);
