@@ -10,8 +10,7 @@ const AppError = require('../utils/appError');
 const { emailBusinessDetail } = require('../utils/emailUtils');
 const {extractFiles}=require("../utils/fileUtils")
 
-
-exports.createTenant = catchAsync(async (req, res, next) => {
+exports.createBusiness = catchAsync(async (req, res, next) => {
   console.log("requested data",req.body)
   console.log("requsted files",req.files)
   const { name,ownerName,phone,email,address,logo } = req.body;
@@ -88,7 +87,7 @@ exports.createTenant = catchAsync(async (req, res, next) => {
   }
 });
 
-exports.getAllTenants = catchAsync(async (req, res) => {
+exports.getAllBusiness = catchAsync(async (req, res) => {
   const {isActive,search,page = 1,limit = 20,sortBy = 'createdAt',sortOrder = 'DESC'} = req.query;
 
   const where = {};
@@ -108,7 +107,7 @@ exports.getAllTenants = catchAsync(async (req, res) => {
 
   const offset = (page - 1) * limit;
 
-  const { rows, count } = await business.findAndCountAll({
+  const { rows, count } = await Business.findAndCountAll({
     where,
     limit: Number(limit),
     offset,
@@ -125,24 +124,25 @@ exports.getAllTenants = catchAsync(async (req, res) => {
   });
 });
 
-exports.getTenantById = catchAsync(async (req, res, next) => {
-  const tenant = await business.findByPk(req.params.businessId);
+exports.getBusinessById = catchAsync(async (req, res, next) => {
+  const business = await Business.findByPk(req.params.businessId);
+  console.log("requred businessID",req.params.businessId)
 
-  if (!tenant) {
+  if (!business) {
     return next(new AppError('Business not found', 404));
   }
 
   res.status(200).json({
     status: 'success',
-    data: tenant
+    data: business
   });
 });
 
+exports.updateBusinessById = catchAsync(async (req, res, next) => {
+  const business = await Business.findByPk(req.params.businessId);
+  console.log("updating business id",req.params.businessId)
 
-exports.updateTenant = catchAsync(async (req, res, next) => {
-  const tenant = await business.findByPk(req.params.businessId);
-
-  if (!tenant) {
+  if (!business) {
     return next(new AppError('Business not found', 404));
   }
 
@@ -161,21 +161,24 @@ exports.updateTenant = catchAsync(async (req, res, next) => {
       updates[field] = req.body[field];
     }
   });
+if(Object.keys(updates).length > 0)
+  await Business.update(updates, { where: { id: req.params.businessId } });
 
-  await tenant.update(updates);
+const updatdBusiness = await Business.findByPk(req.params.businessId);
 
   res.status(200).json({
-    status: 'success',
-    data: tenant
+    status: 1,
+    message: 'Business updated successfully',
+    data: updatdBusiness
   });
 });
 
-
 exports.updateBusinessStatus = catchAsync(async (req, res, next) => {
   const { action } = req.body;
-  const tenant = await business.findByPk(req.params.businessId);
+  console.log("action to be performed",action)
+  const business = await Business.findByPk(req.params.businessId);
 
-  if (!tenant) {
+  if (!business) {
     return next(new AppError('Business not found', 404));
   }
 
@@ -185,41 +188,39 @@ exports.updateBusinessStatus = catchAsync(async (req, res, next) => {
 
   switch (action) {
     case 'activate':
-      tenant.subscriptionStatus = 'active';
-      tenant.isActive = true;
-      tenant.trialEnd = null;
+      business.subscriptionStatus = 'active';
+      business.isActive = true;
+      business.trialEnd = null;
       break;
 
     case 'expire':
-      tenant.subscriptionStatus = 'expired';
-      tenant.isActive = false;
+      business.subscriptionStatus = 'expired';
+      business.isActive = false;
       break;
 
     case 'disable':
-      tenant.isActive = false;
+      business.isActive = false;
       break;
   }
 
-  await tenant.save();
+  await business.save();
 
   res.status(200).json({
     status: 'success',
     message: `Business ${action}d successfully`,
-    data: tenant
+    data: business
   });
 });
 
+exports.deleteBusinessById = catchAsync(async (req, res, next) => {
+  const business = await Business.findByPk(req.params.businessId);
 
-exports.deleteTenant = catchAsync(async (req, res, next) => {
-  const tenant = await business.findByPk(req.params.businessId);
+  if (!business) return next(new AppError('Business not found', 404));
 
-  if (!tenant) {
-    return next(new AppError('Business not found', 404));
-  }
+  await business.update({ isActive: false });
 
-  await tenant.destroy();
-
-  res.status(204).json({
-    status: 'success'
+  res.status(200).json({
+    status: 1,
+    message: 'Business deactivated successfully'
   });
 });

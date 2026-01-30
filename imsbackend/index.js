@@ -134,7 +134,7 @@ app.use((req, res, next) => {
 app.use('/api/ims/users',userRouter);
 app.use('/api/ims/auth',authRouter);
 
-app.use('/api/ims/businesses',bussinessRouter);
+app.use('/api/ims/business',bussinessRouter);
 
 // app.use('/api/ims/customers',customerRouter);
 // app.use('/api/ims/suppliers',supplierRouter);

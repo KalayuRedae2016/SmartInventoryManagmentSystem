@@ -1,7 +1,7 @@
 const express=require("express")
 const app = express();
 const router=express.Router();
-const businessController=require("../controller/businessController") 
+const businessController=require("../controllers/businessController"); 
 const { createMulterMiddleware } = require('../utils/fileUtils');
 
 
@@ -19,7 +19,7 @@ const upload = createMulterMiddleware(
   ['image/jpeg','image/png','application/pdf']
 );
 
-const tenatAttachements=upload.fields([
+const businessAttachements=upload.fields([
     { name: 'profileImage', maxCount: 1 },
     { name: 'images', maxCount: 10 },
     { name: 'documents', maxCount: 10 },
@@ -33,14 +33,14 @@ const tenatAttachements=upload.fields([
 //router.use(authoController.requiredRole('admin',"staff"));
 
 router.route('/')
-      .post(tenatAttachements,businessController.createTenant)
-      .get(businessController.getAllTenants)
-//       .delete(businessController.deleteAllTenants);
+      .post(businessAttachements,businessController.createBusiness)
+      .get(businessController.getAllBusiness)
+//    .delete(businessController.deleteAllBusinesses);
 
-// router.route('/:businessId')
-//   .get(businessController.getTenantById)
-//   .patch(businessController.updateTenant)
-//   .delete(businessController.deleteTenant);
+router.route('/:businessId')
+  .get(businessController.getBusinessById)
+  .patch(businessAttachements,businessController.updateBusinessById)
+  .delete(businessController.deleteBusinessById);
 
 
 module.exports=router
