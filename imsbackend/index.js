@@ -11,9 +11,11 @@ const morgan=require("morgan")
 const AppError = require("./utils/appError");
 const globalErrorHandler = require('./controllers/errorController');
 
-const userRouter = require('./routes/userRoutes');
-const authRouter = require('./routes/authRoutes');
 const bussinessRouter=require('./routes/businessRoutes');
+const authRouter = require('./routes/authRoutes');
+const roleRouter=require("./routes/roleRoutes");
+const userRouter = require('./routes/userRoutes');
+
 // const customerRouter = require('./routes/customerRoutes');
 // const supplierRouter = require('./routes/supplierRoutes');
 // const categoryRouter = require('./routes/categoryRoutes');
@@ -131,10 +133,11 @@ app.use((req, res, next) => {
 
 
 //  #2 Routers
-app.use('/api/ims/users',userRouter);
-app.use('/api/ims/auth',authRouter);
 
 app.use('/api/ims/business',bussinessRouter);
+app.use('/api/ims/roles',roleRouter);
+app.use('/api/ims/users',userRouter);
+app.use('/api/ims/auth',authRouter);
 
 // app.use('/api/ims/customers',customerRouter);
 // app.use('/api/ims/suppliers',supplierRouter);
