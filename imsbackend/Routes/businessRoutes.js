@@ -1,7 +1,7 @@
 const express=require("express")
 const app = express();
 const router=express.Router();
-const tenantController=require("../controllers/TenantController") 
+const businessController=require("../controller/businessController") 
 const { createMulterMiddleware } = require('../utils/fileUtils');
 
 
@@ -33,14 +33,14 @@ const tenatAttachements=upload.fields([
 //router.use(authoController.requiredRole('admin',"staff"));
 
 router.route('/')
-      .post(tenatAttachements,tenantController.createTenant)
-//       .get(tenantController.getAllTenants)
-//       .delete(tenantController.deleteAllTenants);
+      .post(tenatAttachements,businessController.createTenant)
+      .get(businessController.getAllTenants)
+//       .delete(businessController.deleteAllTenants);
 
 // router.route('/:businessId')
-//   .get(tenantController.getTenantById)
-//   .patch(tenantController.updateTenant)
-//   .delete(tenantController.deleteTenant);
+//   .get(businessController.getTenantById)
+//   .patch(businessController.updateTenant)
+//   .delete(businessController.deleteTenant);
 
 
 module.exports=router

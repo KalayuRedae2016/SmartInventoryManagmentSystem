@@ -13,7 +13,7 @@ const globalErrorHandler = require('./controllers/errorController');
 
 const userRouter = require('./routes/userRoutes');
 const authRouter = require('./routes/authRoutes');
-const tenantRouter=require('./routes/tenantRoutes');
+const bussinessRouter=require('./routes/businessRoutes');
 // const customerRouter = require('./routes/customerRoutes');
 // const supplierRouter = require('./routes/supplierRoutes');
 // const categoryRouter = require('./routes/categoryRoutes');
@@ -59,7 +59,7 @@ app.set('views', path.join(__dirname, 'views'));
 let corsOptions;
 if (process.env.NODE_ENV === 'production') {
   corsOptions = {
-    origin: ['http://ims.com','https://ims.com',null], // Allowed origin for production
+    origin: ['http://grandinventory.com','https://grandinventory.com',null], // Allowed origin for production
     credentials: true, // Enable credentials like cookies
     methods: ['GET', 'POST', 'PUT', 'PATCH','DELETE','OPTIONS'], // Add allowed methods
   };
@@ -134,7 +134,7 @@ app.use((req, res, next) => {
 app.use('/api/ims/users',userRouter);
 app.use('/api/ims/auth',authRouter);
 
-app.use('/api/ims/tenants',tenantRouter);
+app.use('/api/ims/businesses',bussinessRouter);
 
 // app.use('/api/ims/customers',customerRouter);
 // app.use('/api/ims/suppliers',supplierRouter);
