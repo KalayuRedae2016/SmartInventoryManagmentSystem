@@ -14,8 +14,8 @@ app.use(function (req, res, next) {
 });
 
 const upload = createMulterMiddleware(
-  'uploads/users',
-  'user',
+  'uploads/business',
+  'business',
   ['image/jpeg','image/png','application/pdf']
 );
 

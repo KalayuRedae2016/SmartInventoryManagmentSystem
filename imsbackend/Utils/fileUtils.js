@@ -70,7 +70,6 @@ exports.extractFiles = (req, folder = '') => {
   };
 };
 
-
 exports.processUploadFilesToSave = async (req,files = {},body = {},existingModel = null,folder = '') => {
   const baseUrl = `${req.protocol}://${req.get('host')}/uploads/${folder}/`;
 

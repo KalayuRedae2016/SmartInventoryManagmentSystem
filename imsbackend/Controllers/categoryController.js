@@ -1,61 +1,37 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const db = require('../models');
 const { Op, where } = require('sequelize');
 const validator = require('validator');
-const Category   = db.Category;
+const {Category}=require("../Models")
 
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
 require('dotenv').config();
 const { formatDate } = require("../utils/dateUtils")
 
-const {createMulterMiddleware,processUploadFilesToSave} = require('../utils/fileUtils');
-const category = require('../Models/category');
-
-// Configure multer for user file uploads
-const userFileUpload = createMulterMiddleware(
-  'uploads/importedUsers/', // Destination folder
-  'User', // Prefix for filenames
-  ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'] // Allowed file types
-);
-
-const filterObj = (obj, ...allowedFields) => {
-  const newObj = {};
-  Object.keys(obj).forEach(el => {
-    if (allowedFields.includes(el)) newObj[el] = obj[el];
-  });
-  return newObj;
-};
-
-// Middleware for handling single file upload
-exports.uploadUserFile = userFileUpload.single('file');
-
 exports.createCategory = catchAsync(async (req, res, next) => {
   console.log("category creation request", req.body)
 
-  const { name, description,isActive} = req.body;
-  if (!name || !description) {
-    return next(new AppError("required Fields->name or description)", 404))
+  const {businessId,name, description,isActive} = req.body;
+  if (!businessId || !name || !description) {
+    return next(new AppError("required Fields->businessId, name or description)", 404))
   }
   
-console.log("Category model:", category=== undefined ? "Not loaded" : "Loaded");
   
 const existingCategory= await Category.findOne({ where: { name } });
 if (existingCategory) {
-  // if (req.files) deleteFile(req.files.path);
   return (next(new AppError("Categories already in use", 404)))
 }
 
   const newCategory = await Category.create({
+    businessId,
     name,
     description,
     isActive: isActive !== undefined ? isActive : true,
-    // documents: documents || null,
   });
   
-  // Return success response
   res.status(200).json({
+    status:1,
     message: 'Category registered successfully.',
     data: newCategory,
   });
@@ -120,12 +96,8 @@ exports.getAllCategories = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.getCategory = catchAsync(async (req, res, next) => {
-  console.log("Requested User Role:", req.user.role,req.params);
-  const categoryId = parseInt(req.params.categoryId, 10); 
-  console.log("Fetching customer with ID:", categoryId);
-  const category = await Category.findByPk(categoryId);
-  console.log("Fetched customer:", category);
+exports.getCategoryById = catchAsync(async (req, res, next) => {
+  const category = await Category.findByPk(parseInt(req.params.categoryId, 10));
 
   if (!category) {
     res.status(200).json({
@@ -150,31 +122,23 @@ exports.getCategory = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.updateCategory = catchAsync(async (req, res, next) => {
-  const categoryId = parseInt(req.params.categoryId, 10); 
-  const existingCategory = await Category.findByPk(categoryId);
+exports.updateCategoryById = catchAsync(async (req, res, next) => {
+  console.log("Update category request body:", req.body,req.params);
+  const existingCategory = await Category.findByPk(parseInt(req.params.categoryId, 10));
   if (!existingCategory) {
     return next(new AppError("Customer not found", 404));
   }
 
   const orgiginalCategoryData = JSON.parse(JSON.stringify(existingCategory));
   
-  // Merge update fields
-  const updateData = {
-    ...req.body,
-    //profileImage
-  };
+  const updateData = {  ...req.body};
 
-  // Update user
   await existingCategory.update(updateData);
 
-  // Fetch latest version
-  const updatedCategory = await Category.findByPk(categoryId);
+  const updatedCategory = await Category.findByPk(parseInt(req.params.categoryId, 10));
 
-  // Format timestamps
   const formattedCreatedAt = updatedCategory.createdAt ? formatDate(updatedCategory.createdAt) : null;
   const formattedUpdatedAt = updatedCategory.updatedAt ? formatDate(updatedCategory.updatedAt) : null;
-
 
   res.status(200).json({
     status: 1,
@@ -188,7 +152,7 @@ exports.updateCategory = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.deleteCategory= catchAsync(async (req, res, next) => {
+exports.deleteCategoryById= catchAsync(async (req, res, next) => {
   const categoryId = parseInt(req.params.categoryId, 10);
 
   const deletedCount = await Category.destroy({ where: { id: categoryId } });
@@ -198,11 +162,10 @@ exports.deleteCategory= catchAsync(async (req, res, next) => {
       status: 0,
       message: `Category with ID ${categoryId} not found`,
     });
-    // return next(new AppError("Customer entry not found", 404));
   }
 
   res.status(200).json({
-    status: 'success',
+    status: 1,
     length: deletedCount,
     message: 'Category deleted successfully',
   });

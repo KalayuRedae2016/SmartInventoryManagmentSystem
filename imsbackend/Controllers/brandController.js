@@ -1,61 +1,42 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const db = require('../models');
+const{Brand} = require('../models');
 const { Op, where } = require('sequelize');
 const validator = require('validator');
-const Brand   = db.Brand;
 
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
 require('dotenv').config();
 const { formatDate } = require("../utils/dateUtils")
-
-const {createMulterMiddleware,processUploadFilesToSave} = require('../utils/fileUtils');
-const category = require('../Models/category');
-
-// Configure multer for user file uploads
-const userFileUpload = createMulterMiddleware(
-  'uploads/importedUsers/', // Destination folder
-  'User', // Prefix for filenames
-  ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'] // Allowed file types
-);
-
-const filterObj = (obj, ...allowedFields) => {
-  const newObj = {};
-  Object.keys(obj).forEach(el => {
-    if (allowedFields.includes(el)) newObj[el] = obj[el];
-  });
-  return newObj;
-};
-
-// Middleware for handling single file upload
-exports.uploadUserFile = userFileUpload.single('file');
+const {extractFiles}=require("../utils/fileUtils")
 
 exports.createBrand = catchAsync(async (req, res, next) => {
   console.log("brand creation request", req.body)
-
-  const { name, country,description,isActive} = req.body;
-  if (!name ||!country || !description) {
-    return next(new AppError("required Fields->name country,or description)", 404))
+  console.log("brand creation files", req.files)
+  
+  const {  businessId,name, country,description,image,isActive} = req.body;
+  if (!businessId || !name ||!country || !description) {
+    return next(new AppError("required Fields->businessId, name country,or description)", 404))
   }
   
-console.log("brand model:", Brand=== undefined ? "Not loaded" : "Loaded");
-  
+console.log("Checking for existing brand with name:", businessId,name);
 const existingBrand= await Brand.findOne({ where: { name } });
 if (existingBrand) {
-  // if (req.files) deleteFile(req.files.path);
   return (next(new AppError("brand already in use", 404)))
 }
 
+  const files=extractFiles(req, 'brands');
+  const extractedImage =files.single('image');
+
   const newbrand = await Brand.create({
+    businessId,
     name,
     country,
     description,
+    image:extractedImage,
     isActive: isActive !== undefined ? isActive : true,
-    // documents: documents || null,
   });
   
-  // Return success response
   res.status(200).json({
     message: 'Brand registered successfully.',
     data: newbrand,
@@ -123,11 +104,9 @@ exports.getAllBrands = catchAsync(async (req, res, next) => {
 });
 
 exports.getBrand = catchAsync(async (req, res, next) => {
-  console.log("Requested User Role:", req.user.role,req.params);
   const brandId = parseInt(req.params.brandId, 10); 
   console.log("Fetching customer with ID:", brandId);
   const brand = await Brand.findByPk(brandId);
-  console.log("Fetched customer:", brand);
 
   if (!brand) {
     res.status(200).json({
