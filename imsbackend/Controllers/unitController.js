@@ -11,13 +11,11 @@ const { formatDate } = require("../utils/dateUtils")
 
 exports.createUnit = catchAsync(async (req, res, next) => {
   console.log("Unit creation request", req.body)
+  const { businessId,name, symbol,baseUnit,operator,operationValue,description,isActive} = req.body;
 
-  const { name, symbol,description,isActive} = req.body;
-  if (!name ||!symbol || !description) {
-    return next(new AppError("required Fields->name,symbol or description)", 404))
+  if (!businessId || !name || !symbol || !description||!baseUnit) {
+    return next(new AppError("required Fields->businessId,name,symbol,baseUnit or description)", 404))
   }
-  
-console.log("unit model:", Unit=== undefined ? "Not loaded" : "Loaded");
   
 const existingUnit= await Unit.findOne({ where: { name } });
 if (existingUnit) {
@@ -55,6 +53,11 @@ exports.getAllUnits = catchAsync(async (req, res, next) => {
     whereQuery[Op.or] = [
       { name: { [Op.like]: `%${search}%` } },
       { symbol: { [Op.like]: `%${search}%` } },
+      { baseUnit: { [Op.like]: `%${search}%` } },
+      { operator: { [Op.like]: `%${search}%` } },
+      { operator: { [Op.like]: `%${search}%` } },
+      { operationValue: { [Op.like]: `%${search}%` } },
+      { isActive: { [Op.like]: `%${search}%` } },
       { description: { [Op.like]: `%${search}%` } },
     ];
   }

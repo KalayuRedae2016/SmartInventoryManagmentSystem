@@ -16,12 +16,12 @@ module.exports = (sequelize, DataTypes) => {
         autoIncrement: true,
         primaryKey: true
       },
+      businessId:{type:DataTypes.INTEGER.UNSIGNED},
       name: {type: DataTypes.STRING,allowNull: false,unique: true,
         set(value) {
           this.setDataValue('name', value.trim());
         }
       },
-      businessId:{type:DataTypes.INTEGER.UNSIGNED},
       symbol: {type: DataTypes.STRING,allowNull: true},
       baseUnit:{type:DataTypes.STRING},
       operator:{type:DataTypes.STRING},

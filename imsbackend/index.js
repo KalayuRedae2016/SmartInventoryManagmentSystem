@@ -20,7 +20,7 @@ const wharehouseRouter = require('./routes/wharehouseRoutes');
 const categoryRouter = require('./routes/categoryRoutes');
 const brandRouter = require('./routes/brandRoutes');
 const unitRouter = require('./routes/unitRoutes');
-// const productRouter = require('./routes/ProductRoutes');
+const productRouter = require('./routes/ProductRoutes');
 
 // const customerRouter = require('./routes/customerRoutes');
 // const supplierRouter = require('./routes/supplierRoutes');
@@ -146,7 +146,7 @@ app.use('/api/ims/auth',authRouter);
 app.use('/api/ims/categories',categoryRouter);
 app.use('/api/ims/brands',brandRouter);
 app.use('/api/ims/units',unitRouter);
-//app.use('/api/ims/products',productRouter);
+app.use('/api/ims/products',productRouter);
 
 // app.use('/api/ims/customers',customerRouter);
 // app.use('/api/ims/suppliers',supplierRouter);

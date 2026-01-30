@@ -3,28 +3,22 @@ const db = require('../models');
 const { Op, where } = require('sequelize');
 const validator = require('validator');
 const bcrypt = require('bcryptjs');
-
-const Product = db.Product;
-const User = db.User;
-const Category = db.Category;
-const Brand = db.brand;
-const Unit= db.Unit;
+const {Product,User,Category,Brand,Unit} = db;
 
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
 const { formatDate } = require("../utils/dateUtils")
-const {processUploadFilesToSave,deleteFile} = require('../utils/fileUtils');
+const {extractFiles} = require('../utils/fileUtils');
 
 require('dotenv').config();
 
 exports.createProduct = catchAsync(async (req, res, next) => {
   console.log("incoming product body:", req.body)
   console.log("uploading files:", req.files)
-  const {name,sku,partNumber,serialTracking,categoryId,brandId,unitId,
+  const {businessId,name,sku,partNumber,serialTracking,categoryId,brandId,unitId,
     defaultCostPrice,defaultSellingPrice,lastPurchaseCost,minimumStock,
     preferredCostMethod,barcode,isActive}=req.body;
-
- if(!name||!categoryId||!brandId||!unitId){
+ if(!businessId||!name||!categoryId||!brandId||!unitId){
     return next(new AppError("missing required Fields for product creaton", 404))
   }
  
@@ -33,39 +27,29 @@ exports.createProduct = catchAsync(async (req, res, next) => {
   if (existingProduct) {
     return next(new AppError("Product already exists", 400));
   }
- 
-  const uploaded = await processUploadFilesToSave(req, req.files, req.body);
-  const images = uploaded.images && uploaded.images.length > 0
-  ? uploaded.images.map(img => ({
-      fileName: img.fileName || '',
-      fileType: img.fileType || '',
-      url: img.url || '',
-      uploadDate: img.uploadDate ? new Date(img.uploadDate).toISOString() : new Date().toISOString()
-    }))
-  : [];
-
-console.log('Images to save:', JSON.stringify(images));
-console.log('Profile Image to save:', images);
-
-
-  const newProduct = await Product.create({
-    name,
-    sku,
-    partNumber,
-    serialTracking,
-    categoryId,
-    brandId,
-    unitId,
-    defaultCostPrice,
-    defaultSellingPrice,
-    lastPurchaseCost,
-    minimumStock,
-    preferredCostMethod,
-    barcode,
-    images:images,
-    isActive: isActive ?? true
-    
-  });
+const files=extractFiles(req, 'products');
+const extractedImages =files.multiple('images');
+console.log("extracted images",extractedImages)
+   
+const newProduct = await Product.create({
+  businessId,
+  name,
+  sku,
+  partNumber,
+  serialTracking,
+  categoryId,
+  brandId,
+  unitId,
+  defaultCostPrice,
+  defaultSellingPrice,
+  lastPurchaseCost,
+  minimumStock,
+  preferredCostMethod,
+  barcode,
+  images:extractedImages,
+  isActive: isActive ?? true
+  
+});
 
   // Return success response
   res.status(200).json({
@@ -76,7 +60,7 @@ console.log('Profile Image to save:', images);
 
 });
 
-// exports.getAllUsers = catchAsync(async (req, res, next) => {
+// exports.getAllProducts = catchAsync(async (req, res, next) => {
 //   const { isActive, search, sortBy, sortOrder, page = 1, limit = 20 } = req.query;
 //   let whereQuery = {};
 //   if (!req.user.role==="admin") {
@@ -314,65 +298,6 @@ console.log('Profile Image to save:', images);
 //     status: 'success',
 //     message: `${deletedCount} users deleted`,
 //   });
-// });
-
-// exports.sendEmailMessages = catchAsync(async (req, res, next) => {
-//   const { emailList, subject, message } = req.body;
-
-//   if (!subject && !message) {
-//     return next(new AppError('Subject and message are required', 400));
-//   }
-
-//   if (emailList && !Array.isArray(emailList)) {
-//     return next(new AppError('emailList must be an array', 400));
-//   }
-
-//   let users;
-
-//   if (emailList && emailList.length > 0) {
-//     const validEmails = emailList.filter(email => validator.isEmail(email));
-//     if (validEmails.length === 0) {
-//       return next(new AppError('No valid email addresses found in the provided list', 400));
-//     }
-
-//     users = await User.findAll({
-//       where: {email: {[Op.in]: validEmails}},
-//       attributes: ['email', 'name'],
-//       order: [['createdAt', 'ASC']]
-//     });
-//   } else {
-//     users = await User.findAll({
-//       where: {email: {[Op.ne]: null}},
-//       attributes: ['email', 'name'],
-//       order: [['createdAt', 'ASC']]
-//     });
-//   }
-
-//   if (!users || users.length === 0) {
-//     return next(new AppError('No users found with valid email addresses', 404));
-//   }
-
-//   const emailPromises = users.map(user => {
-//     const emailSubject = subject || 'Welcome to Our Platform, Grand Technology System!';
-//     const emailMessage = message
-//       ? `Dear ${user.name},\n\n${message}`
-//       : `Hi ${user.name},\n\nWelcome to Our Platform! We're excited to have you on board.\n\nPlease use the following link to access our platform:\n- Login Link: ${
-//           process.env.NODE_ENV === 'development' ? 'http://localhost:8085' : 'https://grandinventory.com'
-//         }\n\nIf you have any questions or need assistance, feel free to contact our support team.\n\nBest regards,\nThe Inventory Team`;
-
-//     return sendEmail({ email: user.email, subject: emailSubject, message: emailMessage });
-//   });
-
-//   try {
-//     await Promise.all(emailPromises);
-//     res.status(200).json({
-//       status: 1,
-//       message: 'Emails sent successfully to users with valid emails.',
-//     });
-//   } catch (error) {
-//     console.error('Error sending emails:', error);
-//     return next(new AppError('Failed to send one or more emails', 500));
-//   }
 // });
 
 
