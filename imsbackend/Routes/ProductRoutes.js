@@ -30,14 +30,14 @@ const productAttachements=upload.fields([
 router.route('/')
   .post(productAttachements,productController.createProduct);
 
-// Protect all routes after this middleware
-router.use(authoController.authenticationJwt);
+// // Protect all routes after this middleware
+// router.use(authoController.authenticationJwt);
 
-router.use(authoController.requiredRole('admin',"staff"));
+// router.use(authoController.requiredRole('admin',"staff"));
 
 router.route('/')
       .post(productAttachements,productController.createProduct)
-//       .get(productController.getAllProducts)
+      .get(productController.getAllProducts)
 //       .delete(productController.deleteAllProducts)
   
 
