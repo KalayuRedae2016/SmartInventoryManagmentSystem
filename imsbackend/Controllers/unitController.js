@@ -1,35 +1,13 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const db = require('../models');
+const {Unit} = require('../models');
 const { Op, where } = require('sequelize');
 const validator = require('validator');
-const Unit   = db.Unit;
 
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
 require('dotenv').config();
 const { formatDate } = require("../utils/dateUtils")
-
-const {createMulterMiddleware,processUploadFilesToSave} = require('../utils/fileUtils');
-const category = require('../Models/category');
-
-// Configure multer for user file uploads
-const userFileUpload = createMulterMiddleware(
-  'uploads/importedUsers/', // Destination folder
-  'User', // Prefix for filenames
-  ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'] // Allowed file types
-);
-
-const filterObj = (obj, ...allowedFields) => {
-  const newObj = {};
-  Object.keys(obj).forEach(el => {
-    if (allowedFields.includes(el)) newObj[el] = obj[el];
-  });
-  return newObj;
-};
-
-// Middleware for handling single file upload
-exports.uploadUserFile = userFileUpload.single('file');
 
 exports.createUnit = catchAsync(async (req, res, next) => {
   console.log("Unit creation request", req.body)

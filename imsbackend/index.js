@@ -143,11 +143,10 @@ app.use('/api/ims/users',userRouter);
 app.use('/api/ims/auth',authRouter);
 
   //Swagger UI setup
-
 app.use('/api/ims/categories',categoryRouter);
 app.use('/api/ims/brands',brandRouter);
 app.use('/api/ims/units',unitRouter);
-// app.use('/api/ims/products',productRouter);
+//app.use('/api/ims/products',productRouter);
 
 // app.use('/api/ims/customers',customerRouter);
 // app.use('/api/ims/suppliers',supplierRouter);
