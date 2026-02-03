@@ -2,7 +2,7 @@ const express=require("express")
 const app = express();
 const router=express.Router();
 const authoController=require("../controllers/authoController")
-const supplierController=require("../controllers/supplierController")
+const purchaseController=require("../controllers/purchaseController")
 
 app.use(function (req, res, next) {
   res.header(
@@ -19,15 +19,16 @@ app.use(function (req, res, next) {
 // router.use(authoController.requiredRole('admin',"staff"));
 
 router.route('/')
-      .post(supplierController.createSupplier)
-      .get(supplierController.getAllSuppliers)
-      .delete(supplierController.deleteAllSuppliers);
+      .post(purchaseController.createPurchase)
+      .get(purchaseController.getAllPurchases)
+      .delete(purchaseController.deleteAllPurchases);
   
+router.route('/:purchaseId')
+  .get(purchaseController.getPurchaseById)
+   .patch(purchaseController.updatePurchase)
+  .delete(purchaseController.deletePurchase);
 
-router.route('/:supplierId')
-  .get(supplierController.getSupplierById)
-   .patch(supplierController.updateSupplier)
-   .patch(supplierController.updateSupplier)
-  .delete(supplierController.deleteSupplier);
+router.route('/pay/:purchaseId')
+  .patch(purchaseController.payPurchase)
 
 module.exports=router

@@ -25,8 +25,8 @@ const productRouter = require('./routes/ProductRoutes');
 const customerRouter = require('./routes/customerRoutes');
 const supplierRouter = require('./routes/supplierRoutes');
 
-// const purchaseRouter = require('./routes/purchaseRoutes');
-// const purchaseItemRouter = require('./routes/purchaseItemRoutes');
+const purchaseRouter = require('./routes/purchaseRoutes');
+const purchaseItemRouter = require('./routes/purchaseItemRoutes');
 
 // const saleRouter = require('./routes/saleRoutes');
 // const saleItemRouter = require('./routes/saleItemRoutes');
@@ -161,8 +161,8 @@ app.use('/api/ims/products',productRouter);
 app.use('/api/ims/customers',customerRouter);
 app.use('/api/ims/suppliers',supplierRouter);
 
-// app.use('/api/ims/purchases',purchaseRouter);
-// app.use('/api/ims/purchaseItems',purchaseItemRouter);
+app.use('/api/ims/purchases',purchaseRouter);
+app.use('/api/ims/purchaseItems',purchaseItemRouter);
 
 // app.use('/api/ims/sales',saleRouter);
 // app.use('/api/ims/saleItems',saleItemRouter);
