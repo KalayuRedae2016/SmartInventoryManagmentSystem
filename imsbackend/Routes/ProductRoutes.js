@@ -38,13 +38,15 @@ router.route('/')
 router.route('/')
       .post(productAttachements,productController.createProduct)
       .get(productController.getAllProducts)
-//       .delete(productController.deleteAllProducts)
+      .delete(productController.deleteAllProducts)
   
 
-// router.route('/:categoryId')
-//   .get(productController.getProduct)
-//   .patch(productController.updateProduct)
-//   .delete(productController.deleteProduct);
+router.route('/:productId')
+  .get(productController.getProductById)
+  .patch(productAttachements,productController.updateProduct)
+  .delete(productController.deleteProduct)
+router.route('/hard/:productId')
+  .delete(productController.hardDeleteProduct);
 
 
 module.exports=router

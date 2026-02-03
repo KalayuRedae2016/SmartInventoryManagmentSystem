@@ -9,6 +9,7 @@ const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
 const { formatDate } = require("../utils/dateUtils")
 const {extractFiles} = require('../utils/fileUtils');
+const e = require('express');
 
 require('dotenv').config();
 
@@ -137,10 +138,11 @@ exports.getAllProducts = catchAsync(async (req, res, next) => {
 });
 
 exports.getProductById = catchAsync(async (req, res, next) => {
+
   const product = await Product.findOne({
     where: {
-      id: req.params.id,
-      businessId: req.user.businessId
+      id: req.params.productId,
+      // businessId: req.user.businessId
     }
   });
 
@@ -150,15 +152,17 @@ exports.getProductById = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: 1,
-    product
+    message: 'Product fetched successfully',
+    data:product
   });
 });
 
 exports.updateProduct = catchAsync(async (req, res, next) => {
+  console.log("Updating product with data:", req.body);
   const product = await Product.findOne({
     where: {
-      id: req.params.id,
-      businessId: req.user.businessId
+      id: req.params.productId,
+      // businessId: req.user.businessId
     }
   });
 
@@ -167,10 +171,10 @@ exports.updateProduct = catchAsync(async (req, res, next) => {
   }
 
   const files = extractFiles(req, 'products');
-  const images = files?.multiple('images');
+  const extractedImages = files?.multiple('images') || [];
 
-  if (images?.length) {
-    req.body.images = images;
+  if (extractedImages?.length) {
+    req.body.images = extractedImages;
   }
 
   await product.update(req.body);
@@ -178,14 +182,14 @@ exports.updateProduct = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 1,
     message: 'Product updated successfully',
-    product
+    data:product
   });
 });
 exports.deleteProduct = catchAsync(async (req, res, next) => {
   const product = await Product.findOne({
     where: {
-      id: req.params.id,
-      businessId: req.user.businessId
+      id: req.params.productId,
+      // businessId: req.user.businessId
     }
   });
 
@@ -197,14 +201,15 @@ exports.deleteProduct = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: 1,
-    message: 'Product deleted successfully'
+    message: 'Product deleted successfully',
+    data:product
   });
 });
 exports.hardDeleteProduct = catchAsync(async (req, res, next) => {
   const deleted = await Product.destroy({
     where: {
-      id: req.params.id,
-      businessId: req.user.businessId
+      id: req.params.productId,
+      // businessId: req.user.businessId
     }
   });
 
@@ -212,7 +217,19 @@ exports.hardDeleteProduct = catchAsync(async (req, res, next) => {
     return next(new AppError('Product not found', 404));
   }
 
-  res.status(204).json({ status: 1 });
+  res.status(200).json({ 
+    status: 1, 
+    message: "Product deleted permanently" });
 });
 
+exports.deleteAllProducts = catchAsync(async (req, res, next) => {
+  const deleted = await Product.destroy({
+    where: {
+      // businessId: req.user.businessId
+    }
+  });
+  res.status(200).json({ 
+    status: 1, 
+    message: `${deleted} products deleted permanently` });
+});
 

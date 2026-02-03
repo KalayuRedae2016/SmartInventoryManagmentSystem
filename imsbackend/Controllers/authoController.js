@@ -150,6 +150,7 @@ exports.authenticationJwt = catchAsync(async (req, _, next) => {
   }
 
   req.user = user;
+  console.log("Authenticated user:", req.user);
   next();
 });
 
