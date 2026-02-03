@@ -24,6 +24,16 @@ const productRouter = require('./routes/ProductRoutes');
 
 const customerRouter = require('./routes/customerRoutes');
 const supplierRouter = require('./routes/supplierRoutes');
+
+// const purchaseRouter = require('./routes/purchaseRoutes');
+// const purchaseItemRouter = require('./routes/purchaseItemRoutes');
+
+// const saleRouter = require('./routes/saleRoutes');
+// const saleItemRouter = require('./routes/saleItemRoutes');
+
+//const stocktransferRouter = require('./routes/stockTransferRoutes');
+// const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
+
 // const transactionRouter = require('./routes/transactionRoutes');
 
 const app = express(); //start Express app
@@ -156,6 +166,7 @@ app.use('/api/ims/suppliers',supplierRouter);
 
 // app.use('/api/ims/sales',saleRouter);
 // app.use('/api/ims/saleItems',saleItemRouter);
+
 //app.use('/api/ims/stockAdjustments',stockAdjustmentRouter);
 // app.use('/api/ims/transactions', transactionRouter);
 
