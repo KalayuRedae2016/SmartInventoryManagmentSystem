@@ -36,7 +36,7 @@ const purchaseReturnRouter=require('./routes/purchaseReturnRoutes')
 //const stocktransferRouter = require('./routes/stockTransferRoutes');
 // const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
 
-// const transactionRouter = require('./routes/transactionRoutes');
+const transactionRouter = require('./routes/transactionRoutes');
 
 const app = express(); //start Express app
 

@@ -1,11 +1,10 @@
 const { Sale, SaleItem, Product, Customer, User, Stock } = require('../models');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
-const { Op } = require('sequelize');
 
 const getBusinessId = () => 1;
 
-// Calculate remaining due amount and status
+// Calculate sale status
 const calculateSaleStatus = (total, paid) => {
   if (paid <= 0) return 'pending';
   if (paid < total) return 'partial';
@@ -13,29 +12,18 @@ const calculateSaleStatus = (total, paid) => {
 };
 
 /**
- * CREATE SALE
+ * =========================
+ * SALE CONTROLLER
+ * =========================
  */
+
+// Create a new sale
 exports.createSale = catchAsync(async (req, res, next) => {
-  const { warehouseId, customerId, invoiceNumber, saleDate, paymentMethod, items = [] } = req.body;
+  const { warehouseId, customerId, invoiceNumber, saleDate, paymentMethod } = req.body;
   const businessId = getBusinessId();
 
   if (!warehouseId || !customerId || !invoiceNumber || !saleDate) {
     return next(new AppError('Missing required fields', 400));
-  }
-
-  if (!Array.isArray(items) || items.length === 0) {
-    return next(new AppError('Sale items are required', 400));
-  }
-
-  let totalAmount = 0;
-  for (const i of items) {
-    if (!i.productId || !i.quantity || !i.unitPrice) {
-      return next(new AppError('Invalid sale item fields', 400));
-    }
-    if (i.quantity <= 0 || i.unitPrice <= 0) {
-      return next(new AppError('Quantity and unitPrice must be positive', 400));
-    }
-    totalAmount += i.quantity * i.unitPrice;
   }
 
   const sale = await Sale.create({
@@ -44,46 +32,20 @@ exports.createSale = catchAsync(async (req, res, next) => {
     customerId,
     invoiceNumber,
     saleDate,
-    totalAmount,
+    totalAmount: 0, // will calculate after adding items
     paymentMethod,
-    status: false, // unpaid by default
-    due: totalAmount,
+    status: false, // unpaid
+    due: 0,
   });
-
-  // Create SaleItems
-  for (const i of items) {
-    await SaleItem.create({
-      saleId: sale.id,
-      businessId,
-      warehouseId,
-      productId: i.productId,
-      quantity: i.quantity,
-      unitPrice: i.unitPrice,
-      total: i.quantity * i.unitPrice,
-    });
-
-    // Update Stock (OUT)
-    await Stock.create({
-      businessId,
-      warehouseId,
-      productId: i.productId,
-      quantity: i.quantity,
-      type: 'OUT',
-      referenceId: sale.id,
-      note: `Sale ${sale.invoiceNumber}`,
-    });
-  }
 
   res.status(201).json({
     status: 1,
-    message: 'Sale created successfully',
+    message: 'Sale created successfully. Now add sale items.',
     data: sale,
   });
 });
 
-/**
- * GET SALES
- */
+// Get all sales
 exports.getSales = catchAsync(async (req, res) => {
   const { page = 1, limit = 10, customerId, status } = req.query;
   const businessId = getBusinessId();
@@ -107,9 +69,7 @@ exports.getSales = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * GET SALE BY ID
- */
+// Get sale by id
 exports.getSaleById = catchAsync(async (req, res, next) => {
   const sale = await Sale.findByPk(req.params.id, {
     include: [
@@ -121,20 +81,25 @@ exports.getSaleById = catchAsync(async (req, res, next) => {
 
   if (!sale) return next(new AppError('Sale not found', 404));
 
+  // Calculate items total and remaining due
+  const itemsTotal = await SaleItem.sum('total', { where: { saleId: sale.id } }) || 0;
+  const remainingDue = sale.totalAmount - (sale.totalAmount - sale.due);
+
   res.status(200).json({
     status: 1,
-    data: sale,
+    data: {
+      ...sale.toJSON(),
+      itemsTotal,
+      remainingDue,
+      isLocked: sale.status === 'paid'
+    },
   });
 });
 
-/**
- * UPDATE SALE
- * Only allowed if sale not fully paid
- */
+// Update sale (only if not paid)
 exports.updateSale = catchAsync(async (req, res, next) => {
   const sale = await Sale.findByPk(req.params.id);
   if (!sale) return next(new AppError('Sale not found', 404));
-
   if (sale.status) return next(new AppError('Cannot update a paid sale', 400));
 
   const { customerId, warehouseId, paymentMethod, saleDate } = req.body;
@@ -152,16 +117,13 @@ exports.updateSale = catchAsync(async (req, res, next) => {
   });
 });
 
-/**
- * DELETE SALE
- * Only allowed if not paid
- */
+// Delete sale (only if not paid)
 exports.deleteSale = catchAsync(async (req, res, next) => {
   const sale = await Sale.findByPk(req.params.id);
   if (!sale) return next(new AppError('Sale not found', 404));
   if (sale.status) return next(new AppError('Cannot delete a paid sale', 400));
 
-  // Revert stock
+  // Revert stock for all items
   const saleItems = await SaleItem.findAll({ where: { saleId: sale.id } });
   for (const item of saleItems) {
     await Stock.create({
@@ -171,7 +133,7 @@ exports.deleteSale = catchAsync(async (req, res, next) => {
       quantity: item.quantity,
       type: 'ADJUST',
       referenceId: sale.id,
-      note: `Sale deletion revert`,
+      note: 'Sale deletion revert',
     });
     await item.destroy();
   }
@@ -184,8 +146,141 @@ exports.deleteSale = catchAsync(async (req, res, next) => {
   });
 });
 
+
 /**
- * ADD / UPDATE / DELETE SaleItems handled separately
- * Logic: Only allow changes if sale not finalized (not paid)
- * Stock adjustments automatically
+ * =========================
+ * SALE ITEM CONTROLLER
+ * =========================
  */
+
+// Add sale item
+exports.createSaleItem = catchAsync(async (req, res, next) => {
+  const { saleId, productId, warehouseId, quantity, unitPrice } = req.body;
+  const businessId = getBusinessId();
+
+  if (!saleId || !productId || !warehouseId || !quantity || !unitPrice) {
+    return next(new AppError('Missing required fields', 400));
+  }
+  if (quantity <= 0 || unitPrice <= 0) return next(new AppError('Invalid quantity or unitPrice', 400));
+
+  const sale = await Sale.findByPk(saleId);
+  if (!sale) return next(new AppError('Sale not found', 404));
+  if (sale.status) return next(new AppError('Cannot add items to a paid sale', 400));
+
+  const total = quantity * unitPrice;
+  const currentItemsTotal = await SaleItem.sum('total', { where: { saleId } }) || 0;
+
+  // Lock if already reached total
+  if (currentItemsTotal >= sale.totalAmount && sale.totalAmount > 0)
+    return next(new AppError('Sale items already finalized', 400));
+
+  // Create item
+  const item = await SaleItem.create({
+    saleId,
+    businessId,
+    warehouseId,
+    productId,
+    quantity,
+    unitPrice,
+    total,
+  });
+
+  // Update sale financials
+  sale.totalAmount = currentItemsTotal + total;
+  sale.due = sale.totalAmount;
+  sale.status = false; // unpaid
+  await sale.save();
+
+  // Stock OUT
+  await Stock.create({
+    businessId,
+    warehouseId,
+    productId,
+    quantity,
+    type: 'OUT',
+    referenceId: saleId,
+    note: `Sale ${sale.invoiceNumber} item added`,
+  });
+
+  res.status(201).json({
+    status: 1,
+    message: 'Sale item added successfully',
+    data: item,
+  });
+});
+
+// Update sale item
+exports.updateSaleItem = catchAsync(async (req, res, next) => {
+  const item = await SaleItem.findByPk(req.params.id);
+  if (!item) return next(new AppError('Sale item not found', 404));
+
+  const sale = await Sale.findByPk(item.saleId);
+  if (sale.status) return next(new AppError('Cannot update item of paid sale', 400));
+
+  const { quantity, unitPrice } = req.body;
+  const oldTotal = item.total;
+
+  if (quantity !== undefined) item.quantity = quantity;
+  if (unitPrice !== undefined) item.unitPrice = unitPrice;
+
+  item.total = item.quantity * item.unitPrice;
+  await item.save();
+
+  // Update sale financials
+  sale.totalAmount = (await SaleItem.sum('total', { where: { saleId: sale.id } })) || 0;
+  sale.due = sale.totalAmount;
+  sale.status = false;
+  await sale.save();
+
+  // Adjust stock
+  const difference = item.total - oldTotal;
+  if (difference !== 0) {
+    await Stock.create({
+      businessId: sale.businessId,
+      warehouseId: item.warehouseId,
+      productId: item.productId,
+      quantity: difference,
+      type: difference > 0 ? 'OUT' : 'ADJUST',
+      referenceId: sale.id,
+      note: 'Sale item updated',
+    });
+  }
+
+  res.status(200).json({
+    status: 1,
+    message: 'Sale item updated successfully',
+    data: item,
+  });
+});
+
+// Delete sale item
+exports.deleteSaleItem = catchAsync(async (req, res, next) => {
+  const item = await SaleItem.findByPk(req.params.id);
+  if (!item) return next(new AppError('Sale item not found', 404));
+
+  const sale = await Sale.findByPk(item.saleId);
+  if (sale.status) return next(new AppError('Cannot delete item of paid sale', 400));
+
+  // Update sale financials
+  sale.totalAmount -= item.total;
+  sale.due = sale.totalAmount;
+  await sale.save();
+
+  // Update stock
+  await Stock.create({
+    businessId: sale.businessId,
+    warehouseId: item.warehouseId,
+    productId: item.productId,
+    quantity: -item.quantity,
+    type: 'ADJUST',
+    referenceId: sale.id,
+    note: 'Sale item deleted',
+  });
+
+  await item.destroy();
+
+  res.status(200).json({
+    status: 1,
+    message: 'Sale item deleted successfully',
+  });
+});

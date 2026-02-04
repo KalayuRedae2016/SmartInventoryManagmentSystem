@@ -558,6 +558,32 @@ Endpoints:
     POST   /sale-return-items/import
     GET    /sale-return-items/export/excel
     GET    /sale-return-items/export/pdf
+# StockAdjustment
+Model:
+    id(INT),
+    businessId(INT),
+    warehouseId(INT),
+    productId(INT),
+    userId(INT),
+    quantity(INT),
+    adjustmentType(ENUM),
+    note(STRING),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+
+Relationships:
+    StockAdjustment → Warehouse (belongsTo)
+    SaleReturnItem → User (belongsTo)
+
+Endpoints:
+    GET    /sale-adjustment-
+    POST   /sale-adjustment-
+    GET    /sale-adjustment-/:id
+    PUT    /sale-adjustment-/:id
+    DELETE /sale-adjustment-/:id
+    POST   /sale-adjustment-/import
+    GET    /sale-adjustment-/export/excel
+    GET    /sale-adjustment-/export/pdf
 # StockTransfer
 Model:
     id(INT, PK, autoIncrement),
