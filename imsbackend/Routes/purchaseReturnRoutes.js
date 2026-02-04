@@ -20,11 +20,22 @@ app.use(function (req, res, next) {
 router.route('/')
       .post(purchaseReturnController.createPurchaseReturn)
       .get(purchaseReturnController.getPurchaseReturns)
-      // .delete(purchaseReturnController.deleteAllPurchases);
+      // .delete(purchaseReturnController.deleteAllPurchaseReturns);
   
 router.route('/:id')
   .get(purchaseReturnController.getPurchaseReturnById)
   .patch(purchaseReturnController.updatePurchaseReturn)
   .delete(purchaseReturnController.deletePurchaseReturn);
+
+//   router.route('/items')
+//       .post(purchaseReturnController.createPurchaseReturnItem)
+//       // .get(purchaseReturnController.getPurchaseReturnsItem)
+//       // .delete(purchaseReturnController.deleteAllPurchaseReturnItems);
+  
+// router.route('/items/:id')
+//   .get(purchaseReturnController.getPurchaseReturnItemById)
+//   .patch(purchaseReturnController.updatePurchaseReturnItem)
+//   .delete(purchaseReturnController.deletePurchaseReturnItem);
+
 
 module.exports=router

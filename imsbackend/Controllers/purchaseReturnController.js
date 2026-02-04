@@ -19,7 +19,6 @@ const getRemainingReturnAmount = async (purchaseId) => {
   return purchase.totalAmount - returnedTotal;
 };
 
-
 exports.createPurchaseReturn = catchAsync(async (req, res, next) => {
   const { purchaseId, warehouseId, supplierId, totalAmount, reason } = req.body;
   const businessId = getBusinessId();
