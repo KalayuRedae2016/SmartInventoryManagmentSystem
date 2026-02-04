@@ -20,8 +20,8 @@ app.use(function (req, res, next) {
 
 router.route('/')
       .post(purchaseController.createPurchase)
-      .get(purchaseController.getAllPurchases)
-      .delete(purchaseController.deleteAllPurchases);
+      // .get(purchaseController.getAllPurchases)
+      // .delete(purchaseController.deleteAllPurchases);
   
 router.route('/:purchaseId')
   .get(purchaseController.getPurchaseById)
@@ -29,6 +29,16 @@ router.route('/:purchaseId')
   .delete(purchaseController.deletePurchase);
 
 router.route('/pay/:purchaseId')
-  .patch(purchaseController.payPurchase)
+  // .patch(purchaseController.payPurchase)
+
+  router.route('/items')
+        .post(purchaseItemController.createPurchaseItem)
+        .get(purchaseItemController.getPurchaseItems)
+        // .delete(purchaseItemController.deleteAllPurchases);
+    
+  router.route('/items/:purchaseItemId')
+    // .get(purchaseItemController.getPurchaseItemById)
+     .patch(purchaseItemController.updatePurchaseItem)
+    .delete(purchaseItemController.deletePurchaseItem);
 
 module.exports=router

@@ -2,7 +2,7 @@ const express=require("express")
 const app = express();
 const router=express.Router();
 const authoController=require("../controllers/authoController")
-const purchaseItemController=require("../controllers/purchaseItemController")
+const purchaseReturnController=require("../controllers/purchaseReturnController")
 
 app.use(function (req, res, next) {
   res.header(
@@ -12,20 +12,19 @@ app.use(function (req, res, next) {
   next();
 });
 
-
 // Protect all routes after this middleware
 // router.use(authoController.authenticationJwt);
 
 // router.use(authoController.requiredRole('admin',"staff"));
 
 router.route('/')
-      .post(purchaseItemController.createPurchaseItem)
-      .get(purchaseItemController.getPurchaseItems)
-      // .delete(purchaseItemController.deleteAllPurchases);
+      .post(purchaseReturnController.createPurchaseReturn)
+      .get(purchaseReturnController.getPurchaseReturns)
+      // .delete(purchaseReturnController.deleteAllPurchases);
   
-router.route('/:purchaseId')
-  .get(purchaseItemController.getPurchaseItemById)
-   .patch(purchaseItemController.updatePurchaseItem)
-  .delete(purchaseItemController.deletePurchaseItem);
+router.route('/:id')
+  .get(purchaseReturnController.getPurchaseReturnById)
+  .patch(purchaseReturnController.updatePurchaseReturn)
+  .delete(purchaseReturnController.deletePurchaseReturn);
 
 module.exports=router
