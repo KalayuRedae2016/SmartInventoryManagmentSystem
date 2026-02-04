@@ -1,270 +1,167 @@
-const { Purchase, Supplier, Warehouse, PurchaseItem, Stock } = require('../models');
+const { SaleReturn, SaleReturnItem, Sale, Product, Customer, Stock } = require('../models');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const { Op } = require('sequelize');
 
 const getBusinessId = () => 1;
 
-const calculateStatus = (total, paid) => {
+// Calculate remaining due amount and status
+const calculateSaleStatus = (total, paid) => {
   if (paid <= 0) return 'pending';
   if (paid < total) return 'partial';
   return 'paid';
 };
 
-exports.createPurchase = catchAsync(async (req, res, next) => {
-  const { warehouseId, supplierId, totalAmount, paidAmount = 0, paymentMethod, note } = req.body;
+/**
+ * CREATE SALE RETURN
+ */
+exports.createSaleReturn = catchAsync(async (req, res, next) => {
+  const { saleId, warehouseId, customerId, totalAmount, paymentMethod, items = [] } = req.body;
   const businessId = getBusinessId();
 
-  if (!warehouseId || !supplierId || !totalAmount) {
+  if (!saleId || !warehouseId || !customerId || !totalAmount || !items.length) {
     return next(new AppError('Missing required fields', 400));
   }
 
-  if (paidAmount > totalAmount) {
-    return next(new AppError('Paid amount cannot exceed total amount', 400));
+  const sale = await Sale.findByPk(saleId, { include: [SaleItem] });
+  if (!sale) return next(new AppError('Original sale not found', 404));
+
+  const saleTotal = sale.totalAmount;
+  if (totalAmount > saleTotal) {
+    return next(new AppError('Return total cannot exceed sale total', 400));
   }
 
-  const purchase = await Purchase.create({
+  const saleReturn = await SaleReturn.create({
+    saleId,
     businessId,
     warehouseId,
-    supplierId,
+    customerId,
     totalAmount,
-    paidAmount,
-    dueAmount: totalAmount - paidAmount,
+    status: false, // pending
     paymentMethod,
-    status: calculateStatus(totalAmount, paidAmount),
-    note,
-    isActive: true,
+    returnDate: new Date(),
   });
 
-  res.status(201).json({
-    status: 1,
-    message: 'Purchase created successfully',
-    data: purchase,
-  });
-});
+  for (const i of items) {
+    if (!i.productId || !i.quantity || !i.unitPrice) {
+      return next(new AppError('Invalid sale return item fields', 400));
+    }
 
-exports.getPurchases = catchAsync(async (req, res) => {
-  const { page = 1, limit = 10, status } = req.query;
-  const businessId = getBusinessId();
+    const soldItem = sale.SaleItems.find(si => si.productId === i.productId);
+    if (!soldItem) return next(new AppError('Cannot return product not in original sale', 400));
+    if (i.quantity > soldItem.quantity) return next(new AppError('Return quantity exceeds sold quantity', 400));
 
-  const where = { businessId, isActive: true };
-  if (status) where.status = status;
+    const total = i.quantity * i.unitPrice;
+    await SaleReturnItem.create({
+      saleReturnId: saleReturn.id,
+      businessId,
+      warehouseId,
+      productId: i.productId,
+      quantity: i.quantity,
+      unitPrice: i.unitPrice,
+      total,
+    });
 
-  const purchases = await Purchase.findAndCountAll({
-    where,
-    include: [Supplier, Warehouse],
-    limit: +limit,
-    offset: (page - 1) * limit,
-    order: [['createdAt', 'DESC']],
-  });
-
-  res.status(200).json({
-    status: 1,
-    message: 'Purchases fetched successfully',
-    total: purchases.count,
-    data: purchases.rows,
-  });
-});
-
-exports.getPurchaseById = catchAsync(async (req, res, next) => {
-  const purchase = await Purchase.findByPk(req.params.id, {
-    include: [Supplier, Warehouse, { model: PurchaseItem }],
-  });
-
-  if (!purchase || !purchase.isActive) {
-    return next(new AppError('Purchase not found', 404));
-  }
-
-  // Remaining amount for items
-  const itemsTotal =
-    (await PurchaseItem.sum('total', { where: { purchaseId: purchase.id } })) || 0;
-
-  const remainingAmount = purchase.totalAmount - itemsTotal;
-
-  res.status(200).json({
-    status: 1,
-    message: 'Purchase fetched successfully',
-    data: {
-      ...purchase.toJSON(),
-      itemsTotal,
-      remainingAmount,
-      isLocked: remainingAmount === 0,
-    },
-  });
-});
-
-exports.updatePurchase = catchAsync(async (req, res, next) => {
-  const purchase = await Purchase.findByPk(req.params.id);
-  if (!purchase || !purchase.isActive) return next(new AppError('Purchase not found', 404));
-
-  const { note } = req.body;
-  if (note !== undefined) purchase.note = note;
-  await purchase.save();
-
-  res.status(200).json({
-    status: 1,
-    message: 'Purchase updated successfully',
-    data: purchase,
-  });
-});
-
-exports.deletePurchase = catchAsync(async (req, res, next) => {
-  const purchase = await Purchase.findByPk(req.params.id);
-  if (!purchase || !purchase.isActive) return next(new AppError('Purchase not found', 404));
-
-  purchase.isActive = false;
-  await purchase.save();
-
-  res.status(200).json({
-    status: 1,
-    message: 'Purchase deleted successfully',
-  });
-});
-
-exports.createPurchaseItem = catchAsync(async (req, res, next) => {
-  const { purchaseId, productId, warehouseId, quantity, unitPrice } = req.body;
-  const businessId = getBusinessId();
-
-  if (!purchaseId || !productId || !warehouseId || !quantity || !unitPrice) {
-    return next(new AppError('Missing required fields', 400));
-  }
-
-  if (quantity <= 0 || unitPrice <= 0) return next(new AppError('Invalid quantity/unit price', 400));
-
-  const purchase = await Purchase.findByPk(purchaseId);
-  if (!purchase || !purchase.isActive) return next(new AppError('Purchase not found', 404));
-
-  const itemTotal = quantity * unitPrice;
-  const currentItemsTotal =
-    (await PurchaseItem.sum('total', { where: { purchaseId } })) || 0;
-
-  if (currentItemsTotal >= purchase.totalAmount)
-    return next(new AppError('Purchase is locked, cannot add more items', 400));
-
-  if (currentItemsTotal + itemTotal > purchase.totalAmount)
-    return next(new AppError('Purchase item exceeds purchase total amount', 400));
-
-  const item = await PurchaseItem.create({
-    purchaseId,
-    businessId,
-    warehouseId,
-    productId,
-    quantity,
-    unitPrice,
-    total: itemTotal,
-  });
-
-  // Update purchase financials
-  purchase.dueAmount = purchase.totalAmount - purchase.paidAmount;
-  purchase.status = calculateStatus(purchase.totalAmount, purchase.paidAmount);
-  await purchase.save();
-
-  // Update stock
-  await Stock.create({
-    businessId,
-    warehouseId,
-    productId,
-    quantity,
-    type: 'IN',
-    referenceId: purchaseId,
-    note: 'Purchase item added',
-  });
-
-  res.status(201).json({
-    status: 1,
-    message: 'Purchase item added successfully',
-    data: item,
-  });
-});
-
-exports.getPurchaseItems = catchAsync(async (req, res) => {
-  const { purchaseId, page = 1, limit = 10 } = req.query;
-  const businessId = getBusinessId();
-  const where = { businessId };
-  if (purchaseId) where.purchaseId = purchaseId;
-
-  const items = await PurchaseItem.findAndCountAll({
-    where,
-    include: [Product],
-    limit: +limit,
-    offset: (page - 1) * limit,
-    order: [['createdAt', 'DESC']],
-  });
-
-  res.status(200).json({
-    status: 1,
-    message: 'Purchase items fetched successfully',
-    result: items.count,
-    data: items.rows,
-  });
-});
-
-exports.updatePurchaseItem = catchAsync(async (req, res, next) => {
-  const item = await PurchaseItem.findByPk(req.params.id);
-  if (!item) return next(new AppError('Purchase item not found', 404));
-
-  const purchase = await Purchase.findByPk(item.purchaseId);
-  if (purchase.status === 'paid') return next(new AppError('Cannot update item of paid purchase', 400));
-
-  const { quantity, unitPrice } = req.body;
-  const oldTotal = item.total;
-
-  if (quantity !== undefined) item.quantity = quantity;
-  if (unitPrice !== undefined) item.unitPrice = unitPrice;
-  item.total = item.quantity * item.unitPrice;
-  await item.save();
-
-  const difference = item.total - oldTotal;
-  purchase.totalAmount += difference;
-  purchase.dueAmount = purchase.totalAmount - purchase.paidAmount;
-  await purchase.save();
-
-  // Adjust stock
-  if (quantity !== undefined) {
+    // Update stock (IN)
     await Stock.create({
-      businessId: purchase.businessId,
-      warehouseId: item.warehouseId,
-      productId: item.productId,
-      quantity: difference,
+      businessId,
+      warehouseId,
+      productId: i.productId,
+      quantity: i.quantity,
       type: 'IN',
-      referenceId: purchase.id,
-      note: 'Purchase item updated',
+      referenceId: saleReturn.id,
+      note: `Sale return ${saleReturn.id}`,
     });
   }
 
-  res.status(200).json({
+  res.status(201).json({
     status: 1,
-    message: 'Purchase item updated successfully',
-    data: item,
+    message: 'Sale return created successfully',
+    data: saleReturn,
   });
 });
 
-exports.deletePurchaseItem = catchAsync(async (req, res, next) => {
-  const item = await PurchaseItem.findByPk(req.params.id);
-  if (!item) return next(new AppError('Purchase item not found', 404));
+/**
+ * GET SALE RETURNS
+ */
+exports.getSaleReturns = catchAsync(async (req, res) => {
+  const { page = 1, limit = 10, status } = req.query;
+  const businessId = getBusinessId();
 
-  const purchase = await Purchase.findByPk(item.purchaseId);
-  if (purchase.status === 'paid') return next(new AppError('Cannot delete item of paid purchase', 400));
+  const where = { businessId };
+  if (status !== undefined) where.status = status;
 
-  // Update purchase financials
-  purchase.totalAmount -= item.total;
-  purchase.dueAmount = purchase.totalAmount - purchase.paidAmount;
-  await purchase.save();
-
-  // Update stock
-  await Stock.create({
-    businessId: purchase.businessId,
-    warehouseId: item.warehouseId,
-    productId: item.productId,
-    quantity: -item.quantity,
-    type: 'OUT',
-    referenceId: purchase.id,
-    note: 'Purchase item deleted',
+  const saleReturns = await SaleReturn.findAndCountAll({
+    where,
+    include: [
+      Sale,
+      Customer,
+      { model: SaleReturnItem, include: [Product] }
+    ],
+    limit: +limit,
+    offset: (page - 1) * limit,
+    order: [['returnDate', 'DESC']],
   });
-
-  await item.destroy();
 
   res.status(200).json({
     status: 1,
-    message: 'Purchase item deleted successfully',
+    total: saleReturns.count,
+    data: saleReturns.rows,
+  });
+});
+
+/**
+ * UPDATE SALE RETURN
+ * Only allowed if not completed
+ */
+exports.updateSaleReturn = catchAsync(async (req, res, next) => {
+  const saleReturn = await SaleReturn.findByPk(req.params.id);
+  if (!saleReturn) return next(new AppError('Sale return not found', 404));
+  if (saleReturn.status) return next(new AppError('Cannot modify completed return', 400));
+
+  const { warehouseId, customerId, totalAmount, paymentMethod } = req.body;
+  if (warehouseId) saleReturn.warehouseId = warehouseId;
+  if (customerId) saleReturn.customerId = customerId;
+  if (totalAmount) saleReturn.totalAmount = totalAmount;
+  if (paymentMethod) saleReturn.paymentMethod = paymentMethod;
+
+  await saleReturn.save();
+
+  res.status(200).json({
+    status: 1,
+    message: 'Sale return updated successfully',
+    data: saleReturn,
+  });
+});
+
+/**
+ * DELETE SALE RETURN
+ * Only allowed if not completed
+ * Stock rollback included
+ */
+exports.deleteSaleReturn = catchAsync(async (req, res, next) => {
+  const saleReturn = await SaleReturn.findByPk(req.params.id, { include: [SaleReturnItem] });
+  if (!saleReturn) return next(new AppError('Sale return not found', 404));
+  if (saleReturn.status) return next(new AppError('Cannot delete completed return', 400));
+
+  // Rollback stock
+  for (const item of saleReturn.SaleReturnItems) {
+    await Stock.create({
+      businessId: saleReturn.businessId,
+      warehouseId: saleReturn.warehouseId,
+      productId: item.productId,
+      quantity: item.quantity,
+      type: 'ADJUST',
+      referenceId: saleReturn.id,
+      note: `Return deletion rollback`,
+    });
+    await item.destroy();
+  }
+
+  await saleReturn.destroy();
+
+  res.status(200).json({
+    status: 1,
+    message: 'Sale return deleted successfully',
   });
 });
