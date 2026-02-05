@@ -2,7 +2,7 @@ const express=require("express")
 const app = express();
 const router=express.Router();
 const authoController=require("../controllers/authoController")
-const purchaseController=require("../controllers/purchaseController")
+const saleController=require("../controllers/saleController")
 
 app.use(function (req, res, next) {
   res.header(
@@ -19,27 +19,27 @@ app.use(function (req, res, next) {
 // router.use(authoController.requiredRole('admin',"staff"));
 
   router.route('/items')
-        .post(purchaseController.createPurchaseItem)
-        .get(purchaseController.getPurchaseItems)
-        .delete(purchaseController.deleteAllPurchases);
+        .post(saleController.createSaleItem)
+        // .get(saleController.getSaleItems)
+//         // .delete(saleController.deleteAllSales);
     
-  router.route('/items/:itemId')
-    // .get(purchaseController.getPurchaseItemById)
-     .patch(purchaseController.updatePurchaseItem)
-    .delete(purchaseController.deletePurchaseItem);
+//   router.route('/items/:itemId')
+//     // .get(saleController.getSaleItemById)
+//      .patch(saleController.updateSaleItem)
+//     .delete(saleController.deleteSaleItem);
 
-router.route('/pay/:id')
-  // .patch(purchaseController.payPurchase)
+// router.route('/pay/:id')
+//   // .patch(saleController.payPurchase)
 
 router.route('/')
-      .post(purchaseController.createPurchase)
-      .get(purchaseController.getPurchases)
-      .delete(purchaseController.deletePurchases);
+      .post(saleController.createSale)
+      .get(saleController.getSales)
+      // .delete(saleController.deleteSales);
   
 router.route('/:id')
-  .get(purchaseController.getPurchaseById)
-   .patch(purchaseController.updatePurchase)
-  .delete(purchaseController.deletePurchase);
+  .get(saleController.getSaleById)
+   .patch(saleController.updateSale)
+  .delete(saleController.deleteSale);
 
 
 module.exports=router

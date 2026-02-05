@@ -28,8 +28,8 @@ const supplierRouter = require('./routes/supplierRoutes');
 const purchaseRouter = require('./routes/purchaseRoutes');
 const purchaseReturnRouter=require('./routes/purchaseReturnRoutes')
 
-// const saleRouter = require('./routes/saleRoutes');
-// const saleItemRouter = require('./routes/saleItemRoutes');
+const saleRouter = require('./routes/saleRoutes');
+const saleReturnRouter=require('./routes/saleReturnRoutes')
 
 //const stocktransferRouter = require('./routes/stockTransferRoutes');
 // const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
@@ -164,8 +164,8 @@ app.use('/api/ims/suppliers',supplierRouter);
 app.use('/api/ims/purchases',purchaseRouter);
 app.use('/api/ims/purchase-returns',purchaseReturnRouter);
 
-// app.use('/api/ims/sales',saleRouter);
-// app.use('/api/ims/saleItems',saleItemRouter);
+app.use('/api/ims/sales',saleRouter);
+app.use('/api/ims/sale-returns',saleReturnRouter);
 
 //app.use('/api/ims/stockAdjustments',stockAdjustmentRouter);
 // app.use('/api/ims/transactions', transactionRouter);
