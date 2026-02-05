@@ -18,6 +18,19 @@ app.use(function (req, res, next) {
 
 // router.use(authoController.requiredRole('admin',"staff"));
 
+  router.route('/items')
+        .post(purchaseController.createPurchaseItem)
+        .get(purchaseController.getPurchaseItems)
+        // .delete(purchaseController.deleteAllPurchases);
+    
+  router.route('/items/:purchaseItemId')
+    // .get(purchaseController.getPurchaseItemById)
+     .patch(purchaseController.updatePurchaseItem)
+    .delete(purchaseController.deletePurchaseItem);
+
+router.route('/pay/:id')
+  // .patch(purchaseController.payPurchase)
+
 router.route('/')
       .post(purchaseController.createPurchase)
       .get(purchaseController.getPurchases)
@@ -28,17 +41,5 @@ router.route('/:id')
    .patch(purchaseController.updatePurchase)
   .delete(purchaseController.deletePurchase);
 
-router.route('/pay/:id')
-  // .patch(purchaseController.payPurchase)
-
-  router.route('/items')
-        .post(purchaseController.createPurchaseItem)
-        .get(purchaseController.getPurchaseItems)
-        // .delete(purchaseController.deleteAllPurchases);
-    
-  router.route('/items/:purchaseItemId')
-    // .get(purchaseController.getPurchaseItemById)
-     .patch(purchaseController.updatePurchaseItem)
-    .delete(purchaseController.deletePurchaseItem);
 
 module.exports=router

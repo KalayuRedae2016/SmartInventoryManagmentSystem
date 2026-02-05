@@ -1,8 +1,10 @@
-const { Purchase, Supplier, Warehouse, PurchaseItem, Stock,StockTransaction } = require('../models');
+const { Purchase,Product, Supplier, Warehouse, PurchaseItem, Stock,StockTransaction } = require('../models');
 
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const purchase = require('../models/purchase');
+const sequelize = require('../models').sequelize;
+const { Op } = require('sequelize');
 
 const getBusinessId = () => 1;
 
@@ -280,82 +282,98 @@ exports.hardDeletePurchases = catchAsync(async (req, res, next) => {
 exports.createPurchaseItem = catchAsync(async (req, res, next) => {
   const { purchaseId, productId, warehouseId, quantity, unitPrice } = req.body;
   const businessId = getBusinessId();
-  delete req.body.valueDate;
 
-
-  // 1️⃣ Validate required fields
   if (!purchaseId || !productId || !warehouseId || !quantity || !unitPrice) {
     return next(new AppError('Missing required fields', 400));
   }
+
   if (quantity <= 0 || unitPrice <= 0) {
     return next(new AppError('Quantity and unit price must be positive', 400));
   }
 
-  // 2️⃣ Fetch purchase and validate
   const purchase = await Purchase.findByPk(purchaseId);
-  if (!purchase || !purchase.isActive) return next(new AppError('Purchase not found', 404));
+  if (!purchase || !purchase.isActive) {
+    return next(new AppError('Purchase not found', 404));
+  }
 
-  // 3️⃣ Check current total of items
   const itemTotal = quantity * unitPrice;
-  const currentItemsTotal = (await PurchaseItem.sum('total', { where: { purchaseId } })) || 0;
+  const currentItemsTotal =
+    (await PurchaseItem.sum('total', { where: { purchaseId } })) || 0;
 
-  if (currentItemsTotal >= purchase.totalAmount) {
-    return next(new AppError('Purchase is locked, total amount already reached', 400));
-  }
   if (currentItemsTotal + itemTotal > purchase.totalAmount) {
-    return next(new AppError(`Adding this item exceeds purchase total amount (${purchase.totalAmount})`, 400));
+    return next(
+      new AppError('Adding this item exceeds purchase total amount', 400)
+    );
   }
 
-  // 4️⃣ Create PurchaseItem
-  const item = await PurchaseItem.create({
-    purchaseId,
-    businessId,
-    warehouseId,
-    productId,
-    quantity,
-    unitPrice,
-    total: itemTotal,
-  });
+  // 🔐 TRANSACTION START
+  const t = await sequelize.transaction();
 
-  // 5️⃣ Update Purchase financials
-  // totalAmount is fixed by user input; dueAmount calculated from totalAmount - paidAmount
-  purchase.dueAmount = purchase.totalAmount - purchase.paidAmount;
-  purchase.status = calculateStatus(purchase.totalAmount, purchase.paidAmount);
-  await purchase.save();
+  try {
+    // 1️⃣ Create PurchaseItem
+    const item = await PurchaseItem.create(
+      {
+        purchaseId,
+        businessId,
+        warehouseId,
+        productId,
+        quantity,
+        unitPrice,
+        total: itemTotal,
+      },
+      { transaction: t }
+    );
 
-  // 6️⃣ Update stock (IN) and stock transaction
-  await Stock.create({
-    businessId,
-    warehouseId,
-    productId,
-    quantity,
-    type: 'IN',
-    referenceId: purchase.id,
-    performedBy: req.user?.id || null, // optional
-    note: `PurchaseItem added (Purchase ID: ${purchase.id})`,
-    valueDate: new Date(),
-  });  
-  
-  await StockTransaction.create({
-    businessId,
-    warehouseId,
-    productId,
-    type: 'IN',
-    quantity,
-    referenceType: 'PURCHASE',
-    referenceId: purchase.id,
-    performedBy: req.user?.id || null,
-    note: `PurchaseItem added (Purchase ID: ${purchase.id})`,
-  });
+    // 2️⃣ Update Purchase financials
+    purchase.dueAmount = purchase.totalAmount - purchase.paidAmount;
+    purchase.status = calculateStatus(
+      purchase.totalAmount,
+      purchase.paidAmount
+    );
+    await purchase.save({ transaction: t });
 
-  res.status(201).json({
-    status: 1,
-    message: 'Purchase item added successfully',
-    data: item,
-  });
+    // 3️⃣ Update Stock (UPSERT logic)
+    const [stock] = await Stock.findOrCreate({
+      where: { businessId, warehouseId, productId },
+      defaults: { quantity: 0 },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    stock.quantity += quantity;
+    await stock.save({ transaction: t });
+
+    // 4️⃣ Insert StockTransaction (history)
+    await StockTransaction.create(
+      {
+        businessId,
+        warehouseId,
+        productId,
+        type: 'IN',
+        quantity,
+        referenceType: 'PURCHASE',
+        referenceId: purchase.id,
+        performedBy: req.user?.id || null,
+        note: `PurchaseItem added (Purchase ID: ${purchase.id})`,
+      },
+      { transaction: t }
+    );
+
+    await t.commit();
+
+    res.status(201).json({
+      status: 1,
+      message: 'Purchase item added successfully',
+      data: item,
+    });
+  } catch (err) {
+    await t.rollback();
+    throw err;
+  }
 });
 
 exports.getPurchaseItems = catchAsync(async (req, res) => {
+  console.log("reched this endpoint")
   const { purchaseId, page = 1, limit = 10 } = req.query;
   const businessId = getBusinessId();
   const where = { businessId };
@@ -363,7 +381,11 @@ exports.getPurchaseItems = catchAsync(async (req, res) => {
 
   const items = await PurchaseItem.findAndCountAll({
     where,
-    include: [Product],
+    include: [
+       {model: Product, as: 'product' },
+       {model: Purchase, as: 'purchase' },
+    ],
+    
     limit: +limit,
     offset: (page - 1) * limit,
     order: [['createdAt', 'DESC']],
@@ -396,14 +418,12 @@ exports.updatePurchaseItem = catchAsync(async (req, res, next) => {
   const isLocked = stockUsed > 0;
 
   // 4️⃣ Validate new values
-  let newTotal = item.total;
-  if (quantity !== undefined && quantity <= 0) return next(new AppError('Quantity must be positive', 400));
-  if (unitPrice !== undefined && unitPrice <= 0) return next(new AppError('Unit price must be positive', 400));
+  let newQuantity = quantity !== undefined ? quantity : item.quantity;
+  let newUnitPrice = unitPrice !== undefined ? unitPrice : item.unitPrice;
+  if (newQuantity <= 0) return next(new AppError('Quantity must be positive', 400));
+  if (newUnitPrice <= 0) return next(new AppError('Unit price must be positive', 400));
 
-  // 5️⃣ Calculate new item total and ensure totalAmount limit not exceeded
-  const newQuantity = quantity !== undefined ? quantity : item.quantity;
-  const newUnitPrice = unitPrice !== undefined ? unitPrice : item.unitPrice;
-  newTotal = newQuantity * newUnitPrice;
+  const newTotal = newQuantity * newUnitPrice;
 
   const otherItemsTotal = (await PurchaseItem.sum('total', {
     where: { purchaseId: purchase.id, id: { [Op.ne]: item.id } }
@@ -413,17 +433,20 @@ exports.updatePurchaseItem = catchAsync(async (req, res, next) => {
     return next(new AppError(`Updating this item exceeds purchase total amount (${purchase.totalAmount})`, 400));
   }
 
-  // 6️⃣ Update editable fields
+  // 5️⃣ Update editable fields
   if (!isLocked) {
     if (warehouseId !== undefined) item.warehouseId = warehouseId;
     if (productId !== undefined) item.productId = productId;
   } else {
     if (warehouseId || productId) return next(new AppError('Cannot change warehouse or product after stock is created', 400));
   }
+
+  // 6️⃣ Calculate quantity difference for stock adjustment
+  const diffQuantity = newQuantity - item.quantity;
+
   item.quantity = newQuantity;
   item.unitPrice = newUnitPrice;
   item.total = newTotal;
-
   await item.save();
 
   // 7️⃣ Update purchase financials
@@ -431,19 +454,25 @@ exports.updatePurchaseItem = catchAsync(async (req, res, next) => {
   purchase.status = calculateStatus(purchase.totalAmount, purchase.paidAmount);
   await purchase.save();
 
-  // 8️⃣ Adjust stock and stock transaction
-  const diffQuantity = newQuantity - item.quantity; // difference from previous quantity
+  // 8️⃣ Adjust stock and stock transaction if quantity changed
   if (diffQuantity !== 0) {
-    await Stock.create({
-      businessId,
-      warehouseId: item.warehouseId,
-      productId: item.productId,
-      quantity: diffQuantity,
-      type: 'IN',
-      referenceId: purchase.id,
-      performedBy: req.user?.id || null,
-      note: `PurchaseItem updated (Purchase ID: ${purchase.id})`,
+    let stock = await Stock.findOne({
+      where: { businessId, warehouseId: item.warehouseId, productId: item.productId }
     });
+    if (stock) {
+      stock.quantity += diffQuantity;
+      await stock.save();
+    } else {
+      await Stock.create({
+        businessId,
+        warehouseId: item.warehouseId,
+        productId: item.productId,
+        quantity: diffQuantity,
+        name: '', // optional
+        stockAlert: 0,
+        description: 'Stock from updated purchase item',
+      });
+    }
 
     await StockTransaction.create({
       businessId,
@@ -455,6 +484,7 @@ exports.updatePurchaseItem = catchAsync(async (req, res, next) => {
       referenceId: purchase.id,
       performedBy: req.user?.id || null,
       note: `PurchaseItem updated (Purchase ID: ${purchase.id})`,
+      valueDate: new Date(),
     });
   }
 
@@ -464,7 +494,6 @@ exports.updatePurchaseItem = catchAsync(async (req, res, next) => {
     data: item,
   });
 });
-
 
 exports.deletePurchaseItem = catchAsync(async (req, res, next) => {
   const item = await PurchaseItem.findByPk(req.params.id);
