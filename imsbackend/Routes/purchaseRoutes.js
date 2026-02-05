@@ -21,9 +21,9 @@ app.use(function (req, res, next) {
   router.route('/items')
         .post(purchaseController.createPurchaseItem)
         .get(purchaseController.getPurchaseItems)
-        // .delete(purchaseController.deleteAllPurchases);
+        .delete(purchaseController.deleteAllPurchases);
     
-  router.route('/items/:purchaseItemId')
+  router.route('/items/:itemId')
     // .get(purchaseController.getPurchaseItemById)
      .patch(purchaseController.updatePurchaseItem)
     .delete(purchaseController.deletePurchaseItem);

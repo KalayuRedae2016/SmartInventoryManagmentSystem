@@ -404,7 +404,7 @@ exports.updatePurchaseItem = catchAsync(async (req, res, next) => {
   const businessId = getBusinessId();
 
   // 1️⃣ Fetch the item
-  const item = await PurchaseItem.findByPk(req.params.id);
+  const item = await PurchaseItem.findByPk(req.params.itemId);
   if (!item) return next(new AppError('Purchase item not found', 404));
 
   // 2️⃣ Fetch the related purchase
@@ -496,32 +496,101 @@ exports.updatePurchaseItem = catchAsync(async (req, res, next) => {
 });
 
 exports.deletePurchaseItem = catchAsync(async (req, res, next) => {
-  const item = await PurchaseItem.findByPk(req.params.id);
+  const item = await PurchaseItem.findByPk(req.params.itemId);
   if (!item) return next(new AppError('Purchase item not found', 404));
 
   const purchase = await Purchase.findByPk(item.purchaseId);
+  if (!purchase || !purchase.isActive) return next(new AppError('Purchase not found', 404));
   if (purchase.status === 'paid') return next(new AppError('Cannot delete item of paid purchase', 400));
 
-  // Update purchase financials
-  purchase.totalAmount -= item.total;
-  purchase.dueAmount = purchase.totalAmount - purchase.paidAmount;
-  await purchase.save();
+  const businessId = purchase.businessId;
 
-  // Update stock
-  await Stock.create({
-    businessId: purchase.businessId,
-    warehouseId: item.warehouseId,
-    productId: item.productId,
-    quantity: -item.quantity,
-    type: 'OUT',
-    referenceId: purchase.id,
-    note: 'Purchase item deleted',
+  // 1️⃣ Adjust stock
+  const stock = await Stock.findOne({
+    where: { businessId, warehouseId: item.warehouseId, productId: item.productId }
   });
 
+  if (stock) {
+    stock.quantity -= item.quantity;
+    if (stock.quantity < 0) stock.quantity = 0; // prevent negative stock
+    await stock.save();
+  }
+
+  // 2️⃣ Record StockTransaction
+  await StockTransaction.create({
+    businessId,
+    warehouseId: item.warehouseId,
+    productId: item.productId,
+    quantity: item.quantity,
+    type: 'OUT',
+    referenceType: 'PURCHASE',
+    referenceId: purchase.id,
+    performedBy: req.user?.id || null,
+    note: `PurchaseItem deleted (Purchase ID: ${purchase.id})`,
+    valueDate: new Date(),
+  });
+
+  // 3️⃣ Delete the PurchaseItem
   await item.destroy();
+
+  // 4️⃣ Update purchase financials (do NOT reduce totalAmount)
+  purchase.dueAmount = purchase.totalAmount - purchase.paidAmount;
+  purchase.status = calculateStatus(purchase.totalAmount, purchase.paidAmount);
+  await purchase.save();
 
   res.status(200).json({
     status: 1,
     message: 'Purchase item deleted successfully',
+  });
+});
+
+exports.deleteAllPurchases = catchAsync(async (req, res, next) => {
+  // 1️⃣ Fetch all active purchases
+  const purchases = await Purchase.findAll({ where: { isActive: true } });
+  if (!purchases.length) return next(new AppError('No active purchases found', 404));
+
+  for (const purchase of purchases) {
+    // Skip fully paid purchases
+    if (purchase.status === 'paid') continue;
+
+    const purchaseItems = await PurchaseItem.findAll({ where: { purchaseId: purchase.id } });
+
+    for (const item of purchaseItems) {
+      // Adjust stock
+      const stock = await Stock.findOne({
+        where: { businessId: purchase.businessId, warehouseId: item.warehouseId, productId: item.productId }
+      });
+      if (stock) {
+        stock.quantity -= item.quantity;
+        if (stock.quantity < 0) stock.quantity = 0;
+        await stock.save();
+      }
+
+      // Record stock transaction
+      await StockTransaction.create({
+        businessId: purchase.businessId,
+        warehouseId: item.warehouseId,
+        productId: item.productId,
+        quantity: item.quantity,
+        type: 'OUT',
+        referenceType: 'PURCHASE',
+        referenceId: purchase.id,
+        performedBy: req.user?.id || null,
+        note: `PurchaseItem deleted (Purchase ID: ${purchase.id})`,
+        valueDate: new Date(),
+      });
+
+      // Delete purchase item
+      await item.destroy();
+    }
+
+    // Soft delete the purchase
+    purchase.isActive = false;
+    await purchase.save();
+  }
+
+  res.status(200).json({
+    status: 1,
+    message: 'All eligible purchases deleted successfully',
   });
 });

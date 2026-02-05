@@ -19,6 +19,7 @@ const getRemainingReturnAmount = async (purchaseId) => {
   return purchase.totalAmount - returnedTotal;
 };
 
+
 exports.createPurchaseReturn = catchAsync(async (req, res, next) => {
   const { purchaseId, warehouseId, supplierId, totalAmount, reason } = req.body;
   const businessId = getBusinessId();
@@ -156,6 +157,8 @@ exports.deletePurchaseReturn = catchAsync(async (req, res, next) => {
   });
 });
 
+
+// Controller for PurchaseReturnItems
 exports.createPurchaseReturnItem = catchAsync(async (req, res, next) => {
   const { purchaseReturnId, productId, warehouseId, quantity, unitPrice } = req.body;
   const businessId = getBusinessId();
@@ -165,7 +168,7 @@ exports.createPurchaseReturnItem = catchAsync(async (req, res, next) => {
   }
 
   if (quantity <= 0 || unitPrice <= 0) {
-    return next(new AppError('Invalid quantity or unit price', 400));
+    return next(new AppError('Quantity and unit price must be positive', 400));
   }
 
   const purchaseReturn = await PurchaseReturn.findByPk(purchaseReturnId);
@@ -179,28 +182,73 @@ exports.createPurchaseReturnItem = catchAsync(async (req, res, next) => {
 
   const itemTotal = quantity * unitPrice;
 
-  // Prevent exceeding remaining purchase amount
   const remaining = await getRemainingReturnAmount(purchaseReturn.purchaseId);
   if (itemTotal > remaining) {
     return next(new AppError(`Item total (${itemTotal}) exceeds remaining purchase amount (${remaining})`, 400));
   }
 
-  const item = await PurchaseReturnItem.create({
-    purchaseReturnId,
-    businessId,
-    warehouseId,
-    productId,
-    quantity,
-    unitPrice,
-    total: itemTotal,
-  });
+  // 🔐 TRANSACTION START
+  const t = await sequelize.transaction();
 
-  res.status(201).json({
-    status: 1,
-    message: 'Purchase return item added successfully',
-    data: item,
-  });
+  try {
+    // 1️⃣ Create PurchaseReturnItem
+    const item = await PurchaseReturnItem.create(
+      {
+        purchaseReturnId,
+        businessId,
+        warehouseId,
+        productId,
+        quantity,
+        unitPrice,
+        total: itemTotal,
+      },
+      { transaction: t }
+    );
+
+    // 2️⃣ Update PurchaseReturn totalAmount
+    purchaseReturn.totalAmount += itemTotal; // optional, if you track running total
+    await purchaseReturn.save({ transaction: t });
+
+    // 3️⃣ Update Stock (UPSERT logic, decrease stock for return)
+    const [stock] = await Stock.findOrCreate({
+      where: { businessId, warehouseId, productId },
+      defaults: { quantity: 0 },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    stock.quantity -= quantity; // decrease stock because return removes items
+    await stock.save({ transaction: t });
+
+    // 4️⃣ Optional: Insert StockTransaction for history
+    await StockTransaction.create(
+      {
+        businessId,
+        warehouseId,
+        productId,
+        type: 'OUT', // out because items returned to supplier
+        quantity,
+        referenceType: 'PURCHASE_RETURN',
+        referenceId: purchaseReturn.id,
+        performedBy: req.user?.id || null,
+        note: `PurchaseReturnItem added (Return ID: ${purchaseReturn.id})`,
+      },
+      { transaction: t }
+    );
+
+    await t.commit();
+
+    res.status(201).json({
+      status: 1,
+      message: 'Purchase return item added successfully',
+      data: item,
+    });
+  } catch (err) {
+    await t.rollback();
+    throw err;
+  }
 });
+
 
 exports.getPurchaseReturnItems = catchAsync(async (req, res) => {
   const { purchaseReturnId, page = 1, limit = 10 } = req.query;
