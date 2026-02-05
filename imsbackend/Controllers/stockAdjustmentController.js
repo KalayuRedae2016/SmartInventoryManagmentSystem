@@ -4,7 +4,6 @@ const AppError = require('../utils/appError');
 
 const getBusinessId = () => 1;
 
-
 exports.createStockAdjustment = catchAsync(async (req, res, next) => {
   const { warehouseId, productId, userId, quantity, adjustmentType, note } = req.body;
   const businessId = getBusinessId();
@@ -99,7 +98,6 @@ exports.updateStockAdjustment = catchAsync(async (req, res, next) => {
     data: adjustment,
   });
 });
-
 
 exports.deleteStockAdjustment = catchAsync(async (req, res, next) => {
   const adjustment = await StockAdjustment.findByPk(req.params.id);
