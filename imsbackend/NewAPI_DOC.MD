@@ -455,10 +455,10 @@ Model:
     invoiceNumber(STRING),
     saleDate(DATETIME),
     totalAmount(DECIMAL),
+    paidAmount(FLOAT),
+    dueAmount(FLOAT),
     paymentMethod(ENUM: 'cash','bank_transfer','mobile_payment'),
-    userId(INT),
-    status(BOOLEAN),
-    due(DECIMAL),
+    status(ENUM: 'pending','partial','paid'),
     createdAt(DATETIME),
     updatedAt(DATETIME)
 

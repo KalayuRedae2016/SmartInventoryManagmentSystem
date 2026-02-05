@@ -2,7 +2,7 @@ const express=require("express")
 const app = express();
 const router=express.Router();
 const authoController=require("../controllers/authoController")
-const purchaseController=require("../controllers/purchaseController")
+const purchaseReturnController=require("../controllers/purchaseReturnController")
 
 app.use(function (req, res, next) {
   res.header(
@@ -12,33 +12,32 @@ app.use(function (req, res, next) {
   next();
 });
 
-
 // Protect all routes after this middleware
 // router.use(authoController.authenticationJwt);
 
 // router.use(authoController.requiredRole('admin',"staff"));
 
-router.route('/')
-      .post(purchaseController.createPurchase)
-      // .get(purchaseController.getAllPurchases)
-      // .delete(purchaseController.deleteAllPurchases);
-  
-router.route('/:purchaseId')
-  .get(purchaseController.getPurchaseById)
-   .patch(purchaseController.updatePurchase)
-  .delete(purchaseController.deletePurchase);
-
-router.route('/pay/:purchaseId')
-  // .patch(purchaseController.payPurchase)
-
   router.route('/items')
-        .post(purchaseController.createPurchaseItem)
-        .get(purchaseController.getPurchaseItems)
-        // .delete(purchaseController.deleteAllPurchases);
-    
-  router.route('/items/:purchaseItemId')
-    // .get(purchaseController.getPurchaseItemById)
-     .patch(purchaseController.updatePurchaseItem)
-    .delete(purchaseController.deletePurchaseItem);
+      .post(purchaseReturnController.createPurchaseReturnItem)
+      .get(purchaseReturnController.getPurchaseReturnsItem)
+      // .delete(purchaseReturnController.deleteAllPurchaseReturnItems);
+  
+router.route('/items/:id')
+  // .get(purchaseReturnController.getPurchaseReturnItemById)
+  .patch(purchaseReturnController.updatePurchaseReturnItem)
+  .delete(purchaseReturnController.deletePurchaseReturnItem);
+
+router.route('/')
+      .post(purchaseReturnController.createPurchaseReturn)
+      .get(purchaseReturnController.getPurchaseReturns)
+      // .delete(purchaseReturnController.deleteAllPurchaseReturns);
+  
+router.route('/:id')
+  .get(purchaseReturnController.getPurchaseReturnById)
+  .patch(purchaseReturnController.updatePurchaseReturn)
+  .delete(purchaseReturnController.deletePurchaseReturn);
+
+
+
 
 module.exports=router

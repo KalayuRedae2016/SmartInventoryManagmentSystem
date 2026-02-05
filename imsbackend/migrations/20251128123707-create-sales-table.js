@@ -9,10 +9,12 @@ module.exports = {
       invoiceNumber: { type: Sequelize.STRING, allowNull: false, unique: true },
       saleDate: { type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
       totalAmount: { type: Sequelize.DECIMAL(10,2), allowNull: false },
+      paidAmount: { type: Sequelize.DECIMAL(10,2), allowNull: false, defaultValue: 0 },
+      dueAmount: { type: Sequelize.DECIMAL(10,2), allowNull: false, defaultValue: 0 },
       paymentMethod: { type: Sequelize.ENUM('cash','bank_transfer','mobile_payment'), allowNull: false },
-      userId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       status: { type: Sequelize.BOOLEAN, defaultValue: true },
-      due: { type: Sequelize.DECIMAL(10,2), defaultValue: 0 },
+      note: { type: Sequelize.STRING, allowNull: true },
+      isActive: { type: Sequelize.BOOLEAN, defaultValue: true },
       createdAt: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
       updatedAt: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') }
     });

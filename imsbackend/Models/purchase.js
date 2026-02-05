@@ -16,6 +16,7 @@ module.exports = (sequelize, DataTypes) => {
     businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     supplierId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    invoiceNumber: { type: DataTypes.STRING, allowNull: false, unique: true },
     totalAmount: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
     paidAmount: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
     dueAmount: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
