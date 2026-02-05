@@ -4,9 +4,7 @@ const AppError = require('../utils/appError');
 
 const getBusinessId = () => 1;
 
-/**
- * CREATE STOCK ADJUSTMENT
- */
+
 exports.createStockAdjustment = catchAsync(async (req, res, next) => {
   const { warehouseId, productId, userId, quantity, adjustmentType, note } = req.body;
   const businessId = getBusinessId();
@@ -45,9 +43,6 @@ exports.createStockAdjustment = catchAsync(async (req, res, next) => {
   });
 });
 
-/**
- * GET STOCK ADJUSTMENTS
- */
 exports.getStockAdjustments = catchAsync(async (req, res) => {
   const { page = 1, limit = 10, warehouseId, productId, userId } = req.query;
   const businessId = getBusinessId();
@@ -72,9 +67,6 @@ exports.getStockAdjustments = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * GET STOCK ADJUSTMENT BY ID
- */
 exports.getStockAdjustmentById = catchAsync(async (req, res, next) => {
   const adjustment = await StockAdjustment.findByPk(req.params.id, {
     include: [Warehouse, Product, User],
@@ -87,10 +79,6 @@ exports.getStockAdjustmentById = catchAsync(async (req, res, next) => {
   });
 });
 
-/**
- * UPDATE STOCK ADJUSTMENT
- * Optional: only allow if not finalized or business allows
- */
 exports.updateStockAdjustment = catchAsync(async (req, res, next) => {
   const adjustment = await StockAdjustment.findByPk(req.params.id);
   if (!adjustment) return next(new AppError('Stock adjustment not found', 404));
@@ -112,10 +100,7 @@ exports.updateStockAdjustment = catchAsync(async (req, res, next) => {
   });
 });
 
-/**
- * DELETE STOCK ADJUSTMENT
- * Revert stock
- */
+
 exports.deleteStockAdjustment = catchAsync(async (req, res, next) => {
   const adjustment = await StockAdjustment.findByPk(req.params.id);
   if (!adjustment) return next(new AppError('Stock adjustment not found', 404));

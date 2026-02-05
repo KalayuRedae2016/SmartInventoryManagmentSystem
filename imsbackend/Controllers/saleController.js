@@ -11,19 +11,6 @@ const calculateSaleStatus = (total, paid) => {
   return 'paid';
 };
 
-      // businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-      // warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-      // customerId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-      // invoiceNumber: { type: DataTypes.STRING, allowNull: false, unique: true },
-      // saleDate: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
-      // totalAmount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
-      // paidAmount: { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 },
-      // dueAmount: { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 },
-      // paymentMethod: { type: DataTypes.ENUM('cash', 'bank_transfer', 'mobile_payment'), allowNull: true },
-      // status: { type: DataTypes.ENUM('pending', 'partial', 'paid'), allowNull: false, defaultValue: 'pending' },
-      // note: { type: DataTypes.STRING, allowNull: true },
-      // isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
-
 // Create a new sale
 exports.createSale = catchAsync(async (req, res, next) => {
   const { warehouseId, customerId, invoiceNumber, saleDate, totalAmount,paidAmount,paymentMethod,note } = req.body;
@@ -280,7 +267,6 @@ exports.deleteSales = catchAsync(async (req, res, next) => {
     throw err;
   }
 });
-
 
 //Contorllers for sale items (add/update/delete) - only allowed if sale is not paid
 exports.createSaleItem = catchAsync(async (req, res, next) => {

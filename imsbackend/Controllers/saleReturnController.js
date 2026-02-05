@@ -125,12 +125,6 @@ exports.deleteSaleReturn = catchAsync(async (req, res, next) => {
   });
 });
 
-/**
- * =========================
- * SALE RETURN ITEM CONTROLLER
- * =========================
- */
-
 // Add a sale return item
 exports.createSaleReturnItem = catchAsync(async (req, res, next) => {
   const { saleReturnId, productId, warehouseId, quantity, unitPrice } = req.body;
