@@ -20,15 +20,15 @@ app.use(function (req, res, next) {
 
 router.route('/')
       .post(purchaseController.createPurchase)
-      // .get(purchaseController.getAllPurchases)
-      // .delete(purchaseController.deleteAllPurchases);
+      .get(purchaseController.getPurchases)
+      .delete(purchaseController.deletePurchases);
   
-router.route('/:purchaseId')
+router.route('/:id')
   .get(purchaseController.getPurchaseById)
    .patch(purchaseController.updatePurchase)
   .delete(purchaseController.deletePurchase);
 
-router.route('/pay/:purchaseId')
+router.route('/pay/:id')
   // .patch(purchaseController.payPurchase)
 
   router.route('/items')

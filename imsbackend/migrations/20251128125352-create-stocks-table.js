@@ -6,7 +6,6 @@ module.exports = {
       businessId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       warehouseId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false, references: { model: 'Warehouses', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'RESTRICT' },
       productId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false, references: { model: 'Products', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'RESTRICT' },
-      name: { type: Sequelize.STRING, allowNull: false },
       quantity: { type: Sequelize.INTEGER.UNSIGNED, defaultValue: 0 },
       stockAlert: { type: Sequelize.INTEGER.UNSIGNED, defaultValue: 0 },
       description: { type: Sequelize.TEXT, allowNull: true },

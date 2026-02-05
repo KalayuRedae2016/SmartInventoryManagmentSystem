@@ -7,6 +7,7 @@ module.exports = (sequelize, DataTypes) => {
       Purchase.belongsTo(models.Supplier, { foreignKey: 'supplierId', as: 'supplier' });
       Purchase.belongsTo(models.Warehouse, { foreignKey: 'warehouseId', as: 'warehouse' });
       Purchase.belongsTo(models.Business, { foreignKey: 'businessId', as: 'business' });
+      Purchase.hasMany(models.PurchaseItem, {foreignKey: 'purchaseId',as: 'items',onDelete: 'CASCADE'});
     }
   }
 
