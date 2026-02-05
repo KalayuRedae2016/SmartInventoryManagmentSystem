@@ -283,7 +283,6 @@ exports.deleteSales = catchAsync(async (req, res, next) => {
 
 
 //Contorllers for sale items (add/update/delete) - only allowed if sale is not paid
-//.....Controller for SaleItems.....//.
 exports.createSaleItem = catchAsync(async (req, res, next) => {
   const { saleId, productId, warehouseId, quantity, unitPrice } = req.body;
   const businessId = getBusinessId();
@@ -298,78 +297,66 @@ exports.createSaleItem = catchAsync(async (req, res, next) => {
 
   const sale = await Sale.findByPk(saleId);
   if (!sale || sale.status !== 'pending') {
-    return next(new AppError('Sale not found or not pending', 404));
+    return next(new AppError('Sale not found or not pending', 400));
   }
 
   const itemTotal = quantity * unitPrice;
+
   const currentItemsTotal =
     (await SaleItem.sum('total', { where: { saleId } })) || 0;
 
   if (currentItemsTotal + itemTotal > sale.totalAmount) {
-    return next(
-      new AppError('Adding this item exceeds sale total amount', 400)
-    );
+    return next(new AppError('Sale items exceed sale total amount', 400));
   }
 
-  // 🔐 TRANSACTION START
   const t = await sequelize.transaction();
 
   try {
-    // 1️⃣ Create PurchaseItem
-    const item = await SaleItem.create(
-      {
-        saleId,
-        businessId,
-        warehouseId,
-        productId,
-        quantity,
-        unitPrice,
-        total: itemTotal,
-      },
-      { transaction: t }
-    );
-
-    // 2️⃣ Update Sale financials
-    sale.dueAmount = sale.totalAmount - sale.paidAmount;
-    sale.status = calculateStatus(
-      sale.totalAmount,
-      sale.paidAmount
-    );
-    await sale.save({ transaction: t });
-
-    // 3️⃣ Update Stock (UPSERT logic)
-    const [stock] = await Stock.findOrCreate({
+    // 1️⃣ Check stock availability
+    const stock = await Stock.findOne({
       where: { businessId, warehouseId, productId },
-      defaults: { quantity: 0 },
       transaction: t,
-      lock: t.LOCK.UPDATE,
+      lock: t.LOCK.UPDATE
     });
 
-    stock.quantity += quantity;
+    if (!stock || stock.quantity < quantity) {
+      return next(new AppError('Insufficient stock', 400));
+    }
+
+    // 2️⃣ Create SaleItem
+    const item = await SaleItem.create({
+      saleId,
+      businessId,
+      warehouseId,
+      productId,
+      quantity,
+      unitPrice,
+      total: itemTotal
+    }, { transaction: t });
+
+    // 3️⃣ Decrease stock
+    stock.quantity -= quantity;
     await stock.save({ transaction: t });
 
-    // 4️⃣ Insert StockTransaction (history)
-    await StockTransaction.create(
-      {
-        businessId,
-        warehouseId,
-        productId,
-        type: 'Out',
-        quantity,
-        referenceType: 'Sale',
-        referenceId: sale.id,
-        performedBy: req.user?.id || null,
-        note: `PurchaseItem added (Purchase ID: ${sale.id})`,
-      },
-      { transaction: t }
-    );
+    // 4️⃣ Stock history
+    await StockTransaction.create({
+      businessId,
+      warehouseId,
+      productId,
+      type: 'OUT',
+      quantity,
+      referenceType: 'SALE',
+      referenceId: sale.id,
+      performedBy: req.user?.id || null,
+      note: `Sale item added (Sale ID: ${sale.id})`
+    }, { transaction: t });
 
     await t.commit();
 
     res.status(201).json({
       status: 1,
-      message: 'Purchase item added successfully',
-      data: item,
+      message: 'Sale item added successfully',
+      data: item
     });
   } catch (err) {
     await t.rollback();
@@ -378,224 +365,151 @@ exports.createSaleItem = catchAsync(async (req, res, next) => {
 });
 
 exports.getSaleItems = catchAsync(async (req, res) => {
-  console.log("reched this endpoint")
-  const { purchaseId, page = 1, limit = 10 } = req.query;
+  const { saleId, page = 1, limit = 10 } = req.query;
   const businessId = getBusinessId();
-  const where = { businessId };
-  if (purchaseId) where.purchaseId = purchaseId;
 
-  const items = await PurchaseItem.findAndCountAll({
+  const where = { businessId };
+  if (saleId) where.saleId = saleId;
+
+  const items = await SaleItem.findAndCountAll({
     where,
     include: [
-       {model: Product, as: 'product' },
-       {model: Purchase, as: 'purchase' },
+      { model: Product, as: 'product' },
+      { model: Sale, as: 'sale' }
     ],
-    
     limit: +limit,
     offset: (page - 1) * limit,
-    order: [['createdAt', 'DESC']],
+    order: [['createdAt', 'DESC']]
   });
 
   res.status(200).json({
     status: 1,
-    message: 'Purchase items fetched successfully',
-    result: items.count,
-    data: items.rows,
+    total: items.count,
+    data: items.rows
   });
 });
 
 exports.updateSaleItem = catchAsync(async (req, res, next) => {
-  const { quantity, unitPrice, warehouseId, productId } = req.body;
-  const businessId = getBusinessId();
+  const { quantity, unitPrice } = req.body;
 
-  // 1️⃣ Fetch the item
   const item = await SaleItem.findByPk(req.params.itemId);
   if (!item) return next(new AppError('Sale item not found', 404));
 
-  // 2️⃣ Fetch the related sale
   const sale = await Sale.findByPk(item.saleId);
-  if (!sale || !sale.isActive) return next(new AppError('Sale not found', 404));
-
-  // 3️⃣ Check if stock already exists for this purchase (locked fields)
-  const stockUsed = await StockTransaction.count({
-    where: { referenceType: 'PURCHASE', referenceId: purchase.id }
-  });
-  const isLocked = stockUsed > 0;
-
-  // 4️⃣ Validate new values
-  let newQuantity = quantity !== undefined ? quantity : item.quantity;
-  let newUnitPrice = unitPrice !== undefined ? unitPrice : item.unitPrice;
-  if (newQuantity <= 0) return next(new AppError('Quantity must be positive', 400));
-  if (newUnitPrice <= 0) return next(new AppError('Unit price must be positive', 400));
-
-  const newTotal = newQuantity * newUnitPrice;
-
-  const otherItemsTotal = (await PurchaseItem.sum('total', {
-    where: { purchaseId: purchase.id, id: { [Op.ne]: item.id } }
-  })) || 0;
-
-  if (otherItemsTotal + newTotal > purchase.totalAmount) {
-    return next(new AppError(`Updating this item exceeds purchase total amount (${purchase.totalAmount})`, 400));
+  if (!sale || sale.status !== 'pending') {
+    return next(new AppError('Sale is locked', 400));
   }
 
-  // 5️⃣ Update editable fields
-  if (!isLocked) {
-    if (warehouseId !== undefined) item.warehouseId = warehouseId;
-    if (productId !== undefined) item.productId = productId;
-  } else {
-    if (warehouseId || productId) return next(new AppError('Cannot change warehouse or product after stock is created', 400));
+  const newQty = quantity ?? item.quantity;
+  const newPrice = unitPrice ?? item.unitPrice;
+
+  if (newQty <= 0 || newPrice <= 0) {
+    return next(new AppError('Invalid quantity or price', 400));
   }
 
-  // 6️⃣ Calculate quantity difference for stock adjustment
-  const diffQuantity = newQuantity - item.quantity;
+  const diffQty = newQty - item.quantity;
 
-  item.quantity = newQuantity;
-  item.unitPrice = newUnitPrice;
-  item.total = newTotal;
-  await item.save();
+  const t = await sequelize.transaction();
 
-  // 7️⃣ Update purchase financials
-  purchase.dueAmount = purchase.totalAmount - purchase.paidAmount;
-  purchase.status = calculateStatus(purchase.totalAmount, purchase.paidAmount);
-  await purchase.save();
-
-  // 8️⃣ Adjust stock and stock transaction if quantity changed
-  if (diffQuantity !== 0) {
-    let stock = await Stock.findOne({
-      where: { businessId, warehouseId: item.warehouseId, productId: item.productId }
-    });
-    if (stock) {
-      stock.quantity += diffQuantity;
-      await stock.save();
-    } else {
-      await Stock.create({
-        businessId,
+  try {
+    const stock = await Stock.findOne({
+      where: {
+        businessId: sale.businessId,
         warehouseId: item.warehouseId,
-        productId: item.productId,
-        quantity: diffQuantity,
-        name: '', // optional
-        stockAlert: 0,
-        description: 'Stock from updated purchase item',
-      });
+        productId: item.productId
+      },
+      transaction: t,
+      lock: t.LOCK.UPDATE
+    });
+
+    // If increasing sale qty → need more stock
+    if (diffQty > 0 && (!stock || stock.quantity < diffQty)) {
+      return next(new AppError('Insufficient stock', 400));
     }
 
-    await StockTransaction.create({
-      businessId,
-      warehouseId: item.warehouseId,
-      productId: item.productId,
-      quantity: diffQuantity,
-      type: 'IN',
-      referenceType: 'PURCHASE',
-      referenceId: purchase.id,
-      performedBy: req.user?.id || null,
-      note: `PurchaseItem updated (Purchase ID: ${purchase.id})`,
-      valueDate: new Date(),
-    });
-  }
+    // Adjust stock
+    if (diffQty !== 0) {
+      stock.quantity -= diffQty;
+      await stock.save({ transaction: t });
 
-  res.status(200).json({
-    status: 1,
-    message: 'Purchase item updated successfully',
-    data: item,
-  });
-});
-
-exports.deleteSaleItem = catchAsync(async (req, res, next) => {
-  const item = await PurchaseItem.findByPk(req.params.itemId);
-  if (!item) return next(new AppError('Purchase item not found', 404));
-
-  const purchase = await Purchase.findByPk(item.purchaseId);
-  if (!purchase || !purchase.isActive) return next(new AppError('Purchase not found', 404));
-  if (purchase.status === 'paid') return next(new AppError('Cannot delete item of paid purchase', 400));
-
-  const businessId = purchase.businessId;
-
-  // 1️⃣ Adjust stock
-  const stock = await Stock.findOne({
-    where: { businessId, warehouseId: item.warehouseId, productId: item.productId }
-  });
-
-  if (stock) {
-    stock.quantity -= item.quantity;
-    if (stock.quantity < 0) stock.quantity = 0; // prevent negative stock
-    await stock.save();
-  }
-
-  // 2️⃣ Record StockTransaction
-  await StockTransaction.create({
-    businessId,
-    warehouseId: item.warehouseId,
-    productId: item.productId,
-    quantity: item.quantity,
-    type: 'OUT',
-    referenceType: 'PURCHASE',
-    referenceId: purchase.id,
-    performedBy: req.user?.id || null,
-    note: `PurchaseItem deleted (Purchase ID: ${purchase.id})`,
-    valueDate: new Date(),
-  });
-
-  // 3️⃣ Delete the PurchaseItem
-  await item.destroy();
-
-  // 4️⃣ Update purchase financials (do NOT reduce totalAmount)
-  purchase.dueAmount = purchase.totalAmount - purchase.paidAmount;
-  purchase.status = calculateStatus(purchase.totalAmount, purchase.paidAmount);
-  await purchase.save();
-
-  res.status(200).json({
-    status: 1,
-    message: 'Purchase item deleted successfully',
-  });
-});
-
-exports.deleteAllSales = catchAsync(async (req, res, next) => {
-  // 1️⃣ Fetch all active sales
-  const sales = await Sale.findAll({ where: { isActive: true } });
-  if (!sales.length) return next(new AppError('No active sales found', 404));
-
-  for (const sale of sales) {
-    // Skip fully paid sales
-    if (sale.status === 'paid') continue;
-
-    const saleItems = await SaleItem.findAll({ where: { saleId: sale.id } });
-
-    for (const item of saleItems) {
-      // Adjust stock
-      const stock = await Stock.findOne({
-        where: { businessId: sale.businessId, warehouseId: item.warehouseId, productId: item.productId }
-      });
-      if (stock) {
-        stock.quantity -= item.quantity;
-        if (stock.quantity < 0) stock.quantity = 0;
-        await stock.save();
-      }
-
-      // Record stock transaction
       await StockTransaction.create({
         businessId: sale.businessId,
         warehouseId: item.warehouseId,
         productId: item.productId,
-        quantity: item.quantity,
-        type: 'OUT',
+        type: diffQty > 0 ? 'OUT' : 'IN',
+        quantity: Math.abs(diffQty),
         referenceType: 'SALE',
         referenceId: sale.id,
-        performedBy: req.user?.id || null,
-        note: `SaleItem deleted (Sale ID: ${sale.id})`,
-        valueDate: new Date(),
-      });
-
-      // Delete sale item
-      await item.destroy();
+        note: 'Sale item updated'
+      }, { transaction: t });
     }
 
-    // Soft delete the sale
-    sale.isActive = false;
-    await sale.save();
+    // Update item
+    item.quantity = newQty;
+    item.unitPrice = newPrice;
+    item.total = newQty * newPrice;
+    await item.save({ transaction: t });
+
+    await t.commit();
+
+    res.status(200).json({
+      status: 1,
+      message: 'Sale item updated successfully',
+      data: item
+    });
+  } catch (err) {
+    await t.rollback();
+    throw err;
+  }
+});
+exports.deleteSaleItem = catchAsync(async (req, res, next) => {
+  const item = await SaleItem.findByPk(req.params.itemId);
+  if (!item) return next(new AppError('Sale item not found', 404));
+
+  const sale = await Sale.findByPk(item.saleId);
+  if (!sale || sale.status !== 'pending') {
+    return next(new AppError('Cannot delete item from locked sale', 400));
   }
 
-  res.status(200).json({
-    status: 1,
-    message: 'All eligible purchases deleted successfully',
-  });
+  const t = await sequelize.transaction();
+
+  try {
+    const stock = await Stock.findOne({
+      where: {
+        businessId: sale.businessId,
+        warehouseId: item.warehouseId,
+        productId: item.productId
+      },
+      transaction: t,
+      lock: t.LOCK.UPDATE
+    });
+
+    // Restore stock
+    stock.quantity += item.quantity;
+    await stock.save({ transaction: t });
+
+    await StockTransaction.create({
+      businessId: sale.businessId,
+      warehouseId: item.warehouseId,
+      productId: item.productId,
+      type: 'IN',
+      quantity: item.quantity,
+      referenceType: 'SALE',
+      referenceId: sale.id,
+      note: 'Sale item deleted'
+    }, { transaction: t });
+
+    await item.destroy({ transaction: t });
+
+    await t.commit();
+
+    res.status(200).json({
+      status: 1,
+      message: 'Sale item deleted successfully'
+    });
+  } catch (err) {
+    await t.rollback();
+    throw err;
+  }
 });
+
