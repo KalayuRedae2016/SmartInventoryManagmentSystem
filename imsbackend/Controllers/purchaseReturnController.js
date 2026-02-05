@@ -1,6 +1,7 @@
-const { PurchaseReturn, PurchaseReturnItem, Purchase, Supplier, Warehouse, Stock, Product } = require('../models');
+const { PurchaseReturn, PurchaseReturnItem, Purchase, Supplier, Warehouse, Stock, Product ,StockTransaction} = require('../models');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const sequelize = require('../models').sequelize;
 
 const getBusinessId = () => 1;
 
@@ -19,11 +20,9 @@ const getRemainingReturnAmount = async (purchaseId) => {
   return purchase.totalAmount - returnedTotal;
 };
 
-
 exports.createPurchaseReturn = catchAsync(async (req, res, next) => {
   const { purchaseId, warehouseId, supplierId, totalAmount, reason } = req.body;
   const businessId = getBusinessId();
-
   if (!purchaseId || !warehouseId || !supplierId || !totalAmount || !reason) {
     return next(new AppError('Missing required fields', 400));
   }
@@ -157,7 +156,6 @@ exports.deletePurchaseReturn = catchAsync(async (req, res, next) => {
   });
 });
 
-
 // Controller for PurchaseReturnItems
 exports.createPurchaseReturnItem = catchAsync(async (req, res, next) => {
   const { purchaseReturnId, productId, warehouseId, quantity, unitPrice } = req.body;
@@ -206,7 +204,7 @@ exports.createPurchaseReturnItem = catchAsync(async (req, res, next) => {
     );
 
     // 2️⃣ Update PurchaseReturn totalAmount
-    purchaseReturn.totalAmount += itemTotal; // optional, if you track running total
+    //purchaseReturn.totalAmount += itemTotal; // optional, if you track running total
     await purchaseReturn.save({ transaction: t });
 
     // 3️⃣ Update Stock (UPSERT logic, decrease stock for return)
@@ -250,7 +248,7 @@ exports.createPurchaseReturnItem = catchAsync(async (req, res, next) => {
 });
 
 
-exports.getPurchaseReturnItems = catchAsync(async (req, res) => {
+exports.getPurchaseReturnsItem = catchAsync(async (req, res) => {
   const { purchaseReturnId, page = 1, limit = 10 } = req.query;
   const businessId = getBusinessId();
 
@@ -273,31 +271,95 @@ exports.getPurchaseReturnItems = catchAsync(async (req, res) => {
   });
 });
 
+// Update a PurchaseReturnItem
 exports.updatePurchaseReturnItem = catchAsync(async (req, res, next) => {
+  const { quantity, unitPrice, warehouseId, productId } = req.body;
+  const businessId = getBusinessId();
+
+  // 1️⃣ Fetch the item
   const item = await PurchaseReturnItem.findByPk(req.params.id);
   if (!item) return next(new AppError('Purchase return item not found', 404));
 
+  // 2️⃣ Fetch related purchase return
   const purchaseReturn = await PurchaseReturn.findByPk(item.purchaseReturnId);
+  if (!purchaseReturn || !purchaseReturn.isActive) return next(new AppError('Purchase return not found', 404));
+
   if (purchaseReturn.status === 'completed') {
     return next(new AppError('Cannot modify items of a completed return', 400));
   }
 
-  const { quantity, unitPrice } = req.body;
+  // 3️⃣ Validate input
+  if (quantity !== undefined && quantity <= 0) return next(new AppError('Quantity must be positive', 400));
+  if (unitPrice !== undefined && unitPrice <= 0) return next(new AppError('Unit price must be positive', 400));
 
-  if (quantity !== undefined && quantity <= 0) return next(new AppError('Invalid quantity', 400));
-  if (unitPrice !== undefined && unitPrice <= 0) return next(new AppError('Invalid unit price', 400));
+  // 4️⃣ Calculate new total
+  const newQuantity = quantity !== undefined ? quantity : item.quantity;
+  const newUnitPrice = unitPrice !== undefined ? unitPrice : item.unitPrice;
+  const newTotal = newQuantity * newUnitPrice;
 
-  item.quantity = quantity !== undefined ? quantity : item.quantity;
-  item.unitPrice = unitPrice !== undefined ? unitPrice : item.unitPrice;
-  item.total = item.quantity * item.unitPrice;
+  // Check remaining purchase amount
+  const otherItemsTotal = (await PurchaseReturnItem.sum('total', {
+    where: { purchaseReturnId: purchaseReturn.id, id: { [Op.ne]: item.id } }
+  })) || 0;
 
-  await item.save();
+  const remaining = await getRemainingReturnAmount(purchaseReturn.purchaseId);
+  if (otherItemsTotal + newTotal > remaining) {
+    return next(new AppError(`Updating this item exceeds remaining purchase amount (${remaining})`, 400));
+  }
 
-  res.status(200).json({
-    status: 1,
-    message: 'Purchase return item updated successfully',
-    data: item,
-  });
+  // 🔐 TRANSACTION START
+  const t = await sequelize.transaction();
+
+  try {
+    // 5️⃣ Update stock if quantity changed
+    const diffQuantity = newQuantity - item.quantity; // positive = increase, negative = decrease
+
+    if (diffQuantity !== 0) {
+      const [stock] = await Stock.findOrCreate({
+        where: { businessId, warehouseId: item.warehouseId, productId: item.productId },
+        defaults: { quantity: 0 },
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+
+      stock.quantity -= diffQuantity; // decrease stock for return items
+      await stock.save({ transaction: t });
+
+      // Optional: update stock transaction history
+      await StockTransaction.create({
+        businessId,
+        warehouseId: item.warehouseId,
+        productId: item.productId,
+        type: 'OUT',
+        quantity: diffQuantity,
+        referenceType: 'PURCHASE_RETURN',
+        referenceId: purchaseReturn.id,
+        performedBy: req.user?.id || null,
+        note: `PurchaseReturnItem updated (Return ID: ${purchaseReturn.id})`,
+      }, { transaction: t });
+    }
+
+    // 6️⃣ Update item
+    item.quantity = newQuantity;
+    item.unitPrice = newUnitPrice;
+    item.total = newTotal;
+    await item.save({ transaction: t });
+
+    // 7️⃣ Update purchaseReturn totalAmount if you track running total
+    purchaseReturn.totalAmount = otherItemsTotal + newTotal;
+    await purchaseReturn.save({ transaction: t });
+
+    await t.commit();
+
+    res.status(200).json({
+      status: 1,
+      message: 'Purchase return item updated successfully',
+      data: item,
+    });
+  } catch (err) {
+    await t.rollback();
+    throw err;
+  }
 });
 
 exports.deletePurchaseReturnItem = catchAsync(async (req, res, next) => {
@@ -305,14 +367,121 @@ exports.deletePurchaseReturnItem = catchAsync(async (req, res, next) => {
   if (!item) return next(new AppError('Purchase return item not found', 404));
 
   const purchaseReturn = await PurchaseReturn.findByPk(item.purchaseReturnId);
-  if (purchaseReturn.status === 'completed') {
-    return next(new AppError('Cannot delete items of a completed return', 400));
+  if (!purchaseReturn || !purchaseReturn.isActive) return next(new AppError('Purchase return not found', 404));
+  if (purchaseReturn.status === 'completed') return next(new AppError('Cannot delete items of a completed return', 400));
+
+  const businessId = getBusinessId();
+
+  // 🔐 TRANSACTION START
+  const t = await sequelize.transaction();
+
+  try {
+    // 1️⃣ Update stock (increase stock back since return item is removed)
+    const [stock] = await Stock.findOrCreate({
+      where: { businessId, warehouseId: item.warehouseId, productId: item.productId },
+      defaults: { quantity: 0 },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    stock.quantity += item.quantity; // return the items to stock
+    await stock.save({ transaction: t });
+
+    // 2️⃣ Optional: record in StockTransaction for history
+    await StockTransaction.create({
+      businessId,
+      warehouseId: item.warehouseId,
+      productId: item.productId,
+      type: 'IN', // reversing the return
+      quantity: item.quantity,
+      referenceType: 'PURCHASE_RETURN',
+      referenceId: purchaseReturn.id,
+      performedBy: req.user?.id || null,
+      note: `PurchaseReturnItem deleted (Return ID: ${purchaseReturn.id})`,
+    }, { transaction: t });
+
+    // 3️⃣ Delete the item
+    await item.destroy({ transaction: t });
+
+    // 4️⃣ Update purchaseReturn totalAmount
+    const remainingItemsTotal = (await PurchaseReturnItem.sum('total', {
+      where: { purchaseReturnId: purchaseReturn.id },
+      transaction: t,
+    })) || 0;
+
+    purchaseReturn.totalAmount = remainingItemsTotal;
+    await purchaseReturn.save({ transaction: t });
+
+    await t.commit();
+
+    res.status(200).json({
+      status: 1,
+      message: 'Purchase return item deleted successfully',
+    });
+  } catch (err) {
+    await t.rollback();
+    throw err;
   }
+});
 
-  await item.destroy();
+exports.deleteAllPurchaseReturnItems = catchAsync(async (req, res, next) => {
+  const purchaseReturn = await PurchaseReturn.findByPk(req.params.purchaseReturnId);
+  if (!purchaseReturn || !purchaseReturn.isActive) return next(new AppError('Purchase return not found', 404));
+  if (purchaseReturn.status === 'completed') return next(new AppError('Cannot delete items of a completed return', 400));
 
-  res.status(200).json({
-    status: 1,
-    message: 'Purchase return item deleted successfully',
-  });
+  const businessId = getBusinessId();
+
+  // 🔐 TRANSACTION START
+  const t = await sequelize.transaction();
+
+  try {
+    const items = await PurchaseReturnItem.findAll({
+      where: { purchaseReturnId: purchaseReturn.id },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    for (const item of items) {
+      // 1️⃣ Update stock
+      const [stock] = await Stock.findOrCreate({
+        where: { businessId, warehouseId: item.warehouseId, productId: item.productId },
+        defaults: { quantity: 0 },
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+
+      stock.quantity += item.quantity;
+      await stock.save({ transaction: t });
+
+      // 2️⃣ Optional: StockTransaction history
+      await StockTransaction.create({
+        businessId,
+        warehouseId: item.warehouseId,
+        productId: item.productId,
+        type: 'IN',
+        quantity: item.quantity,
+        referenceType: 'PURCHASE_RETURN',
+        referenceId: purchaseReturn.id,
+        performedBy: req.user?.id || null,
+        note: `PurchaseReturnItem deleted (Return ID: ${purchaseReturn.id})`,
+      }, { transaction: t });
+
+      // 3️⃣ Delete the item
+      await item.destroy({ transaction: t });
+    }
+
+    // 4️⃣ Update purchaseReturn totalAmount
+    purchaseReturn.totalAmount = 0;
+    await purchaseReturn.save({ transaction: t });
+
+    await t.commit();
+
+    res.status(200).json({
+      status: 1,
+      message: 'All purchase return items deleted successfully',
+    });
+  } catch (err) {
+    await t.rollback();
+    throw err;
+  }
 });

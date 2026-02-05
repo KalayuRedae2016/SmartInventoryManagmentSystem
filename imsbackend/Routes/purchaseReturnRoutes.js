@@ -17,6 +17,16 @@ app.use(function (req, res, next) {
 
 // router.use(authoController.requiredRole('admin',"staff"));
 
+  router.route('/items')
+      .post(purchaseReturnController.createPurchaseReturnItem)
+      .get(purchaseReturnController.getPurchaseReturnsItem)
+      // .delete(purchaseReturnController.deleteAllPurchaseReturnItems);
+  
+router.route('/items/:id')
+  // .get(purchaseReturnController.getPurchaseReturnItemById)
+  .patch(purchaseReturnController.updatePurchaseReturnItem)
+  .delete(purchaseReturnController.deletePurchaseReturnItem);
+
 router.route('/')
       .post(purchaseReturnController.createPurchaseReturn)
       .get(purchaseReturnController.getPurchaseReturns)
@@ -27,15 +37,7 @@ router.route('/:id')
   .patch(purchaseReturnController.updatePurchaseReturn)
   .delete(purchaseReturnController.deletePurchaseReturn);
 
-//   router.route('/items')
-//       .post(purchaseReturnController.createPurchaseReturnItem)
-//       // .get(purchaseReturnController.getPurchaseReturnsItem)
-//       // .delete(purchaseReturnController.deleteAllPurchaseReturnItems);
-  
-// router.route('/items/:id')
-//   .get(purchaseReturnController.getPurchaseReturnItemById)
-//   .patch(purchaseReturnController.updatePurchaseReturnItem)
-//   .delete(purchaseReturnController.deletePurchaseReturnItem);
+
 
 
 module.exports=router
