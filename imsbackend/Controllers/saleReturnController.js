@@ -1,21 +1,28 @@
-const { SaleReturn, SaleReturnItem, Sale, Product, Customer, Stock } = require('../models');
+const { SaleReturn, SaleReturnItem, Sale, Product, Customer,Warehouse, Stock } = require('../models');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const { Op } = require('sequelize');
+const sequelize = require('../models').sequelize;
 
 const getBusinessId = () => 1;
 
+const calculateStatus = (total, paid) => {
+  if (paid <= 0) return 'pending';
+  if (paid < total) return 'partial';
+  return 'paid';
+};
+
 // Create a sale return
 exports.createSaleReturn = catchAsync(async (req, res, next) => {
-  console.log("Create Sale Return",req.body)
-  const { saleId, warehouseId, customerId, totalAmount = 0,paidAmount, paymentMethod,note,status,isActive, returnDate } = req.body;
+  const {warehouseId,customerId,saleId,totalAmount,paidAmount = 0,paymentMethod,note,returnDate} = req.body;
+
   const businessId = getBusinessId();
 
-  if (!saleId || !warehouseId || !customerId || !returnDate) {
-    return next(new AppError('Missing required fields', 400));
-  }
+  if (!saleId || !warehouseId || !customerId || totalAmount <= 0 || paidAmount < 0 || paidAmount > totalAmount || !paymentMethod)
+    return next(new AppError('Missing or invalid required fields', 400));
 
   const sale = await Sale.findByPk(saleId);
-  if (!sale) return next(new AppError('Original sale not found', 404));
+  if (!sale || !sale.isActive)  return next(new AppError('Original sale not found', 404));
 
   const saleReturn = await SaleReturn.create({
     businessId,
@@ -24,52 +31,79 @@ exports.createSaleReturn = catchAsync(async (req, res, next) => {
     customerId,
     totalAmount,
     paidAmount,
-    dueAmount:totalAmount-paidAmount,
+    dueAmount: totalAmount - paidAmount,
     paymentMethod,
-    status,
-    returnDate,
-    isActive
+    status: calculateStatus(totalAmount, paidAmount),
+    note,
+    returnDate: returnDate || new Date(),
+    isActive: true
   });
 
   res.status(201).json({
     status: 1,
     message: 'Sale return created successfully. Add return items next.',
-    data: saleReturn,
+    data: saleReturn
   });
 });
 
-// Get all sale returns
+// Get all sale returns (safe for hasMany)
 exports.getSaleReturns = catchAsync(async (req, res) => {
-  const { page = 1, limit = 10, customerId } = req.query;
+  const {page = 1,limit = 10,saleId,customerId,warehouseId,status,fromDate,toDate,isActive } = req.query;
+
   const businessId = getBusinessId();
 
-  const where = { businessId };
-  if (customerId) where.customerId = customerId;
+  const where = {
+    businessId,
+    ...(saleId && { saleId }),
+    ...(customerId && { customerId }),
+    ...(warehouseId && { warehouseId }),
+    ...(status && { status }),
+    ...(isActive !== undefined && { isActive }),
+    ...(fromDate || toDate
+      ? { returnDate: { ...(fromDate && { [Op.gte]: new Date(fromDate) }), ...(toDate && { [Op.lte]: new Date(toDate) }) } }
+      : {})
+  };
 
-  const saleReturns = await SaleReturn.findAndCountAll({
+  const total = await SaleReturn.count({ where });
+  const rows = await SaleReturn.findAll({
     where,
-    include: [Customer, { model: SaleReturnItem, include: [Product] }, { model: Sale }],
-    limit: +limit,
+    include: [
+      { model: Sale, as: 'sale', attributes: ['id', 'invoiceNumber', 'saleDate'] },
+      { model: Customer, as: 'customer', attributes: ['id', 'name'] },
+      { model: Warehouse, as: 'warehouse', attributes: ['id', 'name'] },
+      { model: SaleReturnItem, as: 'items' } 
+    ],
+    limit: Number(limit),
     offset: (page - 1) * limit,
-    order: [['returnDate', 'DESC']],
+    order: [['returnDate', 'DESC']]
   });
 
   res.status(200).json({
     status: 1,
-    total: saleReturns.count,
-    data: saleReturns.rows,
+    result: total,
+    page: Number(page),
+    pages: Math.ceil(total / limit),
+    data: rows
   });
 });
 
 // Get sale return by ID
-exports.getSaleReturnById = catchAsync(async (req, res, next) => {
+exports.getSaleReturn= catchAsync(async (req, res, next) => {
+
   const saleReturn = await SaleReturn.findByPk(req.params.id, {
-    include: [Customer, { model: SaleReturnItem, include: [Product] }, { model: Sale }]
-  });
+    include: [
+      { model: Sale, as: 'sale' },
+      { model: Customer, as: 'customer' },
+      { model: Warehouse, as: 'warehouse' },
+      { model: SaleReturnItem, as: 'items' }
+    ],
+    });
+
   if (!saleReturn) return next(new AppError('Sale return not found', 404));
 
   res.status(200).json({
     status: 1,
+    message: 'Sale return retrieved successfully',
     data: saleReturn,
   });
 });

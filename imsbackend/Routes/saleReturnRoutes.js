@@ -33,7 +33,7 @@ router.route('/')
       // .delete(saleReturnController.deleteAllSaleReturns);
   
 router.route('/:id')
-  // .get(saleReturnController.getSaleReturn)
+  .get(saleReturnController.getSaleReturn)
   .patch(saleReturnController.updateSaleReturn)
   .delete(saleReturnController.deleteSaleReturn);
 

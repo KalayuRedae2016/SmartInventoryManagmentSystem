@@ -18,7 +18,7 @@ module.exports = (sequelize, DataTypes) => {
     supplierId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     totalAmount: { type: DataTypes.FLOAT, defaultValue: 0 },
     reason: { type: DataTypes.STRING },
-    status: { type: DataTypes.ENUM('pending', 'completed'), defaultValue: 'completed' },
+status: { type: DataTypes.ENUM('pending', 'partial', 'paid'), defaultValue: 'pending' },
     isActive: { type: DataTypes.BOOLEAN, defaultValue: true }
   }, {
     sequelize,

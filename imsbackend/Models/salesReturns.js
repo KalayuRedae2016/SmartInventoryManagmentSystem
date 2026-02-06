@@ -7,6 +7,8 @@ module.exports = (sequelize, DataTypes) => {
       SaleReturn.belongsTo(models.Sale, { foreignKey: 'saleId', as: 'sale' });
       SaleReturn.hasMany(models.SaleReturnItem, { foreignKey: 'saleReturnId', as: 'items' });
       SaleReturn.belongsTo(models.Customer, { foreignKey: 'customerId', as: 'customer' });
+      SaleReturn.belongsTo(models.Warehouse,{foreignKey:"warehouseId",as:"warehouse"})
+      SaleReturn.belongsTo(models.Business,{foreignKey:"businessId",as:"business"})
     }
   }
 
@@ -20,7 +22,7 @@ module.exports = (sequelize, DataTypes) => {
     paidAmount: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
     dueAmount: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
     paymentMethod: { type: DataTypes.ENUM('cash','bank_transfer','mobile_payment'), allowNull: false },
-    status: { type: DataTypes.ENUM('pending', 'completed'), defaultValue: 'completed' },
+    status: { type: DataTypes.ENUM('pending', 'partial', 'paid'), defaultValue: 'pending' },
     note: { type: DataTypes.STRING },
     isActive: { type: DataTypes.BOOLEAN, defaultValue: true },
     returnDate: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
