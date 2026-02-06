@@ -1,24 +1,26 @@
 
 <script>
 export default {
-  setup() {
+  data() {
     return {
       name: 'Kalayu, Redae!',
-      status: "active",
-      tasks: ["task One", "task Two", "task Three"],
-      link: "https://www.kalayuredae.com"
+      status:"active",
+      tasks:["task One","task Two","task Three"],
+      link:"https://www.kalayuredae.com"
+
     }
   },
-  methods: {
-    toggleStatus() {
-      if (this.status === "active") {
-        this.status = "inactive"
-      } else if (this.status === "inactive") {
-        this.status = "pending"
-      } else {
-        this.status = "active"  
-
-}}}}
+  methods:{
+    toggleStatus(){
+      if(this.status==="active"){
+        this.status="inactive"
+      }else if(this.status==="inactive"){
+        this.status="pending"
+    } else{
+        this.status="active"
+      }
+  }}
+}
 
 </script>
 <template>
