@@ -2,7 +2,7 @@ const express=require("express")
 const app = express();
 const router=express.Router();
 const authoController=require("../controllers/authoController")
-const purchaseReturnController=require("../controllers/purchaseReturnController")
+const saleReturnController=require("../controllers/saleReturnController")
 
 app.use(function (req, res, next) {
   res.header(
@@ -18,24 +18,24 @@ app.use(function (req, res, next) {
 // router.use(authoController.requiredRole('admin',"staff"));
 
   router.route('/items')
-      .post(purchaseReturnController.createPurchaseReturnItem)
-      .get(purchaseReturnController.getPurchaseReturnsItem)
-      // .delete(purchaseReturnController.deleteAllPurchaseReturnItems);
+      .post(saleReturnController.createSaleReturnItem)
+      // .get(saleReturnController.getSaleReturnItems)
+      // .delete(saleReturnController.deleteAllSalReturnItems);
   
 router.route('/items/:id')
-  // .get(purchaseReturnController.getPurchaseReturnItemById)
-  .patch(purchaseReturnController.updatePurchaseReturnItem)
-  .delete(purchaseReturnController.deletePurchaseReturnItem);
+  // .get(saleReturnController.getSaleReturnItem)
+.patch(saleReturnController.updateSaleReturnItem)
+  .delete(saleReturnController.deleteSaleReturnItem);
 
 router.route('/')
-      .post(purchaseReturnController.createPurchaseReturn)
-      .get(purchaseReturnController.getPurchaseReturns)
-      // .delete(purchaseReturnController.deleteAllPurchaseReturns);
+      .post(saleReturnController.createSaleReturn)
+      .get(saleReturnController.getSaleReturns)
+      // .delete(saleReturnController.deleteAllSaleReturns);
   
 router.route('/:id')
-  .get(purchaseReturnController.getPurchaseReturnById)
-  .patch(purchaseReturnController.updatePurchaseReturn)
-  .delete(purchaseReturnController.deletePurchaseReturn);
+  // .get(saleReturnController.getSaleReturn)
+  .patch(saleReturnController.updateSaleReturn)
+  .delete(saleReturnController.deleteSaleReturn);
 
 
 

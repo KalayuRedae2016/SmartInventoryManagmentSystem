@@ -8,11 +8,10 @@ module.exports = (sequelize, DataTypes) => {
       SaleReturnItem.belongsTo(models.Product, { foreignKey: 'productId', as: 'product' });
     }
   }
-
   SaleReturnItem.init({
-    saleReturnId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    saleReturnId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     productId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     quantity: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     unitPrice: { type: DataTypes.FLOAT, allowNull: false },

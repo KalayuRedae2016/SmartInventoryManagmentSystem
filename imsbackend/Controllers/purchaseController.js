@@ -277,7 +277,6 @@ exports.hardDeletePurchases = catchAsync(async (req, res, next) => {
   });
 });
 
-
 //.....Controller for PurchaseItems.....//.
 exports.createPurchaseItem = catchAsync(async (req, res, next) => {
   const { purchaseId, productId, warehouseId, quantity, unitPrice } = req.body;

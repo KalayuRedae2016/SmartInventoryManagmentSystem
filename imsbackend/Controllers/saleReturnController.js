@@ -4,15 +4,10 @@ const AppError = require('../utils/appError');
 
 const getBusinessId = () => 1;
 
-/**
- * =========================
- * SALE RETURN CONTROLLER
- * =========================
- */
-
 // Create a sale return
 exports.createSaleReturn = catchAsync(async (req, res, next) => {
-  const { saleId, warehouseId, customerId, totalAmount = 0, paymentMethod, returnDate } = req.body;
+  console.log("Create Sale Return",req.body)
+  const { saleId, warehouseId, customerId, totalAmount = 0, paymentMethod,note,status,isActive, returnDate } = req.body;
   const businessId = getBusinessId();
 
   if (!saleId || !warehouseId || !customerId || !returnDate) {

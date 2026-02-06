@@ -12,15 +12,21 @@ module.exports = (sequelize, DataTypes) => {
 
   SaleReturn.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-    saleId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    saleId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     customerId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     totalAmount: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
-    status: { type: DataTypes.BOOLEAN, defaultValue: true },
+    paidAmount: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
+    dueAmount: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
     paymentMethod: { type: DataTypes.ENUM('cash','bank_transfer','mobile_payment'), allowNull: false },
+    status: { type: DataTypes.BOOLEAN, defaultValue: true },
+    note: { type: DataTypes.STRING },
+    isActive: { type: DataTypes.BOOLEAN, defaultValue: true },
     returnDate: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
   }, { sequelize, modelName: 'SaleReturn', tableName: 'SaleReturns', timestamps: true });
 
   return SaleReturn;
 };
+
+
