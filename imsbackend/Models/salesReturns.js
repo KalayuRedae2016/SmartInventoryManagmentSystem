@@ -20,7 +20,7 @@ module.exports = (sequelize, DataTypes) => {
     paidAmount: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
     dueAmount: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
     paymentMethod: { type: DataTypes.ENUM('cash','bank_transfer','mobile_payment'), allowNull: false },
-    status: { type: DataTypes.BOOLEAN, defaultValue: true },
+    status: { type: DataTypes.ENUM('pending', 'completed'), defaultValue: 'completed' },
     note: { type: DataTypes.STRING },
     isActive: { type: DataTypes.BOOLEAN, defaultValue: true },
     returnDate: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }

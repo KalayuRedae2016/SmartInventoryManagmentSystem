@@ -7,7 +7,7 @@ const getBusinessId = () => 1;
 // Create a sale return
 exports.createSaleReturn = catchAsync(async (req, res, next) => {
   console.log("Create Sale Return",req.body)
-  const { saleId, warehouseId, customerId, totalAmount = 0, paymentMethod,note,status,isActive, returnDate } = req.body;
+  const { saleId, warehouseId, customerId, totalAmount = 0,paidAmount, paymentMethod,note,status,isActive, returnDate } = req.body;
   const businessId = getBusinessId();
 
   if (!saleId || !warehouseId || !customerId || !returnDate) {
@@ -18,14 +18,17 @@ exports.createSaleReturn = catchAsync(async (req, res, next) => {
   if (!sale) return next(new AppError('Original sale not found', 404));
 
   const saleReturn = await SaleReturn.create({
-    saleId,
     businessId,
     warehouseId,
+    saleId,
     customerId,
     totalAmount,
+    paidAmount,
+    dueAmount:totalAmount-paidAmount,
     paymentMethod,
-    status: false, // pending return
+    status,
     returnDate,
+    isActive
   });
 
   res.status(201).json({

@@ -38,6 +38,4 @@ router.route('/:id')
   .delete(saleReturnController.deleteSaleReturn);
 
 
-
-
 module.exports=router

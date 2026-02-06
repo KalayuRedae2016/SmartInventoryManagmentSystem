@@ -10,7 +10,7 @@ module.exports = {
       totalAmount: { type: Sequelize.DECIMAL(10,2), defaultValue: 0 },
       paidAmount: { type: Sequelize.DECIMAL(10,2), defaultValue: 0 },
       dueAmount: { type: Sequelize.DECIMAL(10,2), defaultValue: 0 },
-      status: { type: Sequelize.BOOLEAN, defaultValue: true },
+      status: { type: Sequelize.ENUM('pending', 'completed'), defaultValue: 'completed' },
       paymentMethod: { type: Sequelize.ENUM('cash','bank_transfer','mobile_payment'), allowNull: false },
       returnDate: { type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
       isActive: { type: Sequelize.BOOLEAN, defaultValue: true },
