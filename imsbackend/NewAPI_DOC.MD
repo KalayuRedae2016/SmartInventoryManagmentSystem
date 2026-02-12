@@ -670,3 +670,4 @@ Endpoints:
     POST   /stock-transactions/import
     GET    /stock-transactions/export/excel
     GET    /stock-transactions/export/pdf
+

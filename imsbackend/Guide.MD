@@ -180,53 +180,5 @@ npx sequelize-cli db:seed:all --debug
 npx sequelize-cli db:seed --seed path/to/your/user-seeder.js
 
 
+# How to update local change files on server
 
-
-
-# Creating Multer Instance
-<!-- const uploadProfile = createMulterMiddleware(
-  "users/profileImages", "user", ["image/jpeg", "image/png"]
-).single("profileImage"); // single file from 'profileImage'
-router.post("/profile", uploadProfile, controller.updateProfile); -->
-
-
-<!-- const uploadProductImages = createMulterMiddleware(
-  "products/images", "product", ["image/jpeg", "image/png"]
-).array("images", 10); // multiple files from 'images', max 10
-router.post("/product", uploadProductImages, controller.createProduct); -->
-
-
-<!-- const uploadProductFiles = createMulterMiddleware(
-  "products/files", "product", ["image/jpeg", "image/png", "application/pdf"]
-).fields([
-  { name: "images", maxCount: 10 },       // multiple images
-  { name: "documents", maxCount: 10 }     // multiple documents
-]);
-router.post("/product", uploadProductFiles, controller.createProduct); -->
-
-
-
-
-
-<!-- 
-
-1. users
-2. roles and permission -to be added
-3. units
-4. categories
-5. brands
-6. suppliers
-7. customers
-8. warehouses
-9. products
-10. product_stocks
-11. stock_transactions
-12. purchases
-13. purchase_items
-14. sales
-15. sales_items
-16. payments
-17. expenses
-18. audit_logs 
-
--->
