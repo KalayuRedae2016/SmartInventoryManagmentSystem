@@ -4,7 +4,6 @@ const AppError = require('../utils/appError');
 const { Op } = require('sequelize');
 const sequelize = require('../models').sequelize;
 
-
 const getBusinessId = () => 1;
 
 const calculateStatus = (total, paid) => {
@@ -14,20 +13,12 @@ const calculateStatus = (total, paid) => {
 };
 
 exports.createSaleReturn = catchAsync(async (req, res, next) => {
-  const {
-    warehouseId,
-    saleId,
-    customerId,
-    paidAmount = 0,
-    paymentMethod,
-    note,
-    returnDate
-  } = req.body;
+  const {warehouseId,saleId,customerId,paidAmount = 0,paymentMethod,note,returnDate} = req.body;
 
   const businessId = getBusinessId();
 
   // ✅ One-line validation
-  if (![warehouseId, saleId, customerId, paymentMethod].every(Boolean) || paidAmount < 0)
+  if (!warehouseId || !saleId || !customerId || !paymentMethod || paidAmount < 0)
     return next(new AppError('Invalid or missing required fields', 400));
 
   const sale = await Sale.findByPk(saleId);
