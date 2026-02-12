@@ -18,24 +18,24 @@ app.use(function (req, res, next) {
 // router.use(authoController.requiredRole('admin',"staff"));
 
   router.route('/items')
-      .post(saleReturnController.createSaleReturnItem)
+      .post(saleReturnController.createSaleReturn)
       // .get(saleReturnController.getSaleReturnItems)
       // .delete(saleReturnController.deleteAllSalReturnItems);
   
-router.route('/items/:id')
-  // .get(saleReturnController.getSaleReturnItem)
-.patch(saleReturnController.updateSaleReturnItem)
-  .delete(saleReturnController.deleteSaleReturnItem);
+// router.route('/items/:id')
+//   // .get(saleReturnController.getSaleReturnItem)
+// .patch(saleReturnController.updateSaleReturn)
+//   .delete(saleReturnController.deleteSaleReturn);
 
-router.route('/')
-      .post(saleReturnController.createSaleReturn)
-      .get(saleReturnController.getSaleReturns)
-      // .delete(saleReturnController.deleteAllSaleReturns);
+// router.route('/')
+//       .post(saleReturnController.createSaleReturn)
+//       .get(saleReturnController.getSaleReturns)
+//       // .delete(saleReturnController.deleteAllSaleReturns);
   
-router.route('/:id')
-  .get(saleReturnController.getSaleReturn)
-  .patch(saleReturnController.updateSaleReturn)
-  .delete(saleReturnController.deleteSaleReturn);
+// router.route('/:id')
+//   .get(saleReturnController.getSaleReturn)
+//   .patch(saleReturnController.updateSaleReturn)
+//   .delete(saleReturnController.deleteSaleReturn);
 
 
 module.exports=router
