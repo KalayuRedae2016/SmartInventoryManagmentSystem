@@ -72,6 +72,8 @@ try {
   const hashedPassword = await bcrypt.hash(password, 12);// Hash password
 
   const newUser = await User.create({
+    businessId: 1, // Default businessId, adjust as needed
+    roleId:1,
     fullName,
     phoneNumber,
     role,
