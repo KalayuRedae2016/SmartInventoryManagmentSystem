@@ -1,4 +1,4 @@
-// const Log = require('../Models/logModel');
+// const Log = require('../models/logModel');
 // const AppError = require('./appError');
 // const catchAsync = require('./catchAsync');
 

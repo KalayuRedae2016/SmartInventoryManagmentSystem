@@ -2,7 +2,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { Op, where } = require('sequelize');
 const validator = require('validator');
-const {Category}=require("../Models")
+const {Category}=require("../models")
 
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
