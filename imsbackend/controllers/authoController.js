@@ -38,9 +38,9 @@ exports.uploadFilesMiddleware = attachments.fields([
 exports.signup = catchAsync(async (req, res, next) => {
   console.log("registration request", req.body)
   console.log("profileImages", req.files)
-  const { fullName, phoneNumber, role, password, email, address} = req.body;
-  if (!fullName || !phoneNumber || !role) {
-    return next(new AppError("missing required Fields(name,phone or role)", 404))
+  const { fullName, phoneNumber, password, email, address} = req.body;
+  if (!fullName || !phoneNumber || !password) {
+    return next(new AppError("missing required Fields(name,phone or password)", 404))
   }
   // if (role=== "staff") {
   //   if (!licenseNumber || !education || !specialization) {
@@ -62,24 +62,23 @@ try {
   console.error("Table access error:", err);
 }
 
-  
   const existingUser = await User.findOne({ where: { phoneNumber } });
   if (existingUser) {
     if (req.files) deleteFile(req.files.path);
     return (next(new AppError("PhoneNumber already in use", 404)))
   }
 
-  const hashedPassword = await bcrypt.hash(password, 12);// Hash password
+  
+  // const hashedPassword = await bcrypt.hash(password, 12);// Hash password see on hooks
 
   const newUser = await User.create({
     businessId: 1, // Default businessId, adjust as needed
     roleId:1,
     fullName,
     phoneNumber,
-    role,
     email,
     address,
-    password: hashedPassword,
+    password,
     profileImage: profileImage,
   });
   //await logAction
@@ -103,13 +102,21 @@ exports.login = catchAsync(async (req, res, next) => {
 
   // Find user by email
   const user = await User.findOne({ where: { phoneNumber } });
+  console.log("Found user:", user.dataValues)
 
   if (!user) {
     return next(new AppError("Invalid credentials. Please try again or reset your password", 401));
   }
 
+  
+
   // Compare password
   const correct = await bcrypt.compare(password, user.password);
+
+  console.log("Login password (plain):", password);
+  console.log("Stored password (hash):", user.password);
+  console.log("Hash length:", user.password?.length);
+  console.log("Password match:", correct)
 
   if (!correct) return next(new AppError("Invalid or incorrect password", 404));
 
@@ -350,8 +357,8 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
     return res.status(400).json({ message: 'New password must be at least 8 characters long' });
   }
 
-  const hashedNewPassword = await bcrypt.hash(newPassword, 12);
-  user.password = hashedNewPassword
+  //const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+  user.password = newPassword
   user.changePassword = false
   await user.save();
 
