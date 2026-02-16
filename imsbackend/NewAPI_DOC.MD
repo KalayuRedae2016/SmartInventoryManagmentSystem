@@ -1,6 +1,7 @@
 # 📦 Inventory Management System (IMS) API Documentation
 
-**Base URL:** `/api/ims`  
+**Local_Base URL:** `http://localhost:8083/api/ims` 
+**Remote_Base URL:** `https://grandinventory.com/api/ims`  
 **Authentication:** Baerer (Bearer Token)  
 **RBAC Middleware:** `requirePermission('module.action')`, `requirePermissionOrSelf('module.action')`  
 
@@ -49,7 +50,7 @@ Endpoints:
     POST   /businesses/:id/activate
     POST   /businesses/:id/expire
     POST   /businesses/:id/disable
-# Subscription Payment
+
 Model:
     id(INT),
     subscriptionId(INT),
@@ -130,6 +131,15 @@ Model:
     createdAt(DATETIME),
     updatedAt(DATETIME)
 
+Auth Endpoints:
+    POST   /auth/signup
+    POST   /auth/login
+    POST   /auth/forgetPassword
+    POST   /auth/signup
+    POST   /auth/verifyOTP
+    POST   /auth/resetPassword
+    POST   /auth/changePassword
+
 Endpoints:
     GET    /users
     POST   /users
@@ -140,12 +150,6 @@ Endpoints:
 
     GET    /businesses/:businessId/users
     GET    /roles/:roleId/users
-
-    POST   /users/login
-    POST   /users/logout
-    POST   /users/forgot-password
-    POST   /users/reset-password
-    PATCH  /users/change-password
 
     POST   /users/import
     GET    /users/export/excel
