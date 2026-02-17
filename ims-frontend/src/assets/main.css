@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Brand color */
+:root {
+  --brand-color: #4c2683;
+}
+
+.bg-brand {
+  background-color: var(--brand-color);
+}
+
+.text-brand {
+  color: var(--brand-color);
+}
+
+.border-brand {
+  border-color: var(--brand-color);
+}
+
+button.bg-brand:hover {
+  background-color: #391d69; /* Slightly darker hover */
+}
