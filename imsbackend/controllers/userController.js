@@ -9,9 +9,9 @@ const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
 require('dotenv').config();
 const { formatDate } = require("../utils/dateUtils");
+const { sendEmail } = require('../utils/emailUtils');
 
-
-const {createMulterMiddleware,processUploadFilesToSave} = require('../utils/fileUtils');
+const {createMulterMiddleware,processUploadFilesToSave,importFromExcel,exportToExcel,exportToPdf} = require('../utils/fileUtils');
 
 // // Configure multer for user file uploads
 // const userFileUpload = createMulterMiddleware(
@@ -165,7 +165,7 @@ exports.getUser = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.updateUserProfile = catchAsync(async (req, res, next) => {
+exports.updateUser= catchAsync(async (req, res, next) => {
   const targetUserId = req.params.userId;
 
   // Role-based access control
@@ -236,6 +236,89 @@ exports.updateUserProfile = catchAsync(async (req, res, next) => {
       formattedUpdatedAt,
     },
    
+  });
+});
+
+exports.resetPassword = catchAsync(async (req, res, next) => {
+  const userId = req.params.userId;
+  const user = await User.findByPk(userId);
+  console.log("reseted user", user);
+
+  if (!user) {
+    return next(new AppError('User is not found', 404));
+  }
+
+  // Generate a new password and update the user
+  const randomPassword = user.generateRandomPassword();
+  user.password = await bcrypt.hash(randomPassword, 12);
+  console.log("password", randomPassword)
+  user.changePassword = true;
+  await user.save();
+
+  // If the user has no email, send response and return
+  if (!user.email) {
+    return res.status(200).json({
+      status: 1,
+      userId: user.id,
+      role: user.role,
+      resetedPassword: randomPassword,
+      message: 'Password reset successfully. The password will be provided by the admin. Please contact support.',
+      changePassword: user.changePassword,
+    });
+  }
+
+  try {
+    // Send email to user
+    const subject = 'Your Password Has Been Reset';
+    const email = user.email;
+    const loginLink = process.env.NODE_ENV === "development" ? "http://localhost:8085" : "https://grandinventory.com";
+    const message = `Hi ${user.name},
+
+        Your password has been reset by an administrator. Here are your new login credentials:
+
+      - phoneNumber: ${user.phoneNumber}
+      - Email: ${user.email}
+      - Temporary Password: ${randomPassword}
+
+      Please log in and change your password immediately.
+
+      -Login Link: ${loginLink}
+
+      If you did not request this change, please contact our support team.
+
+      Best regards,
+      Mobile Veternary Services Group Team`;
+
+    await sendEmail({ email, subject, message });
+
+    // Return response after email is sent
+    return res.status(200).json({
+      status: 1,
+      userId: user.id,
+      role: user.role,
+      resetedPassword: randomPassword,
+      message: 'Password reset successfully. Check your email for details.',
+      changePassword: user.changePassword,
+    });
+
+  } catch (error) {
+    console.log(error);
+    return next(new AppError('There was an error sending the email. Try again later!', 500));
+  }
+});
+
+exports.updateUserStatus = catchAsync(async (req, res, next) => { 
+  const userId = req.params.userId;
+  const user = await User.findByPk(userId);
+  if (!user) {
+    return next(new AppError('User is not found', 404));
+  }
+  user.isActive = !user.isActive;
+  await user.save();
+  res.status(200).json({
+    status: 1,
+    message: `User ${user.isActive ? 'activated' : 'deactivated'} successfully`,
+    user,
   });
 });
 
@@ -330,5 +413,46 @@ exports.sendEmailMessages = catchAsync(async (req, res, next) => {
   }
 });
 
+exports.importUsersFromExcel = catchAsync(async (req, res, next) => {
+  if (!req.file) {
+    return next(new AppError('No file uploaded', 400));
+  } 
+  const filePath = req.file.path;
+  const { processExcelFile } = require('../utils/excelUtils');
+  const { validUsers, invalidEntries } = await processExcelFile(filePath);  
+  if (validUsers.length > 0) {
+    await User.bulkCreate(validUsers);
+  } 
 
+  res.status(200).json({
+    status: 1,
+    message: `${validUsers.length} users imported successfully. ${invalidEntries.length} invalid entries were skipped.`,
+    invalidEntries,
+})
+});
 
+exports.exportUsersToExcel = catchAsync(async (req, res, next) => { 
+  const users = await User.findAll({
+    attributes: ['id', 'fullName', 'email', 'phoneNumber', 'address', 'role', 'isActive', 'createdAt'],
+    order: [['createdAt', 'ASC']]
+  });
+  const filePath = await exportToExcel(users, 'Users');
+  res.status(200).json({
+    status: 1,
+    message: 'Users exported to Excel successfully',
+    filePath,
+  });
+});
+
+exports.exportUsersToPdf = catchAsync(async (req, res, next) => {
+  const users = await User.findAll({
+    attributes: ['id', 'fullName', 'email', 'phoneNumber', 'address', 'role', 'isActive', 'createdAt'], 
+    order: [['createdAt', 'ASC']]
+  });
+  const filePath = await exportToPdf(users, 'Users');
+  res.status(200).json({
+    status: 1,
+    message: 'Users exported to PDF successfully',
+    filePath,
+  });
+});

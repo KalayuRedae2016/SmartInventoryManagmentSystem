@@ -146,70 +146,15 @@ exports.deleteMultipleFiles = async (fileArray = []) => {
   }
 };
 
-// exports.createMulterMiddleware = (destinationFolder, filenamePrefix, allowedTypes = []) => {
-//   if (!fs.existsSync(destinationFolder)) fs.mkdirSync(destinationFolder, { recursive: true });
-
-//   const storage = multer.diskStorage({
-//     destination: (req, file, cb) => cb(null, destinationFolder),
-//     filename: (req, file, cb) => {
-//       const timestamp = Date.now();
-//       const { name, ext } = path.parse(file.originalname);
-//       const uniqueFilename = `${filenamePrefix}-${name}-${timestamp}${path.extname(file.originalname)}`;
-//       cb(null, uniqueFilename);
-//     },
-//   });
-
-//   const fileFilter = (req, file, cb) => {
-//     if (!allowedTypes.length || allowedTypes.includes(file.mimetype)) cb(null, true);
-//     else cb(new Error("Unsupported file type"), false);
-//   };
-
-//   return multer({ storage, fileFilter });
-// };
-
-// exports.deleteFile = async (filePath) => {
-//   if (!filePath) return;
-//   const absolutePath = path.join(__dirname, "..", filePath);
-//   try {
-//     await fs.promises.access(absolutePath);
-//     await fs.promises.unlink(absolutePath);
-//     console.log("Deleted:", absolutePath);
-//   } catch (err) {
-//     console.warn("File not found or error deleting:", absolutePath, err.message);
-//   }
-// };
-
-// exports.processUploadFilesToSave = async (req, files = {}, body = {}, existingModel = null, folder = "") => {
-//   const baseUrl = `${req.protocol}://${req.get("host")}/uploads/${folder}`;
-
-//   // Process profileImage if exists
-//   let profileImage = files.profileImage?.[0] ? `${baseUrl}${files.profileImage[0].filename}` : existingModel?.profileImage || null;
-
-//   // Process images array
-//   const newImages = (files.images || []).map(file => ({
-//     fileName: file.filename,
-//     fileType: file.mimetype,
-//     url: `${baseUrl}${file.filename}`,
-//     uploadDate: new Date().toISOString()
-//   }));
-
-//   const images = existingModel ? [...(existingModel.images || []), ...newImages] : newImages;
-
-//   // Process documents array
-//   const newDocuments = (files.documents || []).map(file => ({
-//     fileName: file.filename,
-//     fileType: file.mimetype,
-//     url: `${baseUrl}${file.filename}`,
-//     uploadDate: new Date().toISOString()
-//   }));
-
-//   const documents = existingModel ? [...(existingModel.documents || []), ...newDocuments] : newDocuments;
-
-//   // Fallback profile image
-//   if (!profileImage) profileImage = `${req.protocol}://${req.get("host")}/uploads/default.png`;
-
-//   return { profileImage, images, documents };
-// };
+exports.mapImportRows = (rows, mapFn) => {
+  return rows.map((row, index) => {
+    try {
+      return mapFn(row);
+    } catch (error) {
+      throw new Error(`Error processing row ${index + 1}: ${error.message}`);
+    } 
+  });
+}
 
 exports.importFromExcel = catchAsync(async (req,Model, transformFn) => {
     console.log("hereexcel")
@@ -247,16 +192,7 @@ exports.importFromExcel = catchAsync(async (req,Model, transformFn) => {
   console.log("Returning from importFromExcel:", { importedData, errors });
 return { importedData, errors };
 });
-exports.mapImportRows = (rows, mapFn) => {
-  return rows.map((row, index) => {
-    try {
-      return mapFn(row);
-    } catch (error) {
-      throw new Error(`Error processing row ${index + 1}: ${error.message}`);
-    } 
-  });
-}
-// Utility function to export data to Excel
+
 exports.exportToExcel = async (data, sheetName, fileName, res) => {
   try {
     // Convert data to plain JavaScript objects, ensuring subdocuments are included
@@ -295,13 +231,6 @@ exports.exportToExcel = async (data, sheetName, fileName, res) => {
   }
 };
 
-exports.readExcelFile = catchAsync(async (filePath) => {
-    const workbook = xlsx.readFile(filePath);
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const jsonData = xlsx.utils.sheet_to_json(worksheet);
-    return jsonData;
-});
-
 exports.exportToPdf = async (data, templatePath, outputPath) => {
   const Handlebars = require('handlebars');
   const puppeteer = require('puppeteer');
@@ -317,3 +246,10 @@ exports.exportToPdf = async (data, templatePath, outputPath) => {
   await page.pdf({ path: outputPath, format: 'A4' });
   await browser.close();
 } 
+
+exports.readExcelFile = catchAsync(async (filePath) => {
+    const workbook = xlsx.readFile(filePath);
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const jsonData = xlsx.utils.sheet_to_json(worksheet);
+    return jsonData;
+});

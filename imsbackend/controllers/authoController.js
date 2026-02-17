@@ -28,6 +28,8 @@ const attachments = createMulterMiddleware(
   ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf', 'application/msword'] // Allowed types
 );
 
+
+
 exports.uploadFilesMiddleware = attachments.fields([
   { name: 'profileImage', maxCount: 1 },// Single file for profileImage
   { name: 'images', maxCount: 10 }, // upto to 10 images
@@ -107,8 +109,6 @@ exports.login = catchAsync(async (req, res, next) => {
   if (!user) {
     return next(new AppError("Invalid credentials. Please try again or reset your password", 401));
   }
-
-  
 
   // Compare password
   const correct = await bcrypt.compare(password, user.password);
@@ -264,95 +264,22 @@ console.log("userrr", user)
   })
 });
 
-exports.resetPasswordByAdmin = catchAsync(async (req, res, next) => {
-  const userId = req.params.userId;
-  const user = await User.findByPk(userId);
-  console.log("reseted user", user);
 
-  if (!user) {
-    return next(new AppError('User is not found', 404));
-  }
 
-  // Generate a new password and update the user
-  const randomPassword = user.generateRandomPassword();
-  user.password = await bcrypt.hash(randomPassword, 12);
-  console.log("password", randomPassword)
-  user.changePassword = true;
-  await user.save();
-
-  // If the user has no email, send response and return
-  if (!user.email) {
-    return res.status(200).json({
-      status: 1,
-      userId: user.id,
-      role: user.role,
-      resetedPassword: randomPassword,
-      message: 'Password reset successfully. The password will be provided by the admin. Please contact support.',
-      changePassword: user.changePassword,
-    });
-  }
-
-  try {
-    // Send email to user
-    const subject = 'Your Password Has Been Reset';
-    const email = user.email;
-    const loginLink = process.env.NODE_ENV === "development" ? "http://localhost:8085" : "https://grandinventory.com";
-    const message = `Hi ${user.name},
-
-        Your password has been reset by an administrator. Here are your new login credentials:
-
-      - phoneNumber: ${user.phoneNumber}
-      - Email: ${user.email}
-      - Temporary Password: ${randomPassword}
-
-      Please log in and change your password immediately.
-
-      -Login Link: ${loginLink}
-
-      If you did not request this change, please contact our support team.
-
-      Best regards,
-      Mobile Veternary Services Group Team`;
-
-    await sendEmail({ email, subject, message });
-
-    // Return response after email is sent
-    return res.status(200).json({
-      status: 1,
-      userId: user.id,
-      role: user.role,
-      resetedPassword: randomPassword,
-      message: 'Password reset successfully. Check your email for details.',
-      changePassword: user.changePassword,
-    });
-
-  } catch (error) {
-    console.log(error);
-    return next(new AppError('There was an error sending the email. Try again later!', 500));
-  }
-});
-
-exports.updatePassword = catchAsync(async (req, res, next) => {
+exports.updateMyPassword = catchAsync(async (req, res, next) => {
   console.log("requested body", req.body)
   // console.log("requestUsers", req.user)
-  const userId = req.user.id
   const { currentPassword, newPassword } = req.body;
-
-  // Validate if currentPassword and newPassword are provided
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ message: 'Please provide both current and new passwords' });
   }
 
-  const user = await User.findByPk(userId)
-  if (!user) {
-    return res.status(404).json({ message: 'User not found' });
-  }
-  // Check if the provided current password matches the stored password
+  const user = await User.findByPk(req.user.id);
+  if (!user) return res.status(404).json({ message: 'User not found' });
+  
   const correct = await bcrypt.compare(currentPassword, user.password);
-  if (!correct) {
-    return res.status(401).json({ message: 'Incorrect current password' });
-  }
-
+  if (!correct)   return res.status(401).json({ message: 'Incorrect current password' });
+  
   if (newPassword.length < 8) {
     return res.status(400).json({ message: 'New password must be at least 8 characters long' });
   }
@@ -362,17 +289,6 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
   user.changePassword = false
   await user.save();
 
-  // await logAction({
-  //   model: 'users',
-  //   action: 'Update',
-  //   actor: req.user && req.user.id ? req.user.id : 'system',
-  //   description: 'User Password Updated',
-  //   data: { userId: user.id,orginalData:user.password,updatedData:req.body},
-  //   ipAddress: req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || null,
-  //   severity: 'info',
-  //   sessionId: req.session?.id || 'generated-session-id',
-  // });
-
   res.status(200).json({
     status: 1,
     message: 'Password updated successfully'
@@ -381,132 +297,65 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
 });
 
 exports.getMe = catchAsync(async (req, res, next) => {
-  const userId=req.user.id
-  const user=await User.findByPk(userId)
+  console.log("requestUser", req.user)
+  const user=await User.findByPk(req.user.id,{
+    attributes: { exclude: ['password','passwordResetOTP','passwordResetOTPExpires'] }
+  })
+
   if(!user) return next(new AppError("No user Found",404))
   res.status(200).json({
     status: 1,
     message: "get my Profile succefully",
-    user
+    data:user
   });
 })
 exports.updateMe = catchAsync(async (req, res, next) => {
-  // Step 1: Fetch the user and validate existence
   console.log("requestUser", req.user)
-  const user = await User.findByPk(req.user.id);
-  if (!user) {
-    return next(new AppError('User not found', 404));
+  console.log("request body", req.body)
+
+  if (req.body.password || req.body.role || req.body.roleId) {
+    return next(new AppError('This route is not for password or role updates', 400));
   }
 
-  // Step 2: Check if the user has permission to edit details
-  if (!user.adminPermissions.canEditDetails) {
-    return next(new AppError('Editing access is not enabled. Please contact Admin.', 403));
-  }
+  const user=await User.findByPk(req.user.id)
+  if(!user) return next(new AppError("No user Found",404))
+    
+  const filterObj = (obj, ...allowedFields) => {
+  const newObj = {};
+  Object.keys(obj).forEach(el => {
+    if (allowedFields.includes(el)) {
+      newObj[el] = obj[el];
+    }
+  });
+  return newObj;
+};
 
-  // Step 3: Prevent password updates through this route
-  if (req.body.password) {
-    return next(
-      new AppError('This route is not for password updates. Please use /updateMyPassword.', 400)
-    );
-  }
-
-  // Step 4: Filter allowed fields to update
   const filteredBody = filterObj(
     req.body,
-    "fullName",
+    'fullName',
     'phoneNumber',
     'email',
-    'gender'
+    'address'
   );
 
   // Step 5: Handle profile image upload
   if (req.files && req.files.profileImage) {
-    const newProfileImage = req.files.profileImage[0].filename;
-
-    // Delete the existing profile image from the server, if not default
-    if (user.profileImage && user.profileImage !== 'default.png') {
-      //const oldImagePath = path.join(__dirname, '..', 'uploads', 'profileImages', user.profileImage);
-      const oldImagePath = path.join(__dirname, '..', 'uploads', 'userAttachements', user.profileImage);
-      deleteFile(oldImagePath);
-    }
-
-    // Update profile image in the filtered body
-    filteredBody.profileImage = newProfileImage;
+    let {profileImage}= await processUploadFilesToSave(req,req.files, req.body, existingUser)
+  if(!profileImage){
+    profileImage=existingUser.profileImage
   }
+  filteredBody.profileImage = profileImage;
+}
 
-  // Step 6: Handle attachments update
-  const updatedAttachments = req.body.attachments
-    ? JSON.parse(req.body.attachments) // Parse if attachments are sent as JSON
-    : [];
-  const existingAttachments = user.attachments || [];
+  await user.update(filteredBody, { where: { id: req.user.id } }, { new: true, runValidators: true });
 
-  // Determine attachments to remove (those not in the updated list)
-  const removedAttachments = existingAttachments.filter(
-    (attachment) => !updatedAttachments.some((updated) => updated.fileName === attachment.fileName)
-  );
-
-  // Delete removed attachments from the storage
-  for (const removed of removedAttachments) {
-    const filePath = path.join(__dirname, '..', 'uploads', 'userAattachments', removed.fileName);
-    deleteFile(filePath);
-  }
-
-  // Prepare the final list of attachments
-  let attachmentsToSave = [...updatedAttachments];
-
-  // Add new attachments from req.files.attachments
-  if (req.files && req.files.attachments && req.files.attachments.length > 0) {
-    const newAttachments = req.files.attachments.map((file) => ({
-      fileName: file.filename,
-      fileType: file.mimetype,
-      description: req.body.description || '',
-      uploadDate: new Date(),
-    }));
-
-    attachmentsToSave.push(...newAttachments); // Combine existing with new attachments
-  }
-
-  // Update attachments in the filtered body
-  filteredBody.attachments = attachmentsToSave;
-
-  // Step 7: Update user details in the database
-  const updatedUser = await User.findByIdAndUpdate(
-    req.user._id,
-    { $set: filteredBody },
-    { new: true, runValidators: true }
-  );
-
-  // Step 8: Revoke edit permission after successful update
-
-  if (!['Admin', 'SuperAdmin'].includes(user.role)) {
-    user.canEditDetails = false;
-  }
   await user.save();
 
-  await logAction({
-    model: 'users',
-    action: 'Update',
-    actor: req.user && req.user.id ? req.user.id : 'system',
-    description: `${user.fullName} update his Profile`,
-    data: { userId: user.id, filteredBody },
-    ipAddress: req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || null,
-    severity: 'info',
-    sessionId: req.session?.id || 'generated-session-id',
-  });
-
-  // Step 9: Format timestamps for the response
-  const formattedCreatedAt = updatedUser.createdAt ? formatDate(updatedUser.createdAt) : null;
-  const formattedUpdatedAt = updatedUser.updatedAt ? formatDate(updatedUser.updatedAt) : null;
-
-  // Step 10: Send success response
   res.status(200).json({
     status: 1,
     message: "user Updated Sucessfully",
-    updatedUser: {
-      ...updatedUser._doc,
-      formattedCreatedAt,
-      formattedUpdatedAt,
-    },
+    data:user
   });
+
 });
 

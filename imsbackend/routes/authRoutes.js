@@ -36,14 +36,9 @@ router.patch('/resetPassword',authoController.resetPassword);
 
 router.use(authoController.authenticationJwt);
 
-router.patch('/updatePassword',authoController.updatePassword);
-//router.patch('/getMe',authoController.uploadFilesMiddleware,authoController.getMe);
-// router.patch('/updateMe',authoController.uploadFilesMiddleware,authoController.updateMe);
 
-//router.use(authoController.requiredRole('admin'));
-
-router.patch('/resetPasswordByAdmin/:userId',authoController.resetPasswordByAdmin);
-// router.patch('/edituserPermission',userController.toggleEdiUserPermission);
-
+router.get('/getMe',authoController.getMe);
+router.patch('/updateMe',uploadFilesMiddleware,authoController.updateMe);
+router.patch('/updatemyPassword',authoController.updateMyPassword);
 
 module.exports=router

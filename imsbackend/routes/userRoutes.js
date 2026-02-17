@@ -15,12 +15,12 @@ router.use(function (req, res, next) {
 });
 
 const attachments = createMulterMiddleware(
-  'uploads/profileImages', // Destination folder
-  'profileImage', // Prefix for filenames
+  'uploads/User', // Destination folder
+  'userImages', // Prefix for filenames
   ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf', 'application/msword'] // Allowed types
 );
 
-exports.uploadFilesMiddleware = attachments.fields([
+const uploadFilesMiddleware = attachments.fields([
   { name: 'profileImage', maxCount: 1 },// Single file for profileImage
   { name: 'images', maxCount: 10 }, // upto to 10 images
   { name: 'documents', maxCount: 10 }, // Up to 10 files for documents
@@ -37,12 +37,16 @@ router.route('/')
 
 router.route('/:userId')
   .get(userController.getUser)
-  //.patch(authoController.uploadFilesMiddleware,userController.updateUserProfile)
+  .patch(uploadFilesMiddleware,userController.updateUser)
   .delete(userController.deleteUser);
 
-// router.route('/active-deactive/:userId').put(userController.activateDeactiveUser);
+router.patch('/:userId/resetPassword',userController.resetPassword);
+router.patch("/:userId/status",userController.updateUserStatus);
 router.route('/sendEmails').post(userController.sendEmailMessages)
 
+router.route('/import').post(uploadFilesMiddleware,userController.importUsersFromExcel)
+router.route('/export/excel').get(userController.exportUsersToExcel)
+router.route('/export/pdf').get(userController.exportUsersToPdf)
 
 module.exports=router
 

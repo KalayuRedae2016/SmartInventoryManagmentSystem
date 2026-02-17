@@ -90,6 +90,7 @@ Endpoints:
     PUT    /roles/:id
     DELETE /roles/:id
     PATCH  /roles/:id/status
+    GET    /roles/:roleId/users
     GET    /businesses/:businessId/roles
 # Warehouse
 Model:
@@ -131,29 +132,34 @@ Model:
     createdAt(DATETIME),
     updatedAt(DATETIME)
 
-Auth Endpoints:
+Authentication Endpoints:
     POST   /auth/signup
     POST   /auth/login
     POST   /auth/forgetPassword
-    POST   /auth/signup
     POST   /auth/verifyOTP
-    POST   /auth/resetPassword
-    POST   /auth/changePassword
+    PATCH  /auth/resetPassword
 
-Endpoints:
+    get    /auth/getMe
+    PATCH  /auth/updateMe
+    POST   /auth/updateMyPassword
+
+user Endpoints:
     GET    /users
-    POST   /users
-    GET    /users/:id
-    PUT    /users/:id
-    DELETE /users/:id
-    PATCH  /users/:id/status
+    DELETE /users
 
-    GET    /businesses/:businessId/users
-    GET    /roles/:roleId/users
+    GET    /users/:id
+    PATCH  /users/:id
+    DELETE /users/:id
+
+    PATCH  /users/:id/status
+    PATCH  /users/:id/resetPassword
+    POST  /users/sendEmails
 
     POST   /users/import
     GET    /users/export/excel
     GET    /users/export/pdf
+
+
 # Category
 Model:
     id(INT),
