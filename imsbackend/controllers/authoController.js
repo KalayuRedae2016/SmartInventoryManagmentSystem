@@ -102,7 +102,7 @@ exports.login = catchAsync(async (req, res, next) => {
 
   // Find user by email
   const user = await User.findOne({ where: { phoneNumber } });
-  console.log("Found user:", user.dataValues)
+  // console.log("Found user:", user.dataValues)
 
   if (!user) {
     return next(new AppError("Invalid credentials. Please try again or reset your password", 401));
