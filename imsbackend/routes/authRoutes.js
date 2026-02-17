@@ -19,13 +19,13 @@ const attachments = createMulterMiddleware(
   ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf', 'application/msword'] // Allowed types
 );
 
-exports.uploadFilesMiddleware = attachments.fields([
+const uploadFilesMiddleware = attachments.fields([
   { name: 'profileImage', maxCount: 1 },// Single file for profileImage
   { name: 'images', maxCount: 10 }, // upto to 10 images
   { name: 'documents', maxCount: 10 }, // Up to 10 files for documents
 ]);
 
-router.post("/signup",exports.uploadFilesMiddleware,authoController.signup)
+router.post("/signup",uploadFilesMiddleware,authoController.signup)
 router.post("/login",authoController.login)
 
 router.post('/forgetPassword', authoController.forgetPassword);
