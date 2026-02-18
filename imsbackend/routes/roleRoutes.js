@@ -2,8 +2,8 @@ const express=require("express")
 const app = express();
 const router=express.Router()
 
-const authoController=require("../controllers/authoController")
-const roleController=require("../controllers/roleController")
+const roleController = require('../controllers/roleController');
+const { authenticationJwt, requirePermission } = require('../utils/authUtils');
 
 router.use(function (req, res, next) {
   res.header(
@@ -13,22 +13,21 @@ router.use(function (req, res, next) {
   next();
 });
 
-
-// Protect all routes after this middleware
-
-// router.use(authoController.authenticationJwt);
+// Only admin users can manage permissions
+router.use(authenticationJwt);
+// router.use(requirePermission('role:manage'));
 
 router.route('/')
-      .post(roleController.createRole)
-      .get(roleController.getAllRoles)
-      // .delete(roleController.deleteAllRoles)
+      .post(requirePermission('role:create'),roleController.createRole)
+      .get(requirePermission('role:view'),roleController.getRoles)
+      .delete(requirePermission('role:delete'),roleController.deleteRoles)
 
 router.route('/:roleId')
-  .get(roleController.getRoleById)
-  .patch(roleController.updateRole)
-  .delete(roleController.deleteRole);
-  
-router.route('/toggleStatus/:roleId')
-  .patch(roleController.changeRoleStatus);
+      .get(requirePermission('role:view'),roleController.getRole)
+      .patch(requirePermission('role:update'),roleController.updateRole)
+      .delete(requirePermission('role:delete'),roleController.deleteRole);
+
+router.get('/:roleId/users', requirePermission('role:view'), roleController.getUsersByRole);// Get users assigned to a role
+router.post('/:roleId/assign', requirePermission('role:update'), roleController.assignUsersToRole);
 
 module.exports=router

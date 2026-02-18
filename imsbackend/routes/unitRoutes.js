@@ -1,7 +1,7 @@
 const express=require("express")
 const app = express();
 const router=express.Router();
-const authoController=require("../controllers/authoController")
+const { authenticationJwt, requirePermission } = require('../utils/authUtils');
 const unitController=require("../controllers/unitController")
 
 app.use(function (req, res, next) {
@@ -14,9 +14,9 @@ app.use(function (req, res, next) {
 
 
 // Protect all routes after this middleware
-// router.use(authoController.authenticationJwt);
+// router.use(authenticationJwt);
 
-// router.use(authoController.requiredRole('admin',"staff"));
+// router.use(requirePermission('admin',"staff"));
 
 router.route('/')
       .post(unitController.createUnit)

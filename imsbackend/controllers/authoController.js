@@ -1,8 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const db = require('../models');
+const { User, Role } = require('../models');
 const { Op, where } = require('sequelize');
-const User = db.User;
 
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
@@ -15,6 +14,8 @@ const { sendEmail, sendWelcomeEmail } = require('../utils/emailUtils');
 const { deleteFile, createMulterMiddleware, processUploadFilesToSave } = require('../utils/fileUtils');
 const path = require('path');
 const { formatDate } = require('../utils/dateUtils');
+const { permission } = require('process');
+const role = require('../models/role');
 
 const signInToken = (user) => {
   const payload = { id: user.id, role: user.role };
@@ -27,7 +28,6 @@ const attachments = createMulterMiddleware(
   'doc', // Prefix for filenames
   ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf', 'application/msword'] // Allowed types
 );
-
 
 
 exports.uploadFilesMiddleware = attachments.fields([
@@ -103,21 +103,17 @@ exports.login = catchAsync(async (req, res, next) => {
   if (!password) return next(new AppError("Please provide valid password", 404));
 
   // Find user by email
-  const user = await User.findOne({ where: { phoneNumber } });
-  // console.log("Found user:", user.dataValues)
-
+  const user = await User.findOne({ 
+    where: { phoneNumber } ,
+    include: { model: Role,as: 'role' } 
+  });
+  
   if (!user) {
     return next(new AppError("Invalid credentials. Please try again or reset your password", 401));
   }
 
   // Compare password
   const correct = await bcrypt.compare(password, user.password);
-
-  console.log("Login password (plain):", password);
-  console.log("Stored password (hash):", user.password);
-  console.log("Hash length:", user.password?.length);
-  console.log("Password match:", correct)
-
   if (!correct) return next(new AppError("Invalid or incorrect password", 404));
 
   const token = signInToken(user);
@@ -126,56 +122,14 @@ exports.login = catchAsync(async (req, res, next) => {
     status: 1,
     token,
     user,
+    role: user.role ? user.role.code : null,
+    permissions: user.role ? user.role.permissions : [],
     changePassword: user.changePassword,
     message: user.changePassword
       ? 'Login successful, but you must change your password.'
       : 'Login successful.',
   });
 });
-
-exports.authenticationJwt = catchAsync(async (req, _, next) => {
-  let token;
-  if (req.headers.authorization &&req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  }
-
-  if (!token) {
-    return next(new AppError('Unauthorized: No token provided', 401));
-  }
-  console.log("tokenn",token)
-  let decoded;
-  try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("decode",decoded)
-  } catch (err) {
-    console.error('❌ Invalid or expired JWT:', err.message);
-    return next(new AppError('Session expired or invalid token', 401));
-  }
-
-  const user = await User.findByPk(decoded.id);
-  if (!user) {
-    console.warn('⚠️ User not found for ID:', decoded.id);
-    return next(new AppError('The user belonging to this token no longer exists', 404));
-  }
-
-  req.user = user;
-  console.log("Authenticated user:", req.user);
-  next();
-});
-
-exports.requiredRole = (...allowedRoles) => {
-  console.log("allowedRoles", allowedRoles)
-  return async (req, res, next) => {
-    const userRole = req.user?.role;
-    console.log("Logged-in role:", userRole);
-
-    if (!allowedRoles.includes(userRole)) {
-      return next(new AppError('Access Denied', 403));
-    }
-
-    next();
-  };
-};
 
 exports.forgetPassword = catchAsync(async (req, res, next) => {
   console.log("requested body", req.body)
@@ -263,8 +217,6 @@ console.log("userrr", user)
     message: "Password Reseted Succeffully",
   })
 });
-
-
 
 exports.updateMyPassword = catchAsync(async (req, res, next) => {
   console.log("requested body", req.body)
@@ -358,4 +310,5 @@ exports.updateMe = catchAsync(async (req, res, next) => {
   });
 
 });
+
 
