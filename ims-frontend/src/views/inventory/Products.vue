@@ -65,17 +65,24 @@
         <div class="space-y-2">
           <input v-model="formData.name" placeholder="Name" class="w-full border px-2 py-1 rounded" />
           <input v-model="formData.sku" placeholder="SKU" class="w-full border px-2 py-1 rounded" />
-          <select v-model="formData.category" class="w-full border px-2 py-1 rounded">
+          <select v-model="formData.categoryId" class="w-full border px-2 py-1 rounded">
             <option value="" disabled>Select category</option>
             <option v-if="!categories.length" value="" disabled>No categories found</option>
-            <option v-for="c in categories" :key="c.id" :value="c.name">
+            <option v-for="c in categories" :key="c.id" :value="c.id">
               {{ c.name }}
             </option>
           </select>
-          <select v-model="formData.unit" class="w-full border px-2 py-1 rounded">
+          <select v-model="formData.brandId" class="w-full border px-2 py-1 rounded">
+            <option value="" disabled>Select brand</option>
+            <option v-if="!brands.length" value="" disabled>No brands found</option>
+            <option v-for="b in brands" :key="b.id" :value="b.id">
+              {{ b.name }}
+            </option>
+          </select>
+          <select v-model="formData.unitId" class="w-full border px-2 py-1 rounded">
             <option value="" disabled>Select unit</option>
             <option v-if="!units.length" value="" disabled>No units found</option>
-            <option v-for="u in units" :key="u.id" :value="u.symbol || u.name">
+            <option v-for="u in units" :key="u.id" :value="u.id">
               {{ u.name }}<span v-if="u.symbol"> ({{ u.symbol }})</span>
             </option>
           </select>
@@ -108,19 +115,23 @@ import Modal from '@/components/Modal.vue'
 import { useProductsStore } from '@/stores/products'
 import { useCategoriesStore } from '@/stores/categories'
 import { useUnitsStore } from '@/stores/units'
+import { useBrandsStore } from '@/stores/brands'
 
 const store = useProductsStore()
 const products = store.products
 const categoriesStore = useCategoriesStore()
 const unitsStore = useUnitsStore()
+const brandsStore = useBrandsStore()
 
 const categories = computed(() => categoriesStore.categories)
 const units = computed(() => unitsStore.units)
+const brands = computed(() => brandsStore.brands)
 
 onMounted(() => {
   store.fetchProducts()
   categoriesStore.fetchCategories()
   unitsStore.fetchUnits()
+  brandsStore.fetchBrands()
 })
 
 const columns = ['id', 'name', 'sku', 'category', 'unit', 'cost_price', 'selling_price', 'min_stock', 'quantity', 'status']
@@ -171,8 +182,9 @@ function openAddModal() {
     id: products.length + 1,
     name: '',
     sku: '',
-    category: categories.value[0]?.name || '',
-    unit: units.value[0]?.symbol || units.value[0]?.name || '',
+    categoryId: categories.value[0]?.id || null,
+    brandId: brands.value[0]?.id || null,
+    unitId: units.value[0]?.id || null,
     cost_price: 0,
     selling_price: 0,
     min_stock: 0,
@@ -263,3 +275,5 @@ function exportData(format) {
   font-weight: 600;
 }
 </style>
+
+

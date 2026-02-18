@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
+import { getResponseData } from '@/services/api'
 
 /* =========================
    AUTH & RBAC
@@ -32,8 +33,8 @@ const loading = ref(false)
 const fetchInvoicedSales = async () => {
   loading.value = true
   try {
-    const res = await api.get('/sales?status=invoiced')
-    sales.value = res.data
+    const res = await api.get('/sales', { params: { status: 'paid' } })
+    sales.value = getResponseData(res, [])
   } catch (e) {
     console.error(e)
   } finally {
@@ -44,9 +45,13 @@ const fetchInvoicedSales = async () => {
 const submitReturn = async () => {
   if (!selectedSale.value) return
 
-  await api.post(`/sales/${selectedSale.value.id}/return`, {
-    quantity: returnQty.value,
-    reason: reason.value
+  await api.post('/sale-returns/items', {
+    warehouseId: selectedSale.value.warehouseId,
+    saleId: selectedSale.value.id,
+    customerId: selectedSale.value.customerId,
+    paidAmount: 0,
+    paymentMethod: 'cash',
+    note: reason.value
   })
 
   selectedSale.value = null
@@ -55,15 +60,9 @@ const submitReturn = async () => {
   fetchInvoicedSales()
 }
 
-const approveReturn = async (sale) => {
-  await api.post(`/sales/${sale.id}/return/approve`)
-  fetchInvoicedSales()
-}
+const approveReturn = async () => {}
 
-const rejectReturn = async (sale) => {
-  await api.post(`/sales/${sale.id}/return/reject`)
-  fetchInvoicedSales()
-}
+const rejectReturn = async () => {}
 
 /* =========================
    LIFECYCLE
@@ -86,7 +85,7 @@ onMounted(fetchInvoicedSales)
           :key="s.id"
           :value="s"
         >
-          #{{ s.id }} — {{ s.customer }}
+          #{{ s.id }} — {{ s.customer?.name || s.customer || '-' }}
         </option>
       </select>
 
@@ -128,7 +127,7 @@ onMounted(fetchInvoicedSales)
         <tbody>
           <tr v-for="s in sales" :key="s.id">
             <td>{{ s.id }}</td>
-            <td>{{ s.customer }}</td>
+            <td>{{ s.customer?.name || s.customer || '-' }}</td>
 
             <td>
               <span :class="`badge ${s.return_status}`">
@@ -216,3 +215,4 @@ th, td {
 .btn.success { background: #16a34a; color: #fff }
 .btn.danger { background: #dc2626; color: #fff }
 </style>
+

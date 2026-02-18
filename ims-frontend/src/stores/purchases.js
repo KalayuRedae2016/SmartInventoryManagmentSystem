@@ -29,8 +29,15 @@ export const usePurchasesStore = defineStore('purchases', () => {
   function normalizePurchase(p) {
     return {
       ...p,
-      supplier: p.supplier || p.supplierName || p.supplier_id || '-',
-      payment_status: p.payment_status || 'unpaid'
+      totalAmount: Number(p.totalAmount ?? p.total_amount ?? 0),
+      paidAmount: Number(p.paidAmount ?? p.paid_amount ?? 0),
+      dueAmount: Number(p.dueAmount ?? p.due_amount ?? 0),
+      warehouseId: p.warehouseId ?? p.warehouse_id ?? null,
+      supplierId: p.supplierId ?? p.supplier_id ?? null,
+      supplier: p.supplier?.name || p.supplier || p.supplierName || p.supplier_id || '-',
+      payment_status:
+        p.payment_status ||
+        (Number(p.paidAmount ?? 0) >= Number(p.totalAmount ?? 0) ? 'paid' : 'unpaid')
     }
   }
 
@@ -45,7 +52,7 @@ export const usePurchasesStore = defineStore('purchases', () => {
       purchases.value = asList(getResponseData(res, [])).map(normalizePurchase)
     } catch (error) {
       if (USE_MOCK) purchases.value = [...mockData]
-      else throw error
+      else purchases.value = []
     } finally {
       loading.value = false
     }
@@ -56,8 +63,13 @@ export const usePurchasesStore = defineStore('purchases', () => {
       purchases.value.push({ ...payload, id: Date.now() })
       return
     }
-    const res = await api.post('/purchases', payload)
-    purchases.value.push(normalizePurchase(getResponseData(res, payload)))
+    const normalizedPayload = {
+      ...payload,
+      invoiceNumber: payload.invoiceNumber || `PO-${Date.now().toString().slice(-6)}`,
+      paymentMethod: payload.paymentMethod === 'credit' ? 'credit' : 'cash'
+    }
+    const res = await api.post('/purchases', normalizedPayload)
+    purchases.value.push(normalizePurchase(getResponseData(res, normalizedPayload)))
   }
 
   async function updatePurchase(payload) {
@@ -66,7 +78,7 @@ export const usePurchasesStore = defineStore('purchases', () => {
       if (i !== -1) purchases.value[i] = payload
       return
     }
-    const res = await api.put(`/purchases/${payload.id}`, payload)
+    const res = await api.patch(`/purchases/${payload.id}`, payload)
     const updated = normalizePurchase(getResponseData(res, payload))
     const i = purchases.value.findIndex(x => x.id === payload.id)
     if (i !== -1) purchases.value[i] = updated
@@ -77,10 +89,20 @@ export const usePurchasesStore = defineStore('purchases', () => {
     purchases.value = purchases.value.filter(x => x.id !== id)
   }
 
+  async function fetchPurchaseById(id) {
+    try {
+      const res = await api.get(`/purchases/${id}`)
+      return normalizePurchase(getResponseData(res, {}))
+    } catch {
+      return null
+    }
+  }
+
   return {
     purchases,
     loading,
     fetchPurchases,
+    fetchPurchaseById,
     addPurchase,
     updatePurchase,
     deletePurchase

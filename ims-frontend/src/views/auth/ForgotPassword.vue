@@ -15,7 +15,9 @@
           required
         />
 
-        <button type="submit" class="submit-btn">Send Reset Link</button>
+        <button type="submit" class="submit-btn" :disabled="loading">
+          {{ loading ? 'Sending...' : 'Send Reset Link' }}
+        </button>
       </form>
 
       <RouterLink class="auth-link" to="/login">Back to login</RouterLink>
@@ -25,11 +27,27 @@
 
 <script setup>
 import { ref } from 'vue'
+import api from '@/services/api'
 
 const email = ref('')
+const loading = ref(false)
 
-function submit() {
-  alert(`Password reset link sent to ${email.value}`)
+async function submit() {
+  if (!email.value) {
+    alert('Please enter your email address.')
+    return
+  }
+
+  try {
+    loading.value = true
+    await api.post('/auth/forgetPassword', { email: email.value })
+    alert('If the email exists, OTP instructions were sent successfully.')
+  } catch (error) {
+    const message = error?.response?.data?.message || error?.message || 'Failed to request password reset.'
+    alert(message)
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -98,6 +116,11 @@ function submit() {
   color: #fff;
   font-weight: 700;
   background: linear-gradient(95deg, #4c2683, #6334a3);
+}
+
+.submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .auth-link {

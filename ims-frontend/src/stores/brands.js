@@ -49,8 +49,14 @@ export const useBrandsStore = defineStore('brands', () => {
       brands.value.push({ ...b, id: Date.now() })
       return
     }
-    const res = await api.post('/brands', b)
-    brands.value.push(normalizeBrand(getResponseData(res, b)))
+    const payload = {
+      businessId: 1,
+      name: b.name,
+      country: b.country || '',
+      description: b.description || b.name || ''
+    }
+    const res = await api.post('/brands', payload)
+    brands.value.push(normalizeBrand(getResponseData(res, payload)))
   }
 
   async function updateBrand(b) {
@@ -59,7 +65,7 @@ export const useBrandsStore = defineStore('brands', () => {
       if (i !== -1) brands.value[i] = b
       return
     }
-    const res = await api.put(`/brands/${b.id}`, b)
+    const res = await api.patch(`/brands/${b.id}`, b)
     const updated = normalizeBrand(getResponseData(res, b))
     const i = brands.value.findIndex(x => x.id === b.id)
     if (i !== -1) brands.value[i] = updated

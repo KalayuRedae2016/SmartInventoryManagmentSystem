@@ -2,26 +2,19 @@
   <div class="space-y-6">
     <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold text-brand">Purchase Returns</h1>
-      <button
-        v-if="canCreate"
-        class="btn-primary"
-        @click="showForm = true"
-      >
-        + New Return
-      </button>
+      <button class="btn-primary" @click="showForm = true">+ New Return</button>
     </div>
 
-    <!-- Create Return Modal -->
-    <div
-      v-if="showForm"
-      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-    >
+    <div v-if="showForm" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div class="bg-white w-full max-w-lg p-6 rounded space-y-4">
         <h2 class="text-lg font-semibold">New Purchase Return</h2>
 
-        <input v-model="form.purchase_id" class="input" placeholder="Purchase ID" />
-        <input v-model="form.supplier" class="input" placeholder="Supplier" />
-        <input v-model.number="form.quantity" type="number" min="1" class="input" placeholder="Quantity" />
+        <select v-model.number="form.purchaseId" class="input">
+          <option disabled :value="null">Select purchase</option>
+          <option v-for="p in purchases" :key="p.id" :value="p.id">#{{ p.id }} - {{ p.supplier }}</option>
+        </select>
+
+        <input v-model.number="form.totalAmount" type="number" min="1" class="input" placeholder="Total return amount" />
         <textarea v-model="form.reason" class="input" placeholder="Reason"></textarea>
 
         <div class="flex justify-end gap-2">
@@ -31,107 +24,65 @@
       </div>
     </div>
 
-    <DataTable
-      :data="returns"
-      :columns="columns"
-      title="Returns"
-      :can-edit="false"
-      :can-delete="false"
-      @export="exportData"
-    >
-      <template #rowActions="{ row }">
-        <button
-          v-if="canApprove && row.status === 'pending'"
-          class="action-btn"
-          @click="approve(row)"
-        >
-          Approve
-        </button>
-        <button
-          v-if="canApprove && row.status === 'pending'"
-          class="action-btn danger"
-          @click="reject(row)"
-        >
-          Reject
-        </button>
-      </template>
-    </DataTable>
+    <DataTable :data="rows" :columns="columns" title="Returns" :can-edit="false" :can-delete="false" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import DataTable from '@/components/DataTable.vue'
-import { useAuthStore } from '@/stores/auth'
+import api, { getResponseData } from '@/services/api'
+import { usePurchasesStore } from '@/stores/purchases'
 
-const auth = useAuthStore()
-const role = computed(() => auth.user?.role || '')
+const purchasesStore = usePurchasesStore()
+const purchases = computed(() => purchasesStore.purchases)
 
-const canCreate = computed(() => role.value === 'purchase' || role.value === 'owner' || role.value === 'admin')
-const canApprove = computed(() => role.value === 'owner' || role.value === 'admin')
-
-const columns = ['purchase_id', 'supplier', 'quantity', 'reason', 'status', 'created_at']
-
-const returns = ref([
-  {
-    id: 'pr-001',
-    business_id: '11111111-1111-1111-1111-111111111111',
-    purchase_id: 'c3b1f2e4-7b6a-4a0f-9b2c-1d3e5f6a7b01',
-    supplier: 'ABC Supplier',
-    quantity: 5,
-    reason: 'Damaged items',
-    status: 'pending',
-    created_at: '2026-02-01T09:00:00Z'
-  },
-  {
-    id: 'pr-002',
-    business_id: '11111111-1111-1111-1111-111111111111',
-    purchase_id: 'c3b1f2e4-7b6a-4a0f-9b2c-1d3e5f6a7b01',
-    supplier: 'ABC Supplier',
-    quantity: 2,
-    reason: 'Wrong size',
-    status: 'approved',
-    created_at: '2026-01-28T10:30:00Z'
-  }
-])
-
+const columns = ['id', 'purchaseId', 'supplier', 'totalAmount', 'reason', 'status', 'createdAt']
+const rows = ref([])
 const showForm = ref(false)
-const form = ref({
-  purchase_id: '',
-  supplier: '',
-  quantity: 1,
-  reason: ''
+const form = ref({ purchaseId: null, totalAmount: 0, reason: '' })
+
+onMounted(async () => {
+  await Promise.all([fetchReturns(), purchasesStore.fetchPurchases()])
 })
 
-function submitReturn() {
-  returns.value.push({
-    id: `pr-${Date.now()}`,
-    business_id: '11111111-1111-1111-1111-111111111111',
-    purchase_id: form.value.purchase_id,
-    supplier: form.value.supplier,
-    quantity: form.value.quantity,
-    reason: form.value.reason,
-    status: 'pending',
-    created_at: new Date().toISOString()
+async function fetchReturns() {
+  try {
+    const res = await api.get('/purchase-returns')
+    const payload = getResponseData(res, [])
+    rows.value = (Array.isArray(payload) ? payload : []).map(r => ({
+      id: r.id,
+      purchaseId: r.purchaseId,
+      supplier: r.supplier?.name || '-',
+      totalAmount: r.totalAmount,
+      reason: r.reason,
+      status: r.status,
+      createdAt: (r.createdAt || '').slice(0, 10)
+    }))
+  } catch {
+    rows.value = []
+  }
+}
+
+async function submitReturn() {
+  const purchase = purchases.value.find(p => p.id === form.value.purchaseId)
+  if (!purchase) return
+
+  await api.post('/purchase-returns', {
+    purchaseId: purchase.id,
+    warehouseId: purchase.warehouseId,
+    supplierId: purchase.supplierId,
+    totalAmount: form.value.totalAmount,
+    reason: form.value.reason
   })
+
   closeForm()
+  await fetchReturns()
 }
 
 function closeForm() {
   showForm.value = false
-  form.value = { purchase_id: '', supplier: '', quantity: 1, reason: '' }
-}
-
-function approve(row) {
-  row.status = 'approved'
-}
-
-function reject(row) {
-  row.status = 'rejected'
-}
-
-function exportData(format) {
-  alert(`Exporting ${format}. Implement export logic.`)
+  form.value = { purchaseId: null, totalAmount: 0, reason: '' }
 }
 </script>
 
@@ -153,16 +104,5 @@ function exportData(format) {
   border: 1px solid #ddd;
   padding: 8px;
   border-radius: 6px;
-}
-.action-btn {
-  margin-left: 6px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: rgb(76, 38, 131);
-  color: white;
-  font-size: 12px;
-}
-.action-btn.danger {
-  background: #dc2626;
 }
 </style>

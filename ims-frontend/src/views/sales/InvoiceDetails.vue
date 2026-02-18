@@ -1,13 +1,30 @@
-<div class="actions">
-  <button v-if="invoice.status !== 'paid'" @click="pay">
-    💵 Pay 1000
-  </button>
+<template>
+  <div v-if="invoice" class="space-y-2">
+    <h2 class="title">Invoice #{{ invoice.id }}</h2>
+    <p><b>Customer:</b> {{ invoice.customer }}</p>
+    <p><b>Total:</b> {{ invoice.totalAmount }}</p>
+    <p><b>Paid:</b> {{ invoice.paidAmount }}</p>
+    <p><b>Due:</b> {{ invoice.dueAmount }}</p>
+    <p><b>Status:</b> {{ invoice.status }}</p>
+  </div>
+</template>
 
-  <button v-if="invoice.status === 'issued'" @click="store.processReturn(invoice.id)">
-    🔁 Process Return
-  </button>
+<script setup>
+import { onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { useSalesStore } from '@/stores/sales'
 
-  <button v-if="invoice.status === 'draft'" @click="store.issueInvoice(invoice.id)">
-    📤 Issue Invoice
-  </button>
-</div>
+const route = useRoute()
+const store = useSalesStore()
+const invoice = ref(null)
+
+onMounted(async () => {
+  invoice.value = await store.fetchSaleById(route.params.id)
+})
+</script>
+
+<style scoped>
+.title {
+  color: rgb(76, 38, 131);
+}
+</style>

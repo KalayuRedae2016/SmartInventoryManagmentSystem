@@ -48,8 +48,15 @@ export const useUnitsStore = defineStore('units', () => {
       units.value.push({ ...u, id: Date.now() })
       return
     }
-    const res = await api.post('/units', u)
-    units.value.push(normalizeUnit(getResponseData(res, u)))
+    const payload = {
+      businessId: 1,
+      name: u.name,
+      symbol: u.symbol || '',
+      baseUnit: u.baseUnit || u.name || '',
+      description: u.description || u.name || ''
+    }
+    const res = await api.post('/units', payload)
+    units.value.push(normalizeUnit(getResponseData(res, payload)))
   }
 
   async function updateUnit(u) {
@@ -58,7 +65,7 @@ export const useUnitsStore = defineStore('units', () => {
       if (i !== -1) units.value[i] = u
       return
     }
-    const res = await api.put(`/units/${u.id}`, u)
+    const res = await api.patch(`/units/${u.id}`, u)
     const updated = normalizeUnit(getResponseData(res, u))
     const i = units.value.findIndex(x => x.id === u.id)
     if (i !== -1) units.value[i] = updated

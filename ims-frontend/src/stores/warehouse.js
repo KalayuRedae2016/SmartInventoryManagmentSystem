@@ -39,38 +39,91 @@ export const useWarehouseStore = defineStore('warehouses', () => {
     }
   ]
 
+  function normalizeWarehouse(item = {}) {
+    const isActive = item.isActive ?? item.status === 'active'
+    return {
+      id: item.id,
+      businessId: item.businessId ?? item.business_id ?? 1,
+      name: item.name || '',
+      code: item.code || '',
+      location: item.location || '',
+      managerName: item.managerName || '',
+      phone: item.phone || '',
+      email: item.email || '',
+      isActive: Boolean(isActive),
+      status: Boolean(isActive) ? 'active' : 'inactive',
+      stock: item.stock || {}
+    }
+  }
+
+  function asList(payload) {
+    if (Array.isArray(payload)) return payload
+    if (Array.isArray(payload?.rows)) return payload.rows
+    if (Array.isArray(payload?.data)) return payload.data
+    return []
+  }
+
   async function fetchWarehouses() {
     loading.value = true
     try {
       if (USE_MOCK) {
-        warehouses.value = [...mockData]
+        warehouses.value = mockData.map(normalizeWarehouse)
         return
       }
-      try {
-        const res = await api.get('/warehouses')
-        const payload = getResponseData(res, [])
-        warehouses.value = Array.isArray(payload) ? payload : []
-      } catch {
-        // Warehouses endpoint is not documented yet in current API spec.
-        warehouses.value = [...mockData]
-      }
+      const res = await api.get('/warehouses')
+      warehouses.value = asList(getResponseData(res, [])).map(normalizeWarehouse)
+    } catch (error) {
+      if (USE_MOCK) warehouses.value = mockData.map(normalizeWarehouse)
+      else throw error
     } finally {
       loading.value = false
     }
   }
 
-  function addWarehouse(data) {
-    data.id = Date.now()
-    data.stock = {} // initialize empty stock
-    warehouses.value.push(data)
+  async function addWarehouse(data) {
+    if (USE_MOCK) {
+      warehouses.value.push(normalizeWarehouse({ ...data, id: Date.now(), stock: {} }))
+      return
+    }
+
+    const payload = {
+      businessId: 1,
+      name: data.name || '',
+      code: data.code || `WH-${Date.now().toString().slice(-6)}`,
+      location: data.location || '',
+      managerName: data.managerName || '',
+      phone: data.phone || '',
+      email: data.email || '',
+      isActive: (data.status || 'active') === 'active'
+    }
+
+    const res = await api.post('/warehouses', payload)
+    warehouses.value.push(normalizeWarehouse(getResponseData(res, payload)))
   }
 
-  function updateWarehouse(data) {
+  async function updateWarehouse(data) {
     const i = warehouses.value.findIndex(w => w.id === data.id)
-    if (i !== -1) warehouses.value[i] = data
+    if (USE_MOCK) {
+      if (i !== -1) warehouses.value[i] = normalizeWarehouse(data)
+      return
+    }
+
+    const payload = {
+      name: data.name,
+      location: data.location,
+      managerName: data.managerName,
+      phone: data.phone,
+      email: data.email,
+      isActive: (data.status || 'active') === 'active'
+    }
+
+    const res = await api.patch(`/warehouses/${data.id}`, payload)
+    const updated = normalizeWarehouse(getResponseData(res, { ...data, ...payload }))
+    if (i !== -1) warehouses.value[i] = updated
   }
 
-  function deleteWarehouse(id) {
+  async function deleteWarehouse(id) {
+    if (!USE_MOCK) await api.delete(`/warehouses/${id}`)
     warehouses.value = warehouses.value.filter(w => w.id !== id)
   }
 

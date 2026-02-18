@@ -30,6 +30,7 @@
     >
       <template #default="{ formData }">
         <div class="space-y-2">
+          <input v-model="formData.code" placeholder="Code" class="w-full border px-2 py-1 rounded" />
           <input v-model="formData.name" placeholder="Name" class="w-full border px-2 py-1 rounded" />
           <input v-model="formData.email" placeholder="Email" class="w-full border px-2 py-1 rounded" />
           <input v-model="formData.phone" placeholder="Phone" class="w-full border px-2 py-1 rounded" />
@@ -69,6 +70,7 @@ onMounted(() => {
 function openAddModal() {
   Object.assign(editItem, {
     id: null,
+    code: '',
     name: '',
     email: '',
     phone: '',
@@ -95,7 +97,6 @@ function saveSupplier(supplier) {
   } else {
     suppliersStore.addSupplier({
       ...supplier,
-      id: crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()),
       business_id: '11111111-1111-1111-1111-111111111111',
       created_at: new Date().toISOString()
     })

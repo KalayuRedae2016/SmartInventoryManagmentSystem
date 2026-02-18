@@ -48,6 +48,3 @@ router.route('/export/excel').get(requirePermission('user:export'),userControlle
 router.route('/export/pdf').get(requirePermission('user:export'),userController.exportUsersToPdf)
 
 module.exports=router
-
-
-//this is updated
