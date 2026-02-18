@@ -46,8 +46,12 @@ export const useSuppliersStore = defineStore('suppliers', () => {
       suppliers.value.push({ ...payload, id: Date.now() })
       return
     }
-    const res = await api.post('/suppliers', payload)
-    suppliers.value.push(getResponseData(res, payload))
+    const mapped = {
+      ...payload,
+      code: payload.code || `SUP-${Date.now().toString().slice(-6)}`
+    }
+    const res = await api.post('/suppliers', mapped)
+    suppliers.value.push(getResponseData(res, mapped))
   }
 
   async function updateSupplier(payload) {
@@ -56,7 +60,7 @@ export const useSuppliersStore = defineStore('suppliers', () => {
       if (i !== -1) suppliers.value[i] = payload
       return
     }
-    const res = await api.put(`/suppliers/${payload.id}`, payload)
+    const res = await api.patch(`/suppliers/${payload.id}`, payload)
     const updated = getResponseData(res, payload)
     const i = suppliers.value.findIndex(s => s.id === payload.id)
     if (i !== -1) suppliers.value[i] = updated

@@ -46,8 +46,12 @@ export const useCustomersStore = defineStore('customers', () => {
       customers.value.push({ ...payload, id: Date.now() })
       return
     }
-    const res = await api.post('/customers', payload)
-    customers.value.push(getResponseData(res, payload))
+    const mapped = {
+      ...payload,
+      code: payload.code || `CUS-${Date.now().toString().slice(-6)}`
+    }
+    const res = await api.post('/customers', mapped)
+    customers.value.push(getResponseData(res, mapped))
   }
 
   async function updateCustomer(payload) {
@@ -56,7 +60,7 @@ export const useCustomersStore = defineStore('customers', () => {
       if (i !== -1) customers.value[i] = payload
       return
     }
-    const res = await api.put(`/customers/${payload.id}`, payload)
+    const res = await api.patch(`/customers/${payload.id}`, payload)
     const updated = getResponseData(res, payload)
     const i = customers.value.findIndex(c => c.id === payload.id)
     if (i !== -1) customers.value[i] = updated

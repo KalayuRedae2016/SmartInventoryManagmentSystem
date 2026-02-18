@@ -190,9 +190,21 @@ router.beforeEach((to, from, next) => {
 
   if (to.meta.public) return next()
   if (!auth.isAuthenticated) return next('/login')
-  if (to.meta.permission && !auth.can(to.meta.permission)) return next('/')
+  if (to.meta.permission && !auth.can(to.meta.permission)) {
+    const fallbackPaths = ['/', '/products', '/stock', '/purchases', '/sales', '/customers', '/suppliers', '/reports']
+    const fallback = fallbackPaths.find(path => {
+      const resolved = router.resolve(path)
+      const permission = resolved?.meta?.permission
+      return !permission || auth.can(permission)
+    })
+
+    if (fallback && fallback !== to.fullPath) return next(fallback)
+    return next('/login')
+  }
 
   next()
 })
 
 export default router
+
+

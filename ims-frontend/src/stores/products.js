@@ -50,12 +50,31 @@ export const useProductsStore = defineStore('products', () => {
       unitId: item.unitId ?? item.unit_id ?? null,
       sku: item.sku || '',
       barcode: item.barcode || '',
+      cost_price: item.defaultCostPrice ?? item.cost_price ?? 0,
+      selling_price: item.defaultSellingPrice ?? item.selling_price ?? 0,
       min_stock: item.reorderLevel ?? item.min_stock ?? 0,
       reorderLevel: item.reorderLevel ?? item.min_stock ?? 0,
-      status: item.status || 'active',
+      status: item.status || (item.isActive === false ? 'inactive' : 'active'),
       quantity: item.quantity ?? 0,
-      category: item.category || '',
-      unit: item.unit || ''
+      category: item.category?.name || item.category || '',
+      unit: item.unit?.name || item.unit || '',
+      brand: item.brand?.name || item.brand || ''
+    }
+  }
+
+  function mapProductPayload(p) {
+    return {
+      businessId: 1,
+      name: p.name || p.productName || '',
+      categoryId: p.categoryId,
+      brandId: p.brandId ?? 1,
+      unitId: p.unitId,
+      sku: p.sku || '',
+      barcode: p.barcode || '',
+      defaultCostPrice: p.cost_price ?? 0,
+      defaultSellingPrice: p.selling_price ?? 0,
+      minimumStock: p.reorderLevel ?? p.min_stock ?? 0,
+      isActive: (p.status || 'active') === 'active'
     }
   }
 
@@ -81,15 +100,7 @@ export const useProductsStore = defineStore('products', () => {
       products.value.push({ ...p, id: Date.now() })
       return
     }
-    const payload = {
-      productName: p.productName || p.name,
-      categoryId: p.categoryId,
-      brandId: p.brandId,
-      unitId: p.unitId,
-      sku: p.sku,
-      barcode: p.barcode,
-      reorderLevel: p.reorderLevel ?? p.min_stock
-    }
+    const payload = mapProductPayload(p)
     const res = await api.post('/products', payload)
     products.value.push(normalizeProduct(getResponseData(res, payload)))
   }
@@ -100,16 +111,8 @@ export const useProductsStore = defineStore('products', () => {
       if (i !== -1) products.value[i] = p
       return
     }
-    const payload = {
-      productName: p.productName || p.name,
-      categoryId: p.categoryId,
-      brandId: p.brandId,
-      unitId: p.unitId,
-      sku: p.sku,
-      barcode: p.barcode,
-      reorderLevel: p.reorderLevel ?? p.min_stock
-    }
-    const res = await api.put(`/products/${p.id}`, payload)
+    const payload = mapProductPayload(p)
+    const res = await api.patch(`/products/${p.id}`, payload)
     const updated = normalizeProduct(getResponseData(res, { ...p, ...payload }))
     const i = products.value.findIndex(x => x.id === p.id)
     if (i !== -1) products.value[i] = updated

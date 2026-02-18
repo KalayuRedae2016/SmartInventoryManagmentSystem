@@ -51,20 +51,9 @@
           </div>
         </div>
 
-        <div class="field-wrap role-field">
-          <label>Select Role</label>
-          <div class="role-carousel" @wheel.prevent="onWheel">
-            <button class="nav-btn" type="button" @click="prevRole">Up</button>
-
-            <div class="role-window">
-              <button type="button" class="role-card active">
-                {{ roles[roleIndex].label }}
-              </button>
-            </div>
-
-            <button class="nav-btn" type="button" @click="nextRole">Down</button>
-          </div>
-        </div>
+        <button type="submit" class="submit-btn" :disabled="submitting">
+          {{ submitting ? 'Signing In...' : 'Sign In' }}
+        </button>
 
         <div class="form-meta">
           <label class="remember-me">
@@ -74,15 +63,8 @@
           <RouterLink to="/forgot-password" class="text-link">Forgot password?</RouterLink>
         </div>
 
-        <button type="submit" class="submit-btn">Sign In</button>
+        <p v-if="loginError" class="login-error">{{ loginError }}</p>
       </form>
-
-      <div class="divider"><span>or continue with</span></div>
-
-      <div class="social-row">
-        <button type="button" class="social-btn">Google</button>
-        <button type="button" class="social-btn">GitHub</button>
-      </div>
 
       <p class="footer-text">
         Don&#39;t have an account?
@@ -104,58 +86,28 @@ const phoneNumber = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const rememberMe = ref(false)
-
-const roles = [
-  { value: 'superadmin', label: 'Superadmin' },
-  { value: 'owner', label: 'Owner' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'store_keeper', label: 'Store Keeper' },
-  { value: 'warehouse_manager', label: 'Warehouse Manager' },
-  { value: 'purchase', label: 'Purchase Officer' },
-  { value: 'sale', label: 'Sales Officer' },
-  { value: 'accountant', label: 'Accountant' },
-  { value: 'support', label: 'Support' },
-  { value: 'customer', label: 'Customer' }
-]
-
-const selectedRole = ref('superadmin')
-const roleIndex = ref(Math.max(0, roles.findIndex(r => r.value === selectedRole.value)))
-
-function syncSelectedRole() {
-  selectedRole.value = roles[roleIndex.value].value
-}
-
-function nextRole() {
-  roleIndex.value = (roleIndex.value + 1) % roles.length
-  syncSelectedRole()
-}
-
-function prevRole() {
-  roleIndex.value = (roleIndex.value - 1 + roles.length) % roles.length
-  syncSelectedRole()
-}
-
-function onWheel(e) {
-  if (e.deltaY > 0) nextRole()
-  else prevRole()
-}
+const submitting = ref(false)
+const loginError = ref('')
 
 async function submitLogin() {
   if (!phoneNumber.value || !password.value) {
-    alert('Please enter phone number and password')
+    loginError.value = 'Please enter phone number and password'
     return
   }
+
+  loginError.value = ''
+  submitting.value = true
 
   try {
     await auth.login({
       phoneNumber: phoneNumber.value,
-      password: password.value,
-      role: selectedRole.value
+      password: password.value
     })
-    router.push('/')
+    await router.push('/')
   } catch (error) {
-    alert(error?.message || 'Login failed')
+    loginError.value = error?.message || 'Login failed'
+  } finally {
+    submitting.value = false
   }
 }
 </script>
@@ -311,49 +263,6 @@ async function submitLogin() {
   background: rgba(255, 255, 255, 0.9);
 }
 
-.role-field {
-  margin-top: 4px;
-}
-
-.role-carousel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.role-window {
-  width: 100%;
-}
-
-.role-card {
-  width: 100%;
-  height: 46px;
-  border-radius: 12px;
-  border: 1px solid rgba(99, 52, 163, 0.25);
-  background: rgba(255, 255, 255, 0.9);
-  color: #2c1750;
-  font-weight: 600;
-}
-
-.role-card.active {
-  background: rgba(76, 38, 131, 0.2);
-  border-color: rgba(76, 38, 131, 0.45);
-}
-
-.nav-btn {
-  width: 100%;
-  height: 34px;
-  border-radius: 10px;
-  border: 1px solid rgba(99, 52, 163, 0.25);
-  background: rgba(255, 255, 255, 0.75);
-  color: #2c1750;
-  font-size: 0.82rem;
-}
-
-.nav-btn:hover {
-  background: rgba(255, 255, 255, 0.92);
-}
-
 .form-meta {
   display: flex;
   justify-content: space-between;
@@ -408,44 +317,16 @@ async function submitLogin() {
   filter: brightness(1.06);
 }
 
-.divider {
-  margin: 20px 0 14px;
-  position: relative;
-  text-align: center;
-  color: #4a2e82;
-  font-size: 0.9rem;
+.submit-btn:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
 }
 
-.divider::before {
-  content: '';
-  position: absolute;
-  inset: 50% 0 auto;
-  border-top: 1px solid rgba(99, 52, 163, 0.3);
-}
-
-.divider span {
-  position: relative;
-  padding: 0 12px;
-  background: rgba(247, 241, 255, 0.95);
-}
-
-.social-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.social-btn {
-  height: 42px;
-  border-radius: 11px;
-  border: 1px solid rgba(94, 55, 150, 0.26);
-  background: rgba(255, 255, 255, 0.9);
-  color: #2c1750;
-  font-weight: 600;
-}
-
-.social-btn:hover {
-  background: rgba(255, 255, 255, 0.96);
+.login-error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .footer-text {
@@ -470,6 +351,3 @@ async function submitLogin() {
   }
 }
 </style>
-
-
-

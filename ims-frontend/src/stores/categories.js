@@ -50,8 +50,13 @@ export const useCategoriesStore = defineStore('categories', () => {
       categories.value.push({ ...data, id: Date.now() })
       return
     }
-    const res = await api.post('/categories', data)
-    categories.value.push(normalizeCategory(getResponseData(res, data)))
+    const payload = {
+      businessId: 1,
+      name: data.name,
+      description: data.description || data.name || ''
+    }
+    const res = await api.post('/categories', payload)
+    categories.value.push(normalizeCategory(getResponseData(res, payload)))
   }
 
   async function updateCategory(data) {
@@ -60,7 +65,7 @@ export const useCategoriesStore = defineStore('categories', () => {
       if (i !== -1) categories.value[i] = data
       return
     }
-    const res = await api.put(`/categories/${data.id}`, data)
+    const res = await api.patch(`/categories/${data.id}`, data)
     const updated = normalizeCategory(getResponseData(res, data))
     const i = categories.value.findIndex(c => c.id === data.id)
     if (i !== -1) categories.value[i] = updated

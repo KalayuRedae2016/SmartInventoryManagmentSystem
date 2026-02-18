@@ -29,7 +29,12 @@ export const useSalesStore = defineStore('sales', () => {
   function normalizeSale(s) {
     return {
       ...s,
-      customer: s.customer || s.customerName || s.customer_id || '-'
+      totalAmount: Number(s.totalAmount ?? s.total_amount ?? 0),
+      paidAmount: Number(s.paidAmount ?? s.paid_amount ?? 0),
+      dueAmount: Number(s.dueAmount ?? s.due_amount ?? 0),
+      warehouseId: s.warehouseId ?? s.warehouse_id ?? null,
+      customerId: s.customerId ?? s.customer_id ?? null,
+      customer: s.customer?.name || s.customer || s.customerName || s.customer_id || '-'
     }
   }
 
@@ -65,7 +70,7 @@ export const useSalesStore = defineStore('sales', () => {
       if (i !== -1) sales.value[i] = payload
       return
     }
-    const res = await api.put(`/sales/${payload.id}`, payload)
+    const res = await api.patch(`/sales/${payload.id}`, payload)
     const updated = normalizeSale(getResponseData(res, payload))
     const i = sales.value.findIndex(x => x.id === payload.id)
     if (i !== -1) sales.value[i] = updated
@@ -76,5 +81,10 @@ export const useSalesStore = defineStore('sales', () => {
     sales.value = sales.value.filter(x => x.id !== id)
   }
 
-  return { sales, loading, fetchSales, addSale, updateSale, deleteSale }
+  async function fetchSaleById(id) {
+    const res = await api.get(`/sales/${id}`)
+    return normalizeSale(getResponseData(res, {}))
+  }
+
+  return { sales, loading, fetchSales, fetchSaleById, addSale, updateSale, deleteSale }
 })

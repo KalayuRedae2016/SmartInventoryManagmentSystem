@@ -5,14 +5,27 @@
       <p>Fill in your details to create a new account.</p>
 
       <form class="auth-form" @submit.prevent="submit">
-        <label for="name">Full Name</label>
-        <input id="name" v-model="name" type="text" placeholder="Your full name" required />
+        <label for="fullName">Full Name</label>
+        <input id="fullName" v-model="fullName" type="text" placeholder="Your full name" required />
+
+        <label for="phoneNumber">Phone Number</label>
+        <input id="phoneNumber" v-model="phoneNumber" type="tel" placeholder="09xxxxxxxx" required />
 
         <label for="email">Email Address</label>
         <input id="email" v-model="email" type="email" placeholder="you@example.com" autocomplete="email" required />
 
         <label for="password">Password</label>
         <input id="password" v-model="password" type="password" placeholder="Create password" autocomplete="new-password" required />
+
+        <label for="confirmPassword">Confirm Password</label>
+        <input
+          id="confirmPassword"
+          v-model="confirmPassword"
+          type="password"
+          placeholder="Confirm password"
+          autocomplete="new-password"
+          required
+        />
 
         <button type="submit" class="submit-btn">Create Account</button>
       </form>
@@ -24,13 +37,36 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
-const name = ref('')
+const router = useRouter()
+const auth = useAuthStore()
+
+const fullName = ref('')
+const phoneNumber = ref('')
 const email = ref('')
 const password = ref('')
+const confirmPassword = ref('')
 
-function submit() {
-  alert(`Account created for ${name.value}`)
+async function submit() {
+  if (password.value !== confirmPassword.value) {
+    alert('Password and confirm password do not match.')
+    return
+  }
+
+  try {
+    await auth.signup({
+      fullName: fullName.value,
+      phoneNumber: phoneNumber.value,
+      email: email.value,
+      password: password.value
+    })
+    alert('Account created successfully. Please sign in.')
+    router.push('/login')
+  } catch (error) {
+    alert(error?.message || 'Signup failed')
+  }
 }
 </script>
 

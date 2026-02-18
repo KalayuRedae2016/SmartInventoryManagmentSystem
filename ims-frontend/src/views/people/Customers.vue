@@ -15,38 +15,41 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
 import DataTable from '@/components/DataTable.vue'
 import { useCustomersStore } from '@/stores/customers'
 
 const store = useCustomersStore()
 const customers = store.customers
 
-function addCustomer() {
-  const id = customers.length + 1
-  customers.push({
-    id,
+onMounted(() => {
+  store.fetchCustomers()
+})
+
+async function addCustomer() {
+  await store.addCustomer({
+    code: `CUS-${Date.now().toString().slice(-6)}`,
     name: 'New Customer',
     phone: '09xxxxxxxx',
-    email: 'new@customer.com',
-    status: 'active',
-    business_id: '11111111-1111-1111-1111-111111111111',
-    created_at: new Date().toISOString()
+    email: 'new@customer.com'
   })
 }
 
-function editCustomer(customer) {
+async function editCustomer(customer) {
   const name = prompt('Customer Name', customer.name)
   const phone = prompt('Contact Number', customer.phone)
   const email = prompt('Email', customer.email)
-  if (name) customer.name = name
-  if (phone) customer.phone = phone
-  if (email) customer.email = email
+  await store.updateCustomer({
+    ...customer,
+    name: name || customer.name,
+    phone: phone || customer.phone,
+    email: email || customer.email
+  })
 }
 
-function deleteCustomer(customer) {
+async function deleteCustomer(customer) {
   if (confirm('Delete this customer?')) {
-    const index = customers.findIndex(c => c.id === customer.id)
-    if (index >= 0) customers.splice(index, 1)
+    await store.deleteCustomer(customer.id)
   }
 }
 

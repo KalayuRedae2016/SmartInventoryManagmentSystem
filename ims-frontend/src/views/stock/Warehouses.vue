@@ -51,31 +51,37 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import DataTable from '@/components/DataTable.vue'
 import Modal from '@/components/Modal.vue'
 import { useWarehouseStore } from '@/stores/warehouse'
 
 const store = useWarehouseStore()
-const warehouses = store.warehouses
+const warehouses = computed(() => store.warehouses)
 
-const columns = ['id','name','location','managerName','phone','status']
+const columns = ['id','code','name','location','managerName','phone','status']
 
 const modalVisible = ref(false)
 const confirmVisible = ref(false)
 const editItem = reactive({})
 let rowToDelete = null
 
+onMounted(() => {
+  store.fetchWarehouses()
+})
+
 function openAddModal() {
   Object.assign(editItem, {
-    id: warehouses.length + 1,
+    id: null,
+    code: '',
     name: '',
     location: '',
     managerName: '',
     phone: '',
+    email: '',
     status: 'active',
-    business_id: '11111111-1111-1111-1111-111111111111',
-    created_at: new Date().toISOString()
+    businessId: 1,
+    createdAt: new Date().toISOString()
   })
   modalVisible.value = true
 }
@@ -90,16 +96,14 @@ function openConfirmDelete(row) {
   confirmVisible.value = true
 }
 
-function saveWarehouse(item) {
-  const index = warehouses.findIndex(w => w.id === item.id)
-  if(index >= 0) warehouses[index] = { ...item }
-  else warehouses.push(item)
+async function saveWarehouse(item) {
+  if (item.id) await store.updateWarehouse(item)
+  else await store.addWarehouse(item)
 }
 
-function deleteWarehouse() {
+async function deleteWarehouse() {
   if(rowToDelete){
-    const index = warehouses.findIndex(w => w.id === rowToDelete.id)
-    if(index >= 0) warehouses.splice(index, 1)
+    await store.deleteWarehouse(rowToDelete.id)
     rowToDelete = null
   }
 }
