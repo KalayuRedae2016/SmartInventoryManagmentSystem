@@ -31,7 +31,7 @@ const uploadFilesMiddleware = attachments.fields([
 router.use(authenticationJwt);
 
 router.route('/')
-      .get(requirePermission('user:create'),userController.getAllUsers)
+      .get(requirePermission('user:view'),userController.getAllUsers)
       .delete(requirePermission('user:delete'),userController.deleteUsers)
 
 router.route('/:userId')

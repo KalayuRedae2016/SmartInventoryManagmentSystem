@@ -147,7 +147,7 @@ exports.requirePermissionOrSelf = (permission) => {
       return next();
     }
 
-    const permissions = normalizePermissions(req.user?.role?.permissions);
+    const permissions = normalizePermissions(req.user.permissions);
 
     if (permissions.includes('*')) return next();
 
