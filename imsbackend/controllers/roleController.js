@@ -9,7 +9,7 @@ const { search, get } = require('../routes/roleRoutes');
 
 exports.createRole = catchAsync(async (req, res, next) => {
   console.log("requeted Body:",req.body);
-  const {name,code,permissions,description}=req.body;
+  const {name,code,description}=req.body;
 
   if(!name || !code){
     return next(new AppError('role name and code are required', 400));
@@ -23,7 +23,6 @@ exports.createRole = catchAsync(async (req, res, next) => {
     businessId: req.user.businessId,
     name,
     code,
-    permissions: Array.isArray(permissions) ? permissions : [],
     description,
     isActive: true
   });
@@ -73,6 +72,47 @@ exports.getRole = catchAsync(async (req, res, next) => {
     permissions: role.permissions || []
   });
 });
+
+exports.updateRole = catchAsync(async (req, res, next) => {
+  const role = await Role.findByPk(req.params.roleId);
+
+  if (!role) {
+    return next(new AppError('Role not found', 404));
+  }
+
+  await role.update(req.body);
+
+  res.status(200).json({
+    status: 1,
+    message: 'Role updated successfully',
+    data: role
+  });
+});
+
+exports.deleteRole = catchAsync(async (req, res, next) => {
+  const role = await Role.findByPk(req.params.roleId);
+
+  if (!role) {
+    return next(new AppError('Role not found', 404));
+  }
+
+  await role.destroy();
+
+  res.status(200).json({
+    status: 1,
+    message: 'Role deleted successfully'
+  });
+});
+
+exports.deleteRoles = catchAsync(async (req, res, next) => {
+  await Role.destroy({ where: { businessId: req.user.businessId } });
+
+  res.status(200).json({
+    status: 1,
+    message: 'All roles deleted successfully'
+  });
+});
+
 exports.getUsersByRole = catchAsync(async (req, res, next) => {
   const roleId = Number(req.params.roleId);
   console.log("Fetching users for role ID:", roleId);
@@ -113,46 +153,6 @@ exports.assignUsersToRole = catchAsync(async (req, res, next) => {
     status: 1,
     message: 'Users assigned to role successfully',
     data: { roleId, userIds }
-  });
-});
-
-exports.updateRole = catchAsync(async (req, res, next) => {
-  const role = await Role.findByPk(req.params.roleId);
-
-  if (!role) {
-    return next(new AppError('Role not found', 404));
-  }
-
-  await role.update(req.body);
-
-  res.status(200).json({
-    status: 1,
-    message: 'Role updated successfully',
-    data: role
-  });
-});
-
-exports.deleteRole = catchAsync(async (req, res, next) => {
-  const role = await Role.findByPk(req.params.roleId);
-
-  if (!role) {
-    return next(new AppError('Role not found', 404));
-  }
-
-  await role.destroy();
-
-  res.status(200).json({
-    status: 1,
-    message: 'Role deleted successfully'
-  });
-});
-
-exports.deleteRoles = catchAsync(async (req, res, next) => {
-  await Role.destroy({ where: { businessId: req.user.businessId } });
-
-  res.status(200).json({
-    status: 1,
-    message: 'All roles deleted successfully'
   });
 });
 

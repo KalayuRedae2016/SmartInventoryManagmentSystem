@@ -1,20 +1,13 @@
 'use strict';
-
 module.exports = {
   async up(queryInterface) {
-    const now = new Date();
-
-    // Seed default roles
     await queryInterface.bulkInsert('Roles', [
-      { businessId: 1, name: 'SuperAdmin', code: 'SUPER_ADMIN', permissions: JSON.stringify(['*']), description: 'System full access', isActive: true, createdAt: now, updatedAt: now },
-       { businessId: 1, name: 'Owner', code: 'OWNER', permissions: JSON.stringify(['*']), description: 'System full access', isActive: true, createdAt: now, updatedAt: now },
-      { businessId: 1, name: 'Admin', code: 'ADMIN', permissions: JSON.stringify(['*']), description: 'Full system access', isActive: true, createdAt: now, updatedAt: now },
-      { businessId: 1, name: 'Warehouse Manager', code: 'WH_MANAGER', permissions: JSON.stringify(['warehouse.read','stock.adjust','stock.transfer','product.read']), description: 'Manage warehouse operations', isActive: true, createdAt: now, updatedAt: now },
-      { businessId: 1, name: 'Finance', code: 'FINANCE', permissions: JSON.stringify(['purchase.read','sale.read','payment.manage','report.view']), description: 'Finance and accounting', isActive: true, createdAt: now, updatedAt: now }
+      { id:1, businessId:1, name:'SuperAdmin', code:'superAdmin', description:'SuperAdmin Role', isActive:true, createdAt:new Date(), updatedAt:new Date() },
+      { id:2, businessId:1, name:'Owner', code:'owner', description:'Owner Role', isActive:true, createdAt:new Date(), updatedAt:new Date() },
+      { id:3, businessId:1, name:'Admin', code:'admin', description:'Admin Role', isActive:true, createdAt:new Date(), updatedAt:new Date() },
+      { id:4, businessId:1, name:'Manager', code:'manager', description:'Manager Role', isActive:true, createdAt:new Date(), updatedAt:new Date() },
+      { id:5, businessId:1, name:'Clerk', code:'clerk', description:'Clerk Role', isActive:true, createdAt:new Date(), updatedAt:new Date() }
     ]);
   },
-
-  async down(queryInterface) {
-    await queryInterface.bulkDelete('Roles', null, {});
-  }
+  async down(queryInterface) { await queryInterface.bulkDelete('Roles', null, {}); }
 };
