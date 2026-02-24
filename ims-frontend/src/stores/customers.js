@@ -21,14 +21,45 @@ export const useCustomersStore = defineStore('customers', () => {
   function asList(payload) {
     if (Array.isArray(payload)) return payload
     if (Array.isArray(payload?.rows)) return payload.rows
+    if (Array.isArray(payload?.customers)) return payload.customers
+    if (Array.isArray(payload?.data?.customers)) return payload.data.customers
     return []
   }
 
   function normalizeCustomer(item = {}) {
+    let normalizedAdditionalInfo = item.additionalInfo || ''
+    if (typeof normalizedAdditionalInfo === 'string') {
+      try {
+        const parsed = JSON.parse(normalizedAdditionalInfo)
+        if (parsed && typeof parsed === 'object') {
+          normalizedAdditionalInfo = parsed.note || ''
+        }
+      } catch {
+        // Keep plain text additionalInfo as-is.
+      }
+    } else if (normalizedAdditionalInfo && typeof normalizedAdditionalInfo === 'object') {
+      normalizedAdditionalInfo = normalizedAdditionalInfo.note || ''
+    }
+
     return {
       ...item,
-      status: item.status || 'active'
+      additionalInfo: normalizedAdditionalInfo,
+      status: item.status || 'active',
+      profileImage: item.profileImage || ''
     }
+  }
+
+  function toFormData(payload) {
+    const formData = new FormData()
+    Object.entries(payload || {}).forEach(([key, value]) => {
+      if (value === undefined || value === null) return
+      if (key === 'profileImage' && value instanceof File) {
+        formData.append('profileImage', value)
+        return
+      }
+      if (key !== 'profileImage') formData.append(key, String(value))
+    })
+    return formData
   }
 
   async function fetchCustomers() {
@@ -56,9 +87,15 @@ export const useCustomersStore = defineStore('customers', () => {
     const mapped = {
       ...payload,
       code: payload.code || `CUS-${Date.now().toString().slice(-6)}`,
-      email: String(payload.email || '').trim() || null
+      email: String(payload.email || '').trim() || null,
+      status: payload.status || 'active'
     }
-    const res = await api.post('/customers', mapped)
+    const hasImage = mapped.profileImage instanceof File
+    const res = hasImage
+      ? await api.post('/customers', toFormData(mapped), {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+      : await api.post('/customers', mapped)
     customers.value.push(normalizeCustomer({ ...mapped, ...getResponseData(res, mapped) }))
   }
 
@@ -68,13 +105,24 @@ export const useCustomersStore = defineStore('customers', () => {
       if (i !== -1) customers.value[i] = normalizeCustomer(payload)
       return
     }
-    const res = await api.patch(`/customers/${payload.id}`, {
+    const mapped = {
       ...payload,
       email: String(payload.email || '').trim() || null
-    })
+    }
+    const hasImage = mapped.profileImage instanceof File
+    const res = hasImage
+      ? await api.patch(`/customers/${payload.id}`, toFormData(mapped), {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+      : await api.patch(`/customers/${payload.id}`, mapped)
     const updated = normalizeCustomer({ ...payload, ...getResponseData(res, payload) })
     const i = customers.value.findIndex(c => c.id === payload.id)
     if (i !== -1) customers.value[i] = updated
+  }
+
+  async function toggleCustomerStatus(customer) {
+    const nextStatus = customer?.status === 'active' ? 'inactive' : 'active'
+    await updateCustomer({ ...customer, status: nextStatus })
   }
 
   async function deleteCustomer(id) {
@@ -82,5 +130,5 @@ export const useCustomersStore = defineStore('customers', () => {
     customers.value = customers.value.filter(c => c.id !== id)
   }
 
-  return { customers, loading, fetchCustomers, addCustomer, updateCustomer, deleteCustomer }
+  return { customers, loading, fetchCustomers, addCustomer, updateCustomer, deleteCustomer, toggleCustomerStatus }
 })

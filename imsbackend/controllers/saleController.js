@@ -1,6 +1,8 @@
-const {Product, Warehouse,Sale, SaleItem,Customer, User, Stock } = require('../models');
+const { Product, Warehouse, Sale, SaleItem, Customer, User, Stock, StockTransaction } = require('../models');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const { Op } = require('sequelize');
+const sequelize = require('../models').sequelize;
 
 const getBusinessId = () => 1;
 
@@ -13,13 +15,16 @@ const calculateSaleStatus = (total, paid) => {
 
 // Create a new sale
 exports.createSale = catchAsync(async (req, res, next) => {
-  const { warehouseId, customerId, invoiceNumber, saleDate, totalAmount,paidAmount,paymentMethod,note } = req.body;
+  const { warehouseId, customerId, invoiceNumber, saleDate, totalAmount, paymentMethod, note } = req.body;
+  const paidAmount = Number(req.body?.paidAmount ?? 0);
   const businessId = getBusinessId();
   console.log("request bodey",req.body)
 
-  if (!warehouseId || !customerId || !invoiceNumber || !saleDate||!totalAmount||!paidAmount||!paymentMethod) {
+  if (!warehouseId || !customerId || !invoiceNumber || !saleDate || !totalAmount || !paymentMethod) {
     return next(new AppError('Missing required fields', 400));
   }
+  if (paidAmount < 0) return next(new AppError('paidAmount cannot be negative', 400));
+  if (paidAmount > Number(totalAmount)) return next(new AppError('paidAmount cannot exceed totalAmount', 400));
 
   const sale = await Sale.create({
     businessId,
@@ -29,7 +34,7 @@ exports.createSale = catchAsync(async (req, res, next) => {
     saleDate,
     totalAmount,
     paidAmount,
-    due: totalAmount - paidAmount,
+    dueAmount: Number(totalAmount) - paidAmount,
     paymentMethod,
     status: calculateSaleStatus(totalAmount, paidAmount),
     note,
@@ -131,18 +136,24 @@ exports.updateSale = catchAsync(async (req, res, next) => {
     return next(new AppError('Paid sale cannot be updated', 400));
   }
 
-  const { paidAmount, note, paymentMethod, saleDate } = req.body;
+  const { paidAmount, note, paymentMethod, saleDate, invoiceNumber, warehouseId, customerId } = req.body;
 
   if (paidAmount !== undefined) {
     if (paidAmount < sale.paidAmount) {
       return next(new AppError('Paid amount cannot be reduced', 400));
     }
+    if (Number(paidAmount) > Number(sale.totalAmount)) {
+      return next(new AppError('paidAmount cannot exceed totalAmount', 400));
+    }
     sale.paidAmount = paidAmount;
   }
 
-  if (note) sale.note = note;
-  if (paymentMethod) sale.paymentMethod = paymentMethod;
-  if (saleDate) sale.saleDate = saleDate;
+  if (note !== undefined) sale.note = note;
+  if (paymentMethod !== undefined) sale.paymentMethod = paymentMethod;
+  if (saleDate !== undefined) sale.saleDate = saleDate;
+  if (invoiceNumber !== undefined) sale.invoiceNumber = invoiceNumber;
+  if (warehouseId !== undefined) sale.warehouseId = warehouseId;
+  if (customerId !== undefined) sale.customerId = customerId;
 
   // Recalculate due & status
   sale.dueAmount = sale.totalAmount - sale.paidAmount;

@@ -5,11 +5,30 @@ function asString(value) {
 export function normalizePermissions(input) {
   // Accept API permissions as array, JSON string, or comma-separated list.
   if (!input) return [];
-  if (Array.isArray(input)) return input.filter(Boolean).map(String);
+  if (Array.isArray(input)) {
+    return input
+      .flatMap(item => {
+        if (!item) return [];
+        if (typeof item === 'string') return [item];
+        if (typeof item === 'object') {
+          const value =
+            item.permission ||
+            item.name ||
+            item.code ||
+            item.key ||
+            item.slug ||
+            '';
+          return value ? [String(value)] : [];
+        }
+        return [String(item)];
+      })
+      .map(value => value.trim())
+      .filter(Boolean);
+  }
   if (typeof input === 'string') {
     try {
       const parsed = JSON.parse(input);
-      if (Array.isArray(parsed)) return parsed.filter(Boolean).map(String);
+      if (Array.isArray(parsed)) return normalizePermissions(parsed);
       return [];
     } catch {
       return input

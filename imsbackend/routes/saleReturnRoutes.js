@@ -17,10 +17,16 @@ app.use(function (req, res, next) {
 
 // router.use(requirePermission('admin',"staff"));
 
-  router.route('/items')
-      .post(saleReturnController.createSaleReturn)
-      // .get(saleReturnController.getSaleReturnItems)
-      // .delete(saleReturnController.deleteAllSalReturnItems);
+router.route('/items')
+  .post(saleReturnController.createSaleReturn);
+
+router.route('/')
+  .post(saleReturnController.createSaleReturn)
+  .get(saleReturnController.getSaleReturns);
+
+router.route('/:id')
+  .get(saleReturnController.getSaleReturnById)
+  .delete(saleReturnController.deleteSaleReturn);
   
 // router.route('/items/:id')
 //   // .get(saleReturnController.getSaleReturnItem)

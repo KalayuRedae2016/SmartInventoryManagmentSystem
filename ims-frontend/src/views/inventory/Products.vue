@@ -46,12 +46,28 @@
     <DataTable
       :data="filteredProducts"
       :columns="columns"
-      :canEdit="true"
-      :canDelete="true"
-      @edit="openEditModal"
-      @delete="openConfirmDelete"
+      :canEdit="false"
+      :canDelete="false"
       @export="exportData"
-    />
+    >
+      <template #rowActions="{ row }">
+        <button class="icon-btn icon-view" title="View" @click="openViewModal(row)">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5c5.5 0 9.5 4.3 10.8 6.1a1.5 1.5 0 0 1 0 1.8C21.5 14.7 17.5 19 12 19S2.5 14.7 1.2 12.9a1.5 1.5 0 0 1 0-1.8C2.5 9.3 6.5 5 12 5Zm0 2C8 7 4.8 10 3.3 12 4.8 14 8 17 12 17s7.2-3 8.7-5C19.2 10 16 7 12 7Zm0 2.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z" />
+          </svg>
+        </button>
+        <button class="icon-btn icon-edit" title="Edit" @click="openEditModal(row)">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 17.3V21h3.7l10.9-10.9-3.7-3.7L3 17.3Zm18.7-11a1 1 0 0 0 0-1.4L19.1 2.3a1 1 0 0 0-1.4 0l-1.9 1.9 3.7 3.7 2.2-1.6Z" />
+          </svg>
+        </button>
+        <button class="icon-btn icon-delete" title="Delete" @click="openConfirmDelete(row)">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v9h-2V9Zm4 0h2v9h-2V9ZM7 9h2v9H7V9Z" />
+          </svg>
+        </button>
+      </template>
+    </DataTable>
 
     <!-- Add/Edit Modal -->
     <Modal
@@ -63,37 +79,57 @@
     >
       <template #default="{ formData }">
         <div class="space-y-2">
-          <input v-model="formData.name" placeholder="Name" class="w-full border px-2 py-1 rounded" />
-          <input v-model="formData.sku" placeholder="SKU" class="w-full border px-2 py-1 rounded" />
+          <input v-model="formData.name" placeholder="Name (STRING)" class="w-full border px-2 py-1 rounded" />
+          <input v-model="formData.sku" placeholder="SKU (STRING)" class="w-full border px-2 py-1 rounded" />
+          <input v-model="formData.partNumber" placeholder="Part Number (STRING)" class="w-full border px-2 py-1 rounded" />
+          <input v-model="formData.barcode" placeholder="Barcode (STRING)" class="w-full border px-2 py-1 rounded" />
+
           <select v-model="formData.categoryId" class="w-full border px-2 py-1 rounded">
-            <option value="" disabled>Select category</option>
+            <option :value="null" disabled>Select category</option>
             <option v-if="!categories.length" value="" disabled>No categories found</option>
             <option v-for="c in categories" :key="c.id" :value="c.id">
               {{ c.name }}
             </option>
           </select>
           <select v-model="formData.brandId" class="w-full border px-2 py-1 rounded">
-            <option value="" disabled>Select brand</option>
+            <option :value="null" disabled>Select brand</option>
             <option v-if="!brands.length" value="" disabled>No brands found</option>
             <option v-for="b in brands" :key="b.id" :value="b.id">
               {{ b.name }}
             </option>
           </select>
           <select v-model="formData.unitId" class="w-full border px-2 py-1 rounded">
-            <option value="" disabled>Select unit</option>
+            <option :value="null" disabled>Select unit</option>
             <option v-if="!units.length" value="" disabled>No units found</option>
             <option v-for="u in units" :key="u.id" :value="u.id">
               {{ u.name }}<span v-if="u.symbol"> ({{ u.symbol }})</span>
             </option>
           </select>
-          <input type="number" v-model.number="formData.cost_price" placeholder="Cost Price" class="w-full border px-2 py-1 rounded" />
-          <input type="number" v-model.number="formData.selling_price" placeholder="Selling Price" class="w-full border px-2 py-1 rounded" />
-          <input type="number" v-model.number="formData.min_stock" placeholder="Min Stock" class="w-full border px-2 py-1 rounded" />
-          <input type="number" v-model.number="formData.quantity" placeholder="Quantity" class="w-full border px-2 py-1 rounded" />
-          <select v-model="formData.status" class="w-full border px-2 py-1 rounded">
-            <option value="active">active</option>
-            <option value="inactive">inactive</option>
+
+          <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input v-model="formData.serialTracking" type="checkbox" />
+            <span>Serial Tracking (BOOLEAN)</span>
+          </label>
+
+          <input type="number" v-model.number="formData.minimumStock" placeholder="Minimum Stock (INT)" class="w-full border px-2 py-1 rounded" />
+          <select v-model="formData.preferredCostMethod" class="w-full border px-2 py-1 rounded">
+            <option value="FIFO">FIFO</option>
+            <option value="LIFO">LIFO</option>
+            <option value="AVERAGE">AVERAGE</option>
           </select>
+
+          <input type="number" step="0.01" v-model.number="formData.defaultCostPrice" placeholder="Default Cost Price (FLOAT)" class="w-full border px-2 py-1 rounded" />
+          <input type="number" step="0.01" v-model.number="formData.defaultSellingPrice" placeholder="Default Selling Price (FLOAT)" class="w-full border px-2 py-1 rounded" />
+
+          <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input v-model="formData.isActive" type="checkbox" />
+            <span>isActive (BOOLEAN)</span>
+          </label>
+
+          <input type="file" multiple accept="image/*" class="w-full border px-2 py-1 rounded" @change="onProductImagesSelected($event, formData)" />
+          <div v-if="Array.isArray(formData.imagePreviews) && formData.imagePreviews.length" class="flex flex-wrap gap-2">
+            <img v-for="(src, i) in formData.imagePreviews" :key="`${src}-${i}`" :src="src" alt="" class="w-16 h-16 object-cover rounded border" />
+          </div>
         </div>
       </template>
     </Modal>
@@ -105,6 +141,42 @@
       type="confirm"
       @confirm="deleteProduct"
     />
+
+    <!-- View Product Modal -->
+    <div v-if="viewModalVisible" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div class="bg-white rounded shadow w-full max-w-lg">
+        <div class="px-4 py-3 border-b">
+          <h3 class="text-lg font-semibold text-gray-800">Product Details</h3>
+        </div>
+        <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+          <div class="detail-row"><span class="detail-label">Name</span><span>{{ viewItem.name || '-' }}</span></div>
+          <div class="detail-row"><span class="detail-label">SKU</span><span>{{ viewItem.sku || '-' }}</span></div>
+          <div class="detail-row"><span class="detail-label">Part Number</span><span>{{ viewItem.partNumber || '-' }}</span></div>
+          <div class="detail-row"><span class="detail-label">Barcode</span><span>{{ viewItem.barcode || '-' }}</span></div>
+          <div class="detail-row"><span class="detail-label">Category ID</span><span>{{ viewItem.categoryId ?? '-' }}</span></div>
+          <div class="detail-row"><span class="detail-label">Brand ID</span><span>{{ viewItem.brandId ?? '-' }}</span></div>
+          <div class="detail-row"><span class="detail-label">Unit ID</span><span>{{ viewItem.unitId ?? '-' }}</span></div>
+          <div class="detail-row"><span class="detail-label">Serial Tracking</span><span>{{ String(Boolean(viewItem.serialTracking)) }}</span></div>
+          <div class="detail-row"><span class="detail-label">Minimum Stock</span><span>{{ viewItem.minimumStock ?? viewItem.min_stock ?? '-' }}</span></div>
+          <div class="detail-row"><span class="detail-label">Preferred Cost Method</span><span>{{ viewItem.preferredCostMethod || '-' }}</span></div>
+          <div class="detail-row"><span class="detail-label">Default Cost Price</span><span>{{ viewItem.defaultCostPrice ?? viewItem.cost_price ?? '-' }}</span></div>
+          <div class="detail-row"><span class="detail-label">Default Selling Price</span><span>{{ viewItem.defaultSellingPrice ?? viewItem.selling_price ?? '-' }}</span></div>
+          <div class="detail-row"><span class="detail-label">isActive</span><span>{{ String(viewItem.isActive ?? (viewItem.status !== 'inactive')) }}</span></div>
+          <div class="detail-row sm:col-span-2">
+            <span class="detail-label">Images (JSON)</span>
+            <div v-if="Array.isArray(viewItem.images) && viewItem.images.length" class="flex flex-wrap gap-2 mt-1">
+              <img v-for="(img, idx) in viewItem.images" :key="`${img}-${idx}`" :src="img" alt="" class="w-16 h-16 object-cover rounded border" />
+            </div>
+            <span v-else>-</span>
+          </div>
+        </div>
+        <div class="px-4 py-3 border-t flex justify-end">
+          <button class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 transition" @click="closeViewModal">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -171,7 +243,9 @@ const filteredProducts = computed(() => {
 // Modal state
 const modalVisible = ref(false)
 const confirmVisible = ref(false)
+const viewModalVisible = ref(false)
 const editItem = reactive({})
+const viewItem = reactive({})
 
 // Selected row for deletion
 let rowToDelete = null
@@ -179,25 +253,42 @@ let rowToDelete = null
 // Open modals
 function openAddModal() {
   Object.assign(editItem, {
-    id: products.length + 1,
+    id: null,
+    businessId: 1,
     name: '',
     sku: '',
-    categoryId: categories.value[0]?.id || null,
-    brandId: brands.value[0]?.id || null,
-    unitId: units.value[0]?.id || null,
-    cost_price: 0,
-    selling_price: 0,
-    min_stock: 0,
-    quantity: 0,
-    status: 'active',
-    business_id: '11111111-1111-1111-1111-111111111111',
-    created_at: new Date().toISOString()
+    partNumber: '',
+    barcode: '',
+    categoryId: null,
+    brandId: null,
+    unitId: null,
+    serialTracking: false,
+    minimumStock: 0,
+    preferredCostMethod: 'AVERAGE',
+    defaultCostPrice: 0,
+    defaultSellingPrice: 0,
+    images: [],
+    imagesFiles: [],
+    imagePreviews: [],
+    isActive: true
   })
   modalVisible.value = true
 }
 
 function openEditModal(row) {
-  Object.assign(editItem, row)
+  Object.assign(editItem, {
+    ...row,
+    partNumber: row.partNumber || '',
+    barcode: row.barcode || '',
+    serialTracking: Boolean(row.serialTracking),
+    minimumStock: row.minimumStock ?? row.min_stock ?? 0,
+    preferredCostMethod: row.preferredCostMethod || 'AVERAGE',
+    defaultCostPrice: row.defaultCostPrice ?? row.cost_price ?? 0,
+    defaultSellingPrice: row.defaultSellingPrice ?? row.selling_price ?? 0,
+    imagesFiles: [],
+    imagePreviews: Array.isArray(row.images) ? row.images : [],
+    isActive: typeof row.isActive === 'boolean' ? row.isActive : row.status !== 'inactive'
+  })
   modalVisible.value = true
 }
 
@@ -206,13 +297,32 @@ function openConfirmDelete(row) {
   confirmVisible.value = true
 }
 
+function openViewModal(row) {
+  Object.assign(viewItem, row)
+  viewModalVisible.value = true
+}
+
+function closeViewModal() {
+  viewModalVisible.value = false
+}
+
+function onProductImagesSelected(event, formData) {
+  const files = Array.from(event?.target?.files || []).filter(Boolean)
+  formData.imagesFiles = files
+  formData.imagePreviews = files.map(file => URL.createObjectURL(file))
+}
+
 // Actions
-function saveProduct(product) {
+async function saveProduct(product) {
+  if (!String(product.name || '').trim()) {
+    alert('Name is required.')
+    return
+  }
   const index = products.findIndex(p => p.id === product.id)
   if (index >= 0) {
-    store.updateProduct(product)
+    await store.updateProduct(product)
   } else {
-    store.addProduct(product)
+    await store.addProduct(product)
   }
 }
 
@@ -273,6 +383,37 @@ function exportData(format) {
   font-size: 12px;
   color: #dc2626;
   font-weight: 600;
+}
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+.icon-view { color: rgb(76, 38, 131); }
+.icon-view:hover { background: #f5f3ff; border-color: #c4b5fd; }
+.icon-edit { color: #2563eb; }
+.icon-edit:hover { background: #eff6ff; border-color: #93c5fd; }
+.icon-delete { color: #dc2626; }
+.icon-delete:hover { background: #fef2f2; border-color: #fca5a5; }
+.detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.detail-label {
+  font-size: 12px;
+  color: #6b7280;
 }
 </style>
 

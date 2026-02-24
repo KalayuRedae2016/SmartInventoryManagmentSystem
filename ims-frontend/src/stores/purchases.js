@@ -34,6 +34,8 @@ export const usePurchasesStore = defineStore('purchases', () => {
       dueAmount: Number(p.dueAmount ?? p.due_amount ?? 0),
       warehouseId: p.warehouseId ?? p.warehouse_id ?? null,
       supplierId: p.supplierId ?? p.supplier_id ?? null,
+      paymentMethod: p.paymentMethod ?? p.payment_method ?? 'cash',
+      note: p.note ?? '',
       supplier: p.supplier?.name || p.supplier || p.supplierName || p.supplier_id || '-',
       payment_status:
         p.payment_status ||

@@ -2,6 +2,7 @@ const express=require("express")
 const app = express();
 const router=express.Router();
 const { authenticationJwt, requirePermission } = require('../utils/authUtils');
+const { createMulterMiddleware } = require('../utils/fileUtils');
 const supplierController=require("../controllers/supplierController")
 
 app.use(function (req, res, next) {
@@ -13,21 +14,28 @@ app.use(function (req, res, next) {
 });
 
 
-// Protect all routes after this middleware
-// router.use(authenticationJwt);
+const supplierUploads = createMulterMiddleware(
+  'uploads/supplierProfiles',
+  'supplierProfile',
+  ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+);
 
-// router.use(requirePermission('admin',"staff"));
+const uploadFilesMiddleware = supplierUploads.fields([
+  { name: 'profileImage', maxCount: 1 }
+]);
+
+// Protect all supplier routes
+router.use(authenticationJwt);
 
 router.route('/')
-      .post(supplierController.createSupplier)
-      .get(supplierController.getAllSuppliers)
-      .delete(supplierController.deleteAllSuppliers);
+      .post(requirePermission('suppliers.create'), uploadFilesMiddleware, supplierController.createSupplier)
+      .get(requirePermission('suppliers.view'), supplierController.getAllSuppliers)
+      .delete(requirePermission('suppliers.delete'), supplierController.deleteAllSuppliers);
   
 
 router.route('/:supplierId')
-  .get(supplierController.getSupplierById)
-   .patch(supplierController.updateSupplier)
-   .patch(supplierController.updateSupplier)
-  .delete(supplierController.deleteSupplier);
+  .get(requirePermission('suppliers.view'), supplierController.getSupplierById)
+   .patch(requirePermission('suppliers.update'), uploadFilesMiddleware, supplierController.updateSupplier)
+  .delete(requirePermission('suppliers.delete'), supplierController.deleteSupplier);
 
 module.exports=router

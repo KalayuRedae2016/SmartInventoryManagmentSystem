@@ -115,7 +115,7 @@
           v-if="can('suppliers.view')"
           to="/suppliers"
           class="menu-link"
-          :class="{ 'menu-active': .path === '/suppliers' }"
+          :class="{ 'menu-active': $route.path === '/suppliers' }"
         >
           [SU] Suppliers
         </RouterLink>

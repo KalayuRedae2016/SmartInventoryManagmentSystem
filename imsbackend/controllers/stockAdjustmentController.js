@@ -3,23 +3,31 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 const getBusinessId = () => 1;
+const ALLOWED_ADJUSTMENT_TYPES = new Set(['addition', 'subtraction', 'correction', 'damage']);
 
 exports.createStockAdjustment = catchAsync(async (req, res, next) => {
   const { warehouseId, productId, userId, quantity, adjustmentType, note } = req.body;
   const businessId = getBusinessId();
 
-  if (!warehouseId || !productId || !userId || !quantity || !adjustmentType) {
+  if (!warehouseId || !productId || !quantity || !adjustmentType) {
     return next(new AppError('Missing required fields', 400));
   }
+  if (!ALLOWED_ADJUSTMENT_TYPES.has(String(adjustmentType))) {
+    return next(new AppError('Invalid adjustmentType', 400));
+  }
 
-  if (quantity === 0) return next(new AppError('Quantity cannot be zero', 400));
+  if (Number(quantity) <= 0) return next(new AppError('Quantity must be greater than zero', 400));
+
+  const signedQuantity = ['subtraction', 'damage'].includes(String(adjustmentType))
+    ? -Math.abs(Number(quantity))
+    : Math.abs(Number(quantity));
 
   const adjustment = await StockAdjustment.create({
     businessId,
     warehouseId,
     productId,
-    userId,
-    quantity,
+    userId: Number(userId || 1),
+    quantity: signedQuantity,
     adjustmentType,
     note,
   });
@@ -29,7 +37,7 @@ exports.createStockAdjustment = catchAsync(async (req, res, next) => {
     businessId,
     warehouseId,
     productId,
-    quantity,
+    quantity: signedQuantity,
     type: adjustmentType,
     referenceId: adjustment.id,
     note: note || `Stock adjustment: ${adjustmentType}`,
@@ -53,7 +61,11 @@ exports.getStockAdjustments = catchAsync(async (req, res) => {
 
   const adjustments = await StockAdjustment.findAndCountAll({
     where,
-    include: [Warehouse, Product, User],
+    include: [
+      { model: Warehouse, as: 'warehouse' },
+      { model: Product, as: 'product' },
+      { model: User, as: 'user' }
+    ],
     limit: +limit,
     offset: (page - 1) * limit,
     order: [['createdAt', 'DESC']],
@@ -68,7 +80,11 @@ exports.getStockAdjustments = catchAsync(async (req, res) => {
 
 exports.getStockAdjustmentById = catchAsync(async (req, res, next) => {
   const adjustment = await StockAdjustment.findByPk(req.params.id, {
-    include: [Warehouse, Product, User],
+    include: [
+      { model: Warehouse, as: 'warehouse' },
+      { model: Product, as: 'product' },
+      { model: User, as: 'user' }
+    ],
   });
   if (!adjustment) return next(new AppError('Stock adjustment not found', 404));
 
@@ -86,8 +102,13 @@ exports.updateStockAdjustment = catchAsync(async (req, res, next) => {
   if (warehouseId) adjustment.warehouseId = warehouseId;
   if (productId) adjustment.productId = productId;
   if (userId) adjustment.userId = userId;
-  if (quantity) adjustment.quantity = quantity;
-  if (adjustmentType) adjustment.adjustmentType = adjustmentType;
+  if (quantity !== undefined) adjustment.quantity = Number(quantity);
+  if (adjustmentType) {
+    if (!ALLOWED_ADJUSTMENT_TYPES.has(String(adjustmentType))) {
+      return next(new AppError('Invalid adjustmentType', 400));
+    }
+    adjustment.adjustmentType = adjustmentType;
+  }
   if (note) adjustment.note = note;
 
   await adjustment.save();

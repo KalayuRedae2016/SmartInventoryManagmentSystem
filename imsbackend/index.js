@@ -31,9 +31,10 @@ const purchaseReturnRouter=require('./routes/purchaseReturnRoutes')
 
 const saleRouter = require('./routes/saleRoutes');
 const saleReturnRouter=require('./routes/saleReturnRoutes')
+const stockTransactionRouter = require('./routes/stockTransactionRoutes');
 
 //const stocktransferRouter = require('./routes/stockTransferRoutes');
-// const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
+const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
 
 // const transactionRouter = require('./routes/transactionRoutes');
 
@@ -169,8 +170,9 @@ app.use('/api/ims/purchase-returns',purchaseReturnRouter);
 
 app.use('/api/ims/sales',saleRouter);
 app.use('/api/ims/sale-returns',saleReturnRouter);
+app.use('/api/ims/stock-transactions', stockTransactionRouter);
 
-//app.use('/api/ims/stockAdjustments',stockAdjustmentRouter);
+app.use('/api/ims/stock-adjustments',stockAdjustmentRouter);
 // app.use('/api/ims/transactions', transactionRouter);
 
 // Catch-all route handler for undefined routes

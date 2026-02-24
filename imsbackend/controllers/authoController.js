@@ -1,14 +1,8 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { User, Role } = require('../models');
-const { Op, where } = require('sequelize');
-<<<<<<< HEAD
-const User = db.User;
-const Role = db.Role;
-const Permission = db.Permission;
+const { User, Role, Permission } = require('../models');
+const { Op } = require('sequelize');
 const { syncMasterPermissions } = require('../services/permissionService');
-=======
->>>>>>> e45eb45bfd377bd620806eb526ec7b9a84b779bc
 
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
@@ -360,17 +354,9 @@ exports.login = catchAsync(async (req, res, next) => {
   if (!password) return next(new AppError("Please provide valid password", 404));
 
   // Find user by email
-<<<<<<< HEAD
   const user = await findUserWithRoleByPhone(phoneNumber);
   // console.log("Found user:", user.dataValues)
 
-=======
-  const user = await User.findOne({ 
-    where: { phoneNumber } ,
-    include: { model: Role,as: 'role' } 
-  });
-  
->>>>>>> e45eb45bfd377bd620806eb526ec7b9a84b779bc
   if (!user) {
     return next(new AppError("Invalid credentials. Please try again or reset your password", 401));
   }
@@ -387,15 +373,9 @@ exports.login = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 1,
     token,
-<<<<<<< HEAD
     user: safeUser,
     role: rolePayload,
     permissions,
-=======
-    user,
-    role: user.role ? user.role.code : null,
-    permissions: user.role ? user.role.permissions : [],
->>>>>>> e45eb45bfd377bd620806eb526ec7b9a84b779bc
     changePassword: user.changePassword,
     message: user.changePassword
       ? 'Login successful, but you must change your password.'
@@ -403,7 +383,6 @@ exports.login = catchAsync(async (req, res, next) => {
   });
 });
 
-<<<<<<< HEAD
 exports.authenticationJwt = catchAsync(async (req, _, next) => {
   let token;
   if (req.headers.authorization &&req.headers.authorization.startsWith('Bearer')) {
@@ -449,8 +428,6 @@ exports.requiredRole = (...allowedRoles) => {
   };
 };
 
-=======
->>>>>>> e45eb45bfd377bd620806eb526ec7b9a84b779bc
 exports.forgetPassword = catchAsync(async (req, res, next) => {
   console.log("requested body", req.body)
   const { email } = req.body
@@ -619,16 +596,14 @@ exports.updateMe = catchAsync(async (req, res, next) => {
 
   // Step 5: Handle profile image upload
   if (req.files && req.files.profileImage) {
-    let {profileImage}= await processUploadFilesToSave(req,req.files, req.body, existingUser)
-  if(!profileImage){
-    profileImage=existingUser.profileImage
+    let { profileImage } = await processUploadFilesToSave(req, req.files, req.body, user)
+    if (!profileImage) {
+      profileImage = user.profileImage
+    }
+    filteredBody.profileImage = profileImage;
   }
-  filteredBody.profileImage = profileImage;
-}
 
-  await user.update(filteredBody, { where: { id: req.user.id } }, { new: true, runValidators: true });
-
-  await user.save();
+  await user.update(filteredBody);
 
   res.status(200).json({
     status: 1,
@@ -637,5 +612,6 @@ exports.updateMe = catchAsync(async (req, res, next) => {
   });
 
 });
+
 
 

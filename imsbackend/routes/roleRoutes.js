@@ -18,16 +18,17 @@ router.use(authenticationJwt);
 // router.use(requirePermission('role:manage'));
 
 router.route('/')
-      .post(requirePermission('role:create'),roleController.createRole)
-      .get(requirePermission('role:view'),roleController.getRoles)
-      .delete(requirePermission('role:delete'),roleController.deleteRoles)
+      .post(requirePermission(['role:create', 'roles.create']), roleController.createRole)
+      .get(requirePermission(['role:view', 'roles.view']), roleController.getAllRoles)
+      .delete(requirePermission(['role:delete', 'roles.delete']), roleController.deleteRoles)
 
 router.route('/:roleId')
-      .get(requirePermission('role:view'),roleController.getRole)
-      .patch(requirePermission('role:update'),roleController.updateRole)
-      .delete(requirePermission('role:delete'),roleController.deleteRole);
-
-router.get('/:roleId/users', requirePermission('role:view'), roleController.getUsersByRole);// Get users assigned to a role
-router.post('/:roleId/assign', requirePermission('role:update'), roleController.assignUsersToRole);
+      .get(requirePermission(['role:view', 'roles.view']), roleController.getRoleById)
+      .patch(requirePermission(['role:update', 'roles.update']), roleController.updateRole)
+      .delete(requirePermission(['role:delete', 'roles.delete']), roleController.deleteRole);
+router.route('/:roleId/status')
+      .patch(requirePermission(['role:update', 'roles.update']), roleController.changeRoleStatus);
+// Get users assigned to a role
 
 module.exports=router
+

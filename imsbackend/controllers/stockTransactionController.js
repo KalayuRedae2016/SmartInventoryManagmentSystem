@@ -47,7 +47,11 @@ exports.getStockTransactions = catchAsync(async (req, res) => {
 
   const transactions = await StockTransaction.findAndCountAll({
     where,
-    include: [Product, Warehouse, User],
+    include: [
+      { model: Product, as: 'product' },
+      { model: Warehouse, as: 'warehouse' },
+      { model: User, as: 'user' }
+    ],
     limit: +limit,
     offset: (page - 1) * limit,
     order: [['createdAt', 'DESC']],

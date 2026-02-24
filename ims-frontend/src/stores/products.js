@@ -41,41 +41,74 @@ export const useProductsStore = defineStore('products', () => {
   }
 
   function normalizeProduct(item) {
+    const isActive = item.isActive ?? item.status !== 'inactive'
     return {
       id: item.id,
+      businessId: item.businessId ?? item.business_id ?? 1,
       name: item.name || item.productName || '',
       productName: item.productName || item.name || '',
+      partNumber: item.partNumber || item.part_number || '',
+      serialTracking: Boolean(item.serialTracking ?? item.serial_tracking ?? false),
       categoryId: item.categoryId ?? item.category_id ?? null,
       brandId: item.brandId ?? item.brand_id ?? null,
       unitId: item.unitId ?? item.unit_id ?? null,
       sku: item.sku || '',
       barcode: item.barcode || '',
+      defaultCostPrice: item.defaultCostPrice ?? item.cost_price ?? 0,
+      defaultSellingPrice: item.defaultSellingPrice ?? item.selling_price ?? 0,
       cost_price: item.defaultCostPrice ?? item.cost_price ?? 0,
       selling_price: item.defaultSellingPrice ?? item.selling_price ?? 0,
-      min_stock: item.reorderLevel ?? item.min_stock ?? 0,
+      minimumStock: item.minimumStock ?? item.reorderLevel ?? item.min_stock ?? 0,
+      min_stock: item.minimumStock ?? item.reorderLevel ?? item.min_stock ?? 0,
       reorderLevel: item.reorderLevel ?? item.min_stock ?? 0,
-      status: item.status || (item.isActive === false ? 'inactive' : 'active'),
+      preferredCostMethod: item.preferredCostMethod || 'AVERAGE',
+      images: Array.isArray(item.images) ? item.images : [],
+      isActive: Boolean(isActive),
+      status: Boolean(isActive) ? 'active' : 'inactive',
       quantity: item.quantity ?? 0,
       category: item.category?.name || item.category || '',
       unit: item.unit?.name || item.unit || '',
-      brand: item.brand?.name || item.brand || ''
+      brand: item.brand?.name || item.brand || '',
+      createdAt: item.createdAt || item.created_at || '',
+      updatedAt: item.updatedAt || item.updated_at || ''
     }
   }
 
   function mapProductPayload(p) {
     return {
-      businessId: 1,
+      businessId: p.businessId ?? 1,
       name: p.name || p.productName || '',
+      partNumber: p.partNumber || '',
+      serialTracking: Boolean(p.serialTracking),
       categoryId: p.categoryId,
       brandId: p.brandId ?? 1,
       unitId: p.unitId,
       sku: p.sku || '',
       barcode: p.barcode || '',
-      defaultCostPrice: p.cost_price ?? 0,
-      defaultSellingPrice: p.selling_price ?? 0,
-      minimumStock: p.reorderLevel ?? p.min_stock ?? 0,
-      isActive: (p.status || 'active') === 'active'
+      defaultCostPrice: p.defaultCostPrice ?? p.cost_price ?? 0,
+      defaultSellingPrice: p.defaultSellingPrice ?? p.selling_price ?? 0,
+      minimumStock: p.minimumStock ?? p.reorderLevel ?? p.min_stock ?? 0,
+      preferredCostMethod: p.preferredCostMethod || 'AVERAGE',
+      isActive: typeof p.isActive === 'boolean' ? p.isActive : (p.status || 'active') === 'active'
     }
+  }
+
+  function toFormData(payload = {}, imageFiles = []) {
+    const formData = new FormData()
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return
+      if (typeof value === 'boolean') {
+        formData.append(key, String(value))
+        return
+      }
+      formData.append(key, String(value))
+    })
+    if (Array.isArray(imageFiles)) {
+      imageFiles.forEach(file => {
+        if (file instanceof File) formData.append('images', file)
+      })
+    }
+    return formData
   }
 
   async function fetchProducts(params = {}) {
@@ -107,7 +140,12 @@ export const useProductsStore = defineStore('products', () => {
       return
     }
     const payload = mapProductPayload(p)
-    const res = await api.post('/products', payload)
+    const imageFiles = Array.isArray(p.imagesFiles) ? p.imagesFiles : []
+    const res = imageFiles.length
+      ? await api.post('/products', toFormData(payload, imageFiles), {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+      : await api.post('/products', payload)
     products.value.push(normalizeProduct(getResponseData(res, payload)))
   }
 
@@ -118,7 +156,12 @@ export const useProductsStore = defineStore('products', () => {
       return
     }
     const payload = mapProductPayload(p)
-    const res = await api.patch(`/products/${p.id}`, payload)
+    const imageFiles = Array.isArray(p.imagesFiles) ? p.imagesFiles : []
+    const res = imageFiles.length
+      ? await api.patch(`/products/${p.id}`, toFormData(payload, imageFiles), {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+      : await api.patch(`/products/${p.id}`, payload)
     const updated = normalizeProduct(getResponseData(res, { ...p, ...payload }))
     const i = products.value.findIndex(x => x.id === p.id)
     if (i !== -1) products.value[i] = updated

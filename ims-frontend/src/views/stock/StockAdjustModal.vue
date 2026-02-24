@@ -6,19 +6,26 @@
     <div class="bg-white w-full max-w-lg p-6 rounded space-y-4">
       <h2 class="text-lg font-semibold">New Stock Adjustment</h2>
 
-      <input v-model="form.product" class="input" placeholder="Product" />
-      <select v-model="form.warehouseName" class="input">
-        <option disabled value="">Select Warehouse</option>
-        <option v-for="w in warehouses" :key="w.id" :value="w.name">
+      <select v-model.number="form.warehouseId" class="input">
+        <option disabled :value="null">Select Warehouse</option>
+        <option v-for="w in warehouses" :key="w.id" :value="w.id">
           {{ w.name }}
         </option>
       </select>
-      <select v-model="form.type" class="input">
+      <select v-model.number="form.productId" class="input">
+        <option disabled :value="null">Select Product</option>
+        <option v-for="p in products" :key="p.id" :value="p.id">
+          {{ p.name }}
+        </option>
+      </select>
+      <select v-model="form.adjustmentType" class="input">
         <option value="addition">addition</option>
         <option value="subtraction">subtraction</option>
+        <option value="correction">correction</option>
+        <option value="damage">damage</option>
       </select>
-      <input v-model.number="form.qty" type="number" min="1" class="input" placeholder="Quantity" />
-      <textarea v-model="form.reason" class="input" placeholder="Reason"></textarea>
+      <input v-model.number="form.quantity" type="number" min="1" class="input" placeholder="Quantity" />
+      <textarea v-model="form.note" class="input" placeholder="Note / Reason"></textarea>
 
       <div class="flex justify-end gap-2">
         <button class="btn-secondary" @click="close">Cancel</button>
@@ -33,24 +40,25 @@ import { ref, watch } from 'vue'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  warehouses: { type: Array, default: () => [] }
+  warehouses: { type: Array, default: () => [] },
+  products: { type: Array, default: () => [] }
 })
 
 const emit = defineEmits(['update:show', 'submit'])
 
 const form = ref({
-  product: '',
-  warehouseName: '',
-  type: 'addition',
-  qty: 1,
-  reason: ''
+  warehouseId: null,
+  productId: null,
+  adjustmentType: 'addition',
+  quantity: 1,
+  note: ''
 })
 
 watch(
   () => props.show,
   (val) => {
     if (val) {
-      form.value = { product: '', warehouseName: '', type: 'addition', qty: 1, reason: '' }
+      form.value = { warehouseId: null, productId: null, adjustmentType: 'addition', quantity: 1, note: '' }
     }
   }
 )

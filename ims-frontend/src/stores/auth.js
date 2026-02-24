@@ -139,6 +139,7 @@ export const useAuthStore = defineStore('auth', () => {
     const roleId = Number(payload?.roleId || 0)
     const roleName = String(payload?.roleName || '').trim()
     const permissionIds = Array.isArray(payload?.permissionIds) ? payload.permissionIds : []
+    const profileImage = payload?.profileImage
 
     if (!fullName || !phoneNumber || !email || !password) {
       throw new Error('Full name, phone number, email, and password are required.')
@@ -149,6 +150,7 @@ export const useAuthStore = defineStore('auth', () => {
     formData.append('phoneNumber', phoneNumber)
     formData.append('email', email)
     formData.append('password', password)
+    if (profileImage instanceof File) formData.append('profileImage', profileImage)
     if (roleId) formData.append('roleId', String(roleId))
     if (roleName) formData.append('roleName', roleName)
     if (permissionIds.length) formData.append('permissionIds', JSON.stringify(permissionIds))
@@ -161,6 +163,64 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (error) {
       const backendMessage = extractErrorMessage(error)
       throw new Error(backendMessage || 'Signup failed.')
+    }
+  }
+
+  async function updateProfile(payload) {
+    if (!token.value || !user.value) throw new Error('You must be logged in.')
+
+    const fullName = String(payload?.fullName || '').trim()
+    const phoneNumber = String(payload?.phoneNumber || '').trim()
+    const email = String(payload?.email || '').trim()
+    const address = String(payload?.address || '').trim()
+    const profileImage = payload?.profileImage
+
+    const formData = new FormData()
+    if (fullName) formData.append('fullName', fullName)
+    if (phoneNumber) formData.append('phoneNumber', phoneNumber)
+    if (email) formData.append('email', email)
+    if (address) formData.append('address', address)
+    if (profileImage instanceof File) formData.append('profileImage', profileImage)
+
+    if (![...formData.keys()].length) return user.value
+
+    try {
+      const res = await api.patch('/auth/updateMe', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      const payloadData = res?.data || getResponseData(res, {})
+      const updatedUser = {
+        ...user.value,
+        ...(payloadData?.data || payloadData?.user || {}),
+        role: user.value?.role
+      }
+      setAuthState({
+        nextUser: updatedUser,
+        nextPermissions: permissions.value,
+        nextToken: token.value
+      })
+      return updatedUser
+    } catch (error) {
+      const backendMessage = extractErrorMessage(error)
+      throw new Error(backendMessage || 'Profile update failed.')
+    }
+  }
+
+  async function updatePassword(payload) {
+    if (!token.value || !user.value) throw new Error('You must be logged in.')
+
+    const currentPassword = String(payload?.currentPassword || '')
+    const newPassword = String(payload?.newPassword || '')
+    if (!currentPassword || !newPassword) {
+      throw new Error('Please provide both current and new passwords.')
+    }
+
+    try {
+      await api.patch('/auth/updatemyPassword', { currentPassword, newPassword })
+      return true
+    } catch (error) {
+      const backendMessage = extractErrorMessage(error)
+      throw new Error(backendMessage || 'Password update failed.')
     }
   }
 
@@ -185,6 +245,8 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     login,
     signup,
+    updateProfile,
+    updatePassword,
     logout,
     can,
     hasPermission,

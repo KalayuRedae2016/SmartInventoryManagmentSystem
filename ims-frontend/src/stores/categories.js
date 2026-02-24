@@ -13,10 +13,14 @@ export const useCategoriesStore = defineStore('categories', () => {
   ]
 
   function normalizeCategory(item) {
+    const isActive = item.isActive ?? item.status === 'active'
     return {
       id: item.id,
+      businessId: item.businessId ?? item.business_id ?? 1,
       name: item.name || '',
       description: item.description || '',
+      isActive: Boolean(isActive),
+      status: Boolean(isActive) ? 'active' : 'inactive',
       createdAt: item.createdAt || item.created_at || '',
       updatedAt: item.updatedAt || item.updated_at || ''
     }
@@ -53,7 +57,8 @@ export const useCategoriesStore = defineStore('categories', () => {
     const payload = {
       businessId: 1,
       name: data.name,
-      description: data.description || data.name || ''
+      description: data.description || '',
+      isActive: typeof data.isActive === 'boolean' ? data.isActive : true
     }
     const res = await api.post('/categories', payload)
     categories.value.push(normalizeCategory(getResponseData(res, payload)))
@@ -65,10 +70,23 @@ export const useCategoriesStore = defineStore('categories', () => {
       if (i !== -1) categories.value[i] = data
       return
     }
-    const res = await api.patch(`/categories/${data.id}`, data)
+    const payload = {
+      name: data.name,
+      description: data.description || '',
+      isActive: typeof data.isActive === 'boolean' ? data.isActive : true
+    }
+    const res = await api.patch(`/categories/${data.id}`, payload)
     const updated = normalizeCategory(getResponseData(res, data))
     const i = categories.value.findIndex(c => c.id === data.id)
     if (i !== -1) categories.value[i] = updated
+  }
+
+  async function toggleCategoryStatus(category) {
+    const nextIsActive = !(category?.isActive ?? category?.status === 'active')
+    await updateCategory({
+      ...category,
+      isActive: nextIsActive
+    })
   }
 
   async function deleteCategory(id) {
@@ -82,6 +100,7 @@ export const useCategoriesStore = defineStore('categories', () => {
     fetchCategories,
     addCategory,
     updateCategory,
-    deleteCategory
+    deleteCategory,
+    toggleCategoryStatus
   }
 })

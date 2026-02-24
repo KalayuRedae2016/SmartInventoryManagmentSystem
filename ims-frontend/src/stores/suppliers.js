@@ -27,10 +27,39 @@ export const useSuppliersStore = defineStore('suppliers', () => {
   }
 
   function normalizeSupplier(item = {}) {
+    let normalizedAdditionalInfo = item.additionalInfo || ''
+    if (typeof normalizedAdditionalInfo === 'string') {
+      try {
+        const parsed = JSON.parse(normalizedAdditionalInfo)
+        if (parsed && typeof parsed === 'object') {
+          normalizedAdditionalInfo = parsed.note || ''
+        }
+      } catch {
+        // Keep plain text additionalInfo as-is.
+      }
+    } else if (normalizedAdditionalInfo && typeof normalizedAdditionalInfo === 'object') {
+      normalizedAdditionalInfo = normalizedAdditionalInfo.note || ''
+    }
+
     return {
       ...item,
-      status: item.status || 'active'
+      additionalInfo: normalizedAdditionalInfo,
+      status: item.status || 'active',
+      profileImage: item.profileImage || ''
     }
+  }
+
+  function toFormData(payload) {
+    const formData = new FormData()
+    Object.entries(payload || {}).forEach(([key, value]) => {
+      if (value === undefined || value === null) return
+      if (key === 'profileImage' && value instanceof File) {
+        formData.append('profileImage', value)
+        return
+      }
+      if (key !== 'profileImage') formData.append(key, String(value))
+    })
+    return formData
   }
 
   async function fetchSuppliers() {
@@ -60,9 +89,17 @@ export const useSuppliersStore = defineStore('suppliers', () => {
     const mapped = {
       ...payload,
       code: payload.code || `SUP-${Date.now().toString().slice(-6)}`,
-      email: String(payload.email || '').trim() || null
+      email: String(payload.email || '').trim() || null,
+      status: payload.status || 'active'
     }
-    await api.post('/suppliers', mapped)
+    const hasImage = mapped.profileImage instanceof File
+    if (hasImage) {
+      await api.post('/suppliers', toFormData(mapped), {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+    } else {
+      await api.post('/suppliers', mapped)
+    }
     await fetchSuppliers()
   }
 
@@ -72,11 +109,24 @@ export const useSuppliersStore = defineStore('suppliers', () => {
       if (i !== -1) suppliers.value[i] = normalizeSupplier(payload)
       return
     }
-    await api.patch(`/suppliers/${payload.id}`, {
+    const mapped = {
       ...payload,
       email: String(payload.email || '').trim() || null
-    })
+    }
+    const hasImage = mapped.profileImage instanceof File
+    if (hasImage) {
+      await api.patch(`/suppliers/${payload.id}`, toFormData(mapped), {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+    } else {
+      await api.patch(`/suppliers/${payload.id}`, mapped)
+    }
     await fetchSuppliers()
+  }
+
+  async function toggleSupplierStatus(supplier) {
+    const nextStatus = supplier?.status === 'active' ? 'inactive' : 'active'
+    await updateSupplier({ ...supplier, status: nextStatus })
   }
 
   async function deleteSupplier(id) {
@@ -88,5 +138,5 @@ export const useSuppliersStore = defineStore('suppliers', () => {
     await fetchSuppliers()
   }
 
-  return { suppliers, loading, fetchSuppliers, addSupplier, updateSupplier, deleteSupplier }
+  return { suppliers, loading, fetchSuppliers, addSupplier, updateSupplier, deleteSupplier, toggleSupplierStatus }
 })

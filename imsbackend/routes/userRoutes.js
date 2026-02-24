@@ -31,16 +31,16 @@ const uploadFilesMiddleware = attachments.fields([
 router.use(authenticationJwt);
 
 router.route('/')
-      .get(requirePermission('user:view'),userController.getAllUsers)
-      .delete(requirePermission('user:delete'),userController.deleteUsers)
+      .get(requirePermission('users.view'),userController.getAllUsers)
+      .delete(requirePermission('users.delete'),userController.deleteUsers)
 
 router.route('/:userId')
-  .get(requirePermissionOrSelf('user:view'),userController.getUser)
-  .patch(uploadFilesMiddleware,requirePermissionOrSelf('user:update'),userController.updateUser)
-  .delete(requirePermission('user:delete'),userController.deleteUser);
+  .get(requirePermissionOrSelf('users.view'),userController.getUser)
+  .patch(uploadFilesMiddleware,requirePermissionOrSelf('users.update'),userController.updateUser)
+  .delete(requirePermission('users.delete'),userController.deleteUser);
 
-router.patch('/:userId/resetPassword',requirePermission('user:resetPassword'),userController.resetPassword);
-router.patch("/:userId/status",requirePermission('user:update'),userController.updateUserStatus);
+router.patch('/:userId/resetPassword',requirePermission('users.update'),userController.resetPassword);
+router.patch("/:userId/status",requirePermission('users.update'),userController.updateUserStatus);
 router.route('/sendEmails').post(requirePermission('user:sendEmail'),userController.sendEmailMessages)
 
 router.route('/import').post(uploadFilesMiddleware,requirePermission('user:import'),userController.importUsersFromExcel)

@@ -8,11 +8,48 @@ const AppError = require("../utils/appError")
 require('dotenv').config();
 const { formatDate } = require("../utils/dateUtils")
 
+function parseAdditionalInfoMeta(value) {
+  if (!value) return {};
+  if (typeof value === 'object') return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return { note: value };
+    }
+  }
+  return {};
+}
+
+function buildAdditionalInfo({ rawAdditionalInfo, status, profileImage }) {
+  const existingMeta = parseAdditionalInfoMeta(rawAdditionalInfo);
+  const nextMeta = {
+    ...existingMeta,
+    status: status || existingMeta.status || 'active',
+    profileImage: profileImage || existingMeta.profileImage || ''
+  };
+  return JSON.stringify(nextMeta);
+}
+
+function mapCustomerResponse(customer) {
+  const plain = customer.toJSON ? customer.toJSON() : customer;
+  const meta = parseAdditionalInfoMeta(plain.additionalInfo);
+  return {
+    ...plain,
+    status: meta.status || plain.status || 'active',
+    profileImage: meta.profileImage || plain.profileImage || ''
+  };
+}
+
 exports.createCustomer = catchAsync(async (req, res, next) => {
-  const {code,name,phone,email,country,city,address,taxNumber,additionalInfo} = req.body;
+  const {code,name,phone,email,country,city,address,taxNumber,additionalInfo,status} = req.body;
   console.log("Request Body:", req.body);
   // const businessId = req.user.businessId||1;
   const businessId = 1;
+  const profileImage = req.files?.profileImage?.[0]
+    ? `${req.protocol}://${req.get('host')}/uploads/customerProfiles/${req.files.profileImage[0].filename}`
+    : '';
 
   if (!code || !name) {
     return next(new AppError('Missing required fields', 400));
@@ -34,13 +71,13 @@ exports.createCustomer = catchAsync(async (req, res, next) => {
     city,
     address,
     taxNumber,
-    additionalInfo
+    additionalInfo: buildAdditionalInfo({ rawAdditionalInfo: additionalInfo, status, profileImage })
   });
 
   res.status(201).json({
     status: 1,
     message: 'Customer created successfully',
-    customer
+    customer: mapCustomerResponse(customer)
   });
 });
 
@@ -82,7 +119,7 @@ exports.getAllCustomers = catchAsync(async (req, res, next) => {
     status: 1,
     total: count,
     length: rows.length,
-    customers: rows
+    customers: rows.map(mapCustomerResponse)
   });
 });
 exports.getCustomerById = catchAsync(async (req, res, next) => {
@@ -98,7 +135,7 @@ exports.getCustomerById = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 1,
     message: 'Customer retrieved successfully',
-    data: customer
+    data: mapCustomerResponse(customer)
   });
 });
 
@@ -114,12 +151,28 @@ exports.updateCustomer = catchAsync(async (req, res, next) => {
     return next(new AppError('Customer not found', 404));
   }
 
-  await customer.update(req.body);
+  const updateData = { ...req.body };
+  const incomingStatus = req.body?.status;
+  const uploadedProfileImage = req.files?.profileImage?.[0]
+    ? `${req.protocol}://${req.get('host')}/uploads/customerProfiles/${req.files.profileImage[0].filename}`
+    : '';
+  if (incomingStatus !== undefined || uploadedProfileImage) {
+    updateData.additionalInfo = buildAdditionalInfo({
+      rawAdditionalInfo: customer.additionalInfo,
+      status: incomingStatus,
+      profileImage: uploadedProfileImage
+    });
+  }
+
+  delete updateData.status;
+  delete updateData.profileImage;
+
+  await customer.update(updateData);
 
   res.status(200).json({
     status: 1,
     message: 'Customer updated successfully',
-    data: customer
+    data: mapCustomerResponse(customer)
   });
 });
 exports.deleteCustomer = catchAsync(async (req, res, next) => {

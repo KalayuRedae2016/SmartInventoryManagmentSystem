@@ -6,8 +6,45 @@ const AppError = require('../utils/appError');
 
 const getBusinessId = () => 1;
 
+function parseAdditionalInfoMeta(value) {
+  if (!value) return {};
+  if (typeof value === 'object') return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return { note: value };
+    }
+  }
+  return {};
+}
+
+function buildAdditionalInfo({ rawAdditionalInfo, status, profileImage }) {
+  const existingMeta = parseAdditionalInfoMeta(rawAdditionalInfo);
+  const nextMeta = {
+    ...existingMeta,
+    status: status || existingMeta.status || 'active',
+    profileImage: profileImage || existingMeta.profileImage || ''
+  };
+  return JSON.stringify(nextMeta);
+}
+
+function mapSupplierResponse(supplier) {
+  const plain = supplier.toJSON ? supplier.toJSON() : supplier;
+  const meta = parseAdditionalInfoMeta(plain.additionalInfo);
+  return {
+    ...plain,
+    status: meta.status || plain.status || 'active',
+    profileImage: meta.profileImage || plain.profileImage || ''
+  };
+}
+
 exports.createSupplier = catchAsync(async (req, res, next) => {
-  const {code,name,phone,email,country,city,address,taxNumber,additionalInfo} = req.body;
+  const {code,name,phone,email,country,city,address,taxNumber,additionalInfo,status} = req.body;
+  const profileImage = req.files?.profileImage?.[0]
+    ? `${req.protocol}://${req.get('host')}/uploads/supplierProfiles/${req.files.profileImage[0].filename}`
+    : '';
 
   if (!code || !name) {
     return next(new AppError('Code and name are required', 400));
@@ -36,13 +73,13 @@ exports.createSupplier = catchAsync(async (req, res, next) => {
     city,
     address,
     taxNumber,
-    additionalInfo
+    additionalInfo: buildAdditionalInfo({ rawAdditionalInfo: additionalInfo, status, profileImage })
   });
 
   res.status(201).json({
     status: 1,
     message: 'Supplier created successfully',
-    data: supplier
+    data: mapSupplierResponse(supplier)
   });
 });
 
@@ -72,7 +109,7 @@ exports.getAllSuppliers = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 1,
     total: count,
-    suppliers: rows
+    suppliers: rows.map(mapSupplierResponse)
   });
 });
 
@@ -90,7 +127,7 @@ exports.getSupplierById = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: 1,
-    data: supplier
+    data: mapSupplierResponse(supplier)
   });
 });
 
@@ -106,14 +143,30 @@ exports.updateSupplier = catchAsync(async (req, res, next) => {
     return next(new AppError('Supplier not found', 404));
   }
 
-  delete req.body.businessId;
+  const updateData = { ...req.body };
+  const incomingStatus = req.body?.status;
+  const uploadedProfileImage = req.files?.profileImage?.[0]
+    ? `${req.protocol}://${req.get('host')}/uploads/supplierProfiles/${req.files.profileImage[0].filename}`
+    : '';
 
-  await supplier.update(req.body);
+  if (incomingStatus !== undefined || uploadedProfileImage) {
+    updateData.additionalInfo = buildAdditionalInfo({
+      rawAdditionalInfo: supplier.additionalInfo,
+      status: incomingStatus,
+      profileImage: uploadedProfileImage
+    });
+  }
+
+  delete updateData.businessId;
+  delete updateData.status;
+  delete updateData.profileImage;
+
+  await supplier.update(updateData);
 
   res.status(200).json({
     status: 1,
     message: 'Supplier updated successfully',
-    data: supplier
+    data: mapSupplierResponse(supplier)
   });
 });
 

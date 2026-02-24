@@ -19,10 +19,18 @@ export const useUnitsStore = defineStore('units', () => {
   }
 
   function normalizeUnit(item) {
+    const isActive = item.isActive ?? item.status === 'active'
     return {
       id: item.id,
+      businessId: item.businessId ?? item.business_id ?? 1,
       name: item.name || '',
-      symbol: item.symbol || ''
+      symbol: item.symbol || '',
+      baseUnit: item.baseUnit || '',
+      description: item.description || '',
+      isActive: Boolean(isActive),
+      status: Boolean(isActive) ? 'active' : 'inactive',
+      createdAt: item.createdAt || item.created_at || '',
+      updatedAt: item.updatedAt || item.updated_at || ''
     }
   }
 
@@ -53,7 +61,8 @@ export const useUnitsStore = defineStore('units', () => {
       name: u.name,
       symbol: u.symbol || '',
       baseUnit: u.baseUnit || u.name || '',
-      description: u.description || u.name || ''
+      description: u.description || u.name || '',
+      isActive: typeof u.isActive === 'boolean' ? u.isActive : true
     }
     const res = await api.post('/units', payload)
     units.value.push(normalizeUnit(getResponseData(res, payload)))
@@ -65,7 +74,14 @@ export const useUnitsStore = defineStore('units', () => {
       if (i !== -1) units.value[i] = u
       return
     }
-    const res = await api.patch(`/units/${u.id}`, u)
+    const payload = {
+      name: u.name,
+      symbol: u.symbol || '',
+      baseUnit: u.baseUnit || u.name || '',
+      description: u.description || '',
+      isActive: typeof u.isActive === 'boolean' ? u.isActive : true
+    }
+    const res = await api.patch(`/units/${u.id}`, payload)
     const updated = normalizeUnit(getResponseData(res, u))
     const i = units.value.findIndex(x => x.id === u.id)
     if (i !== -1) units.value[i] = updated
@@ -76,5 +92,13 @@ export const useUnitsStore = defineStore('units', () => {
     units.value = units.value.filter(u => u.id !== id)
   }
 
-  return { units, loading, fetchUnits, addUnit, updateUnit, deleteUnit }
+  async function toggleUnitStatus(unit) {
+    const nextIsActive = !(unit?.isActive ?? unit?.status === 'active')
+    await updateUnit({
+      ...unit,
+      isActive: nextIsActive
+    })
+  }
+
+  return { units, loading, fetchUnits, addUnit, updateUnit, deleteUnit, toggleUnitStatus }
 })
