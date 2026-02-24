@@ -12,10 +12,15 @@ const AppError = require("./utils/appError");
 const globalErrorHandler = require('./controllers/errorController');
 
 const bussinessRouter=require('./routes/businessRoutes');
+const wharehouseRouter = require('./routes/wharehouseRoutes');
+
 const authRouter = require('./routes/authRoutes');
 const roleRouter=require("./routes/roleRoutes");
+const permissionRouter=require("./routes/rolePermissionRoutes")
+const rolePermissionRouter=require("./routes/rolePermissionRoutes")
+
 const userRouter = require('./routes/userRoutes');
-const wharehouseRouter = require('./routes/wharehouseRoutes');
+const userPermissionRouter=require("./routes/userPermissionRoutes")
 
 const categoryRouter = require('./routes/categoryRoutes');
 const brandRouter = require('./routes/brandRoutes');
