@@ -1,11 +1,14 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const db = require('../models');
+const { User, Role } = require('../models');
 const { Op, where } = require('sequelize');
+<<<<<<< HEAD
 const User = db.User;
 const Role = db.Role;
 const Permission = db.Permission;
 const { syncMasterPermissions } = require('../services/permissionService');
+=======
+>>>>>>> e45eb45bfd377bd620806eb526ec7b9a84b779bc
 
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
@@ -18,6 +21,8 @@ const { sendEmail, sendWelcomeEmail } = require('../utils/emailUtils');
 const { deleteFile, createMulterMiddleware, processUploadFilesToSave } = require('../utils/fileUtils');
 const path = require('path');
 const { formatDate } = require('../utils/dateUtils');
+const { permission } = require('process');
+const role = require('../models/role');
 
 const signInToken = (user) => {
   const payload = { id: user.id, roleId: user.roleId };
@@ -263,7 +268,6 @@ const attachments = createMulterMiddleware(
 );
 
 
-
 exports.uploadFilesMiddleware = attachments.fields([
   { name: 'profileImage', maxCount: 1 },// Single file for profileImage
   { name: 'images', maxCount: 10 }, // upto to 10 images
@@ -356,21 +360,23 @@ exports.login = catchAsync(async (req, res, next) => {
   if (!password) return next(new AppError("Please provide valid password", 404));
 
   // Find user by email
+<<<<<<< HEAD
   const user = await findUserWithRoleByPhone(phoneNumber);
   // console.log("Found user:", user.dataValues)
 
+=======
+  const user = await User.findOne({ 
+    where: { phoneNumber } ,
+    include: { model: Role,as: 'role' } 
+  });
+  
+>>>>>>> e45eb45bfd377bd620806eb526ec7b9a84b779bc
   if (!user) {
     return next(new AppError("Invalid credentials. Please try again or reset your password", 401));
   }
 
   // Compare password
   const correct = await bcrypt.compare(password, user.password);
-
-  console.log("Login password (plain):", password);
-  console.log("Stored password (hash):", user.password);
-  console.log("Hash length:", user.password?.length);
-  console.log("Password match:", correct)
-
   if (!correct) return next(new AppError("Invalid or incorrect password", 404));
 
   const token = signInToken(user);
@@ -381,9 +387,15 @@ exports.login = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 1,
     token,
+<<<<<<< HEAD
     user: safeUser,
     role: rolePayload,
     permissions,
+=======
+    user,
+    role: user.role ? user.role.code : null,
+    permissions: user.role ? user.role.permissions : [],
+>>>>>>> e45eb45bfd377bd620806eb526ec7b9a84b779bc
     changePassword: user.changePassword,
     message: user.changePassword
       ? 'Login successful, but you must change your password.'
@@ -391,6 +403,7 @@ exports.login = catchAsync(async (req, res, next) => {
   });
 });
 
+<<<<<<< HEAD
 exports.authenticationJwt = catchAsync(async (req, _, next) => {
   let token;
   if (req.headers.authorization &&req.headers.authorization.startsWith('Bearer')) {
@@ -436,6 +449,8 @@ exports.requiredRole = (...allowedRoles) => {
   };
 };
 
+=======
+>>>>>>> e45eb45bfd377bd620806eb526ec7b9a84b779bc
 exports.forgetPassword = catchAsync(async (req, res, next) => {
   console.log("requested body", req.body)
   const { email } = req.body
@@ -522,8 +537,6 @@ console.log("userrr", user)
     message: "Password Reseted Succeffully",
   })
 });
-
-
 
 exports.updateMyPassword = catchAsync(async (req, res, next) => {
   console.log("requested body", req.body)
@@ -624,4 +637,5 @@ exports.updateMe = catchAsync(async (req, res, next) => {
   });
 
 });
+
 

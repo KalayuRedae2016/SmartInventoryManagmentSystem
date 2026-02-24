@@ -3,6 +3,7 @@ const app = express();
 const router=express.Router()
 
 const authoController=require("../controllers/authoController")
+const { authenticationJwt, requirePermission } = require("../utils/authUtils");
 const {createMulterMiddleware}=require("../utils/fileUtils");
 
 router.use(function (req, res, next) {
@@ -34,7 +35,7 @@ router.patch('/resetPassword',authoController.resetPassword);
 
 // // Protect all routes after this middleware
 
-router.use(authoController.authenticationJwt);
+router.use(authenticationJwt);
 
 
 router.get('/getMe',authoController.getMe);

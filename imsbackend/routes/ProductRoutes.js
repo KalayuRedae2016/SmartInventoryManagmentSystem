@@ -2,7 +2,7 @@ const express=require("express")
 const path=require("path")
 const app = express();
 const router=express.Router();
-const authoController=require("../controllers/authoController")
+const { authenticationJwt, requirePermission } = require('../utils/authUtils');
 const productController=require("../controllers/productController")
 const {createMulterMiddleware}=require("../utils/fileUtils");
 
@@ -31,7 +31,7 @@ router.route('/')
   .post(productAttachements,productController.createProduct);
 
 // // Protect all routes after this middleware
-// router.use(authoController.authenticationJwt);
+// router.use(authenticationJwt);
 
 // router.use(authoController.requiredRole('admin',"staff"));
 

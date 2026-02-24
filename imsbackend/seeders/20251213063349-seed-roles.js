@@ -7,6 +7,7 @@ module.exports = {
     // Seed default roles
     await queryInterface.bulkInsert('Roles', [
       { businessId: 1, name: 'SuperAdmin', code: 'SUPER_ADMIN', permissions: JSON.stringify(['*']), description: 'System full access', isActive: true, createdAt: now, updatedAt: now },
+       { businessId: 1, name: 'Owner', code: 'OWNER', permissions: JSON.stringify(['*']), description: 'System full access', isActive: true, createdAt: now, updatedAt: now },
       { businessId: 1, name: 'Admin', code: 'ADMIN', permissions: JSON.stringify(['*']), description: 'Full system access', isActive: true, createdAt: now, updatedAt: now },
       { businessId: 1, name: 'Owner', code: 'OWNER', permissions: JSON.stringify(['*']), description: 'Business owner full access', isActive: true, createdAt: now, updatedAt: now },
       { businessId: 1, name: 'Warehouse Manager', code: 'WH_MANAGER', permissions: JSON.stringify(['warehouses.view','stock.view','stock.adjust','stock.transfer','stock.history','products.view']), description: 'Manage warehouse operations', isActive: true, createdAt: now, updatedAt: now },

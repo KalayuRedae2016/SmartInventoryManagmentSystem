@@ -14,8 +14,7 @@
       message:"Success Message",
       result:data.length,
       data: datas,
-    });
-    
+    });  
 # Error Response Format:**
 return res.status(500,404,400,401).json({
       error: true,
@@ -23,7 +22,6 @@ return res.status(500,404,400,401).json({
       message:"Error Message"
       data: [],
     });
-
 # Business (Tenant)
 Model:
     id(INT),
@@ -50,6 +48,13 @@ Endpoints:
     POST   /businesses/:id/activate
     POST   /businesses/:id/expire
     POST   /businesses/:id/disable
+Permissions
+    role:create
+    role:view
+    role:update
+    role:delete
+    role:manage-permissions
+
 
 Model:
     id(INT),
@@ -86,12 +91,21 @@ Model:
 Endpoints:
     GET    /roles
     POST   /roles
-    GET    /roles/:id
-    PUT    /roles/:id
-    DELETE /roles/:id
-    PATCH  /roles/:id/status
-    GET    /roles/:roleId/users
-    GET    /businesses/:businessId/roles
+    DELETE /roles
+
+    GET    /roles/:roleId
+    PATCH  /roles/:roleId
+    DELETE /roles/:roleId
+
+    GET    /roles/roleId/users
+    POST   /roles/roleId/assign
+    PATCH  /roles/:roleId/status
+
+Permissions:
+    role:create
+    role:view
+    role:delete
+    role:update
 # Warehouse
 Model:
     id(INT),
@@ -158,8 +172,6 @@ user Endpoints:
     POST   /users/import
     GET    /users/export/excel
     GET    /users/export/pdf
-
-
 # Category
 Model:
     id(INT),
@@ -680,4 +692,61 @@ Endpoints:
     POST   /stock-transactions/import
     GET    /stock-transactions/export/excel
     GET    /stock-transactions/export/pdf
+# ALL POSSIBLE PERMISSIONS (BY MODULE)
+    auth:login
+    auth:logout
+    auth:reset-password
+
+    user:view
+    user:create
+    user:update
+    user:delete
+    user:activate
+    user:deactivate
+    user:reset-password
+
+    business:view
+    business:update
+    business:settings
+
+    product:view
+    product:create
+    product:update
+    product:delete
+    product:import
+    product:export
+
+    category:view
+    category:create
+    category:update
+    category:delete
+
+    stock:view
+    stock:update
+    stock:adjust
+    stock:transfer
+
+    purchase:view
+    purchase:create
+    purchase:update
+    purchase:cancel
+    purchase:approve
+
+    sale:view
+    sale:create
+    sale:update
+    sale:cancel
+    sale:approve
+
+    report:view
+    report:export
+    report:pdf
+    report:excel
+
+
+
+
+
+
+
 

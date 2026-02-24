@@ -1,7 +1,7 @@
 const express=require("express")
 const app = express();
 const router=express.Router();
-const authoController=require("../controllers/authoController")
+const { authenticationJwt, requirePermission } = require('../utils/authUtils');
 const brandController=require("../controllers/brandController")
 const { createMulterMiddleware } = require('../utils/fileUtils');
 
@@ -28,7 +28,7 @@ const brandAttachements=upload.fields([
   ])
 
 // Protect all routes after this middleware
-// router.use(authoController.authenticationJwt);
+router.use(authenticationJwt);
 
 // router.use(authoController.requiredRole('admin',"staff"));
 

@@ -3,7 +3,7 @@ const app = express();
 const router=express.Router();
 const businessController=require("../controllers/businessController"); 
 const { createMulterMiddleware } = require('../utils/fileUtils');
-
+const { authenticationJwt, requirePermission } = require('../utils/authUtils');
 
 app.use(function (req, res, next) {
   res.header(
@@ -28,9 +28,9 @@ const businessAttachements=upload.fields([
 
 
 // Protect all routes after this middleware
-//router.use(authoController.authenticationJwt);
+//router.use(authenticationJwt);
 
-//router.use(authoController.requiredRole('admin',"staff"));
+//router.use(requirePermission('admin',"staff"));
 
 router.route('/')
       .post(businessAttachements,businessController.createBusiness)
