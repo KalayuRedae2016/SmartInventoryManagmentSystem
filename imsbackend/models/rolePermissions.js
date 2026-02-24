@@ -1,20 +1,22 @@
 'use strict';
-module.exports = {
-  async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('RolePermissions', {
-      id: { type: Sequelize.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-      roleId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false,
-        references: { model: 'Roles', key: 'id' },
-        onUpdate: 'CASCADE', onDelete: 'CASCADE'
-      },
-      permissionId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false,
-        references: { model: 'Permissions', key: 'id' },
-        onUpdate: 'CASCADE', onDelete: 'CASCADE'
-      },
-      createdAt: { type: Sequelize.DATE, allowNull: false },
-      updatedAt: { type: Sequelize.DATE, allowNull: false }
-    });
-    await queryInterface.addIndex('RolePermissions', ['roleId', 'permissionId'], { unique: true });
-  },
-  async down(queryInterface) { await queryInterface.dropTable('RolePermissions'); }
+const { Model } = require('sequelize');
+module.exports = (sequelize, DataTypes) => {
+  class RolePermission extends Model {
+    static associate(models) {
+      RolePermission.belongsTo(models.Role, { foreignKey: 'roleId', as: 'role' });
+      RolePermission.belongsTo(models.Permission, { foreignKey: 'permissionId', as: 'permission' });
+    }
+  }
+  RolePermission.init({
+    id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+    roleId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    permissionId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false }
+  }, {
+    sequelize,
+    modelName: 'RolePermission',
+    tableName: 'RolePermissions',
+    timestamps: true,
+    indexes: [{ unique: true, fields: ['roleId','permissionId'] }]
+  });
+  return RolePermission;
 };
