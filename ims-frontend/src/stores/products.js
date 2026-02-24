@@ -88,8 +88,14 @@ export const useProductsStore = defineStore('products', () => {
       const res = await api.get('/products', { params })
       products.value = asList(getResponseData(res, [])).map(normalizeProduct)
     } catch (error) {
-      if (USE_MOCK) products.value = [...mockData]
-      else throw error
+      if (USE_MOCK) {
+        products.value = [...mockData]
+      } else if (error?.response?.status === 404) {
+        // Backend may return 404 when there are no rows; keep UI usable.
+        products.value = []
+      } else {
+        throw error
+      }
     } finally {
       loading.value = false
     }

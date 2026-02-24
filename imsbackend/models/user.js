@@ -34,7 +34,9 @@ module.exports = (sequelize, DataTypes) => {
     isActive: { type: DataTypes.BOOLEAN, defaultValue: true },
     passwordResetOTP: { type: DataTypes.STRING },
     passwordResetOTPExpires: { type: DataTypes.DATE },
-    changePassword: { type: DataTypes.BOOLEAN, defaultValue: true }
+    changePassword: { type: DataTypes.BOOLEAN, defaultValue: true },
+    permissionAdds: { type: DataTypes.JSON, allowNull: false, defaultValue: [] },
+    permissionRemoves: { type: DataTypes.JSON, allowNull: false, defaultValue: [] }
   }, {
     sequelize,
     modelName: 'User',

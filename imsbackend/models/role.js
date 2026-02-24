@@ -5,6 +5,12 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       Role.belongsTo(models.Business, { foreignKey: 'businessId' });
       Role.hasMany(models.User, { foreignKey: 'roleId', as: 'users' });
+      Role.belongsToMany(models.Permission, {
+        through: models.RolePermission,
+        foreignKey: 'roleId',
+        otherKey: 'permissionId',
+        as: 'permissionItems'
+      });
     }
     hasPermission(permission) { return Array.isArray(this.permissions) && (this.permissions.includes('*') || this.permissions.includes(permission)); }
   }

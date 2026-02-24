@@ -1,307 +1,301 @@
 <template>
   <div>
-    <!-- Header: Title + Add User -->
-    <div class="flex justify-between items-center mb-4">
+    <div class="mb-4 flex items-center justify-between">
       <h1 class="text-2xl font-bold text-gray-700">Users</h1>
-      <button
-        v-if="canAdd"
-        @click="openAddModal"
-        class="bg-brand text-white px-3 py-1 rounded hover:bg-purple-700 transition"
-      >
+      <button v-if="canAdd" class="bg-brand rounded px-3 py-1 text-white" @click="openAddModal">
         Add User
       </button>
     </div>
 
-    <!-- Datatable -->
     <Datatable
       :data="users"
       :columns="columns"
-      :can-edit="true"
-      :can-delete="true"
+      :can-edit="canEdit"
+      :can-delete="canDelete"
       title="Users"
       @edit="openEditModal"
       @delete="deleteUser"
-    >
-      <template #cell="{ row, col, value }">
-        <div v-if="col === 'name'" class="flex items-center gap-2">
-          <div class="avatar">
-            <img v-if="row.photoUrl" :src="row.photoUrl" alt="" class="avatar-img" />
-            <div v-else class="avatar-fallback">{{ initials(row.name) }}</div>
-          </div>
-          <span>{{ row.name }}</span>
-        </div>
-        <span v-else-if="col === 'documents'">{{ row.documents?.length || 0 }}</span>
-        <span v-else>{{ value ?? '-' }}</span>
-      </template>
+    />
 
-      <template #rowActions="{ row }">
-        <button class="text-brand hover:underline" @click="openProfile(row)">Profile</button>
-      </template>
-    </Datatable>
-
-    <!-- Add/Edit Modal -->
     <Modal
       v-model:show="modalVisible"
-      :title="editItem?.id ? 'Edit User' : 'Add User'"
-      :modelValue="editItem"
+      :title="form.id ? 'Edit User' : 'Add User'"
+      :modelValue="form"
       type="form"
       @submit="saveUser"
     >
       <template #default="{ formData }">
         <div class="space-y-3">
-          <input v-model="formData.name" placeholder="Name" class="w-full border px-2 py-1 rounded" />
-          <input v-model="formData.email" placeholder="Email" class="w-full border px-2 py-1 rounded" />
-          <input v-model="formData.phone" placeholder="Phone" class="w-full border px-2 py-1 rounded" />
+          <input v-model="formData.name" placeholder="Name" class="w-full rounded border px-2 py-1" />
+          <input v-model="formData.email" placeholder="Email" class="w-full rounded border px-2 py-1" />
+          <input v-model="formData.phone" placeholder="Phone" class="w-full rounded border px-2 py-1" />
+          <input
+            v-if="!formData.id"
+            v-model="formData.password"
+            type="password"
+            placeholder="Temporary password"
+            class="w-full rounded border px-2 py-1"
+          />
 
-          <select v-model="formData.role" class="w-full border px-2 py-1 rounded">
-            <option value="" disabled>Select role</option>
-            <option v-for="r in roles" :key="r" :value="r">{{ r }}</option>
-          </select>
+          <div v-if="!formData.id" class="space-y-2 rounded border p-2">
+            <label class="block text-sm text-gray-700">Role Mode</label>
+            <div class="flex flex-wrap gap-4 text-sm">
+              <label class="flex items-center gap-2">
+                <input v-model="formData.roleMode" type="radio" value="existing" @change="onRoleModeChanged(formData)" />
+                <span>Select Existing Role</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <input v-model="formData.roleMode" type="radio" value="new" @change="onRoleModeChanged(formData)" />
+                <span>Create New Role</span>
+              </label>
+            </div>
+          </div>
 
-          <select v-model="formData.status" class="w-full border px-2 py-1 rounded">
+          <div>
+            <label class="mb-1 block text-sm text-gray-700">Role</label>
+            <select
+              v-model.number="formData.roleId"
+              class="w-full rounded border px-2 py-1"
+              :disabled="!formData.id && formData.roleMode === 'new'"
+              @change="onRoleChanged(formData)"
+            >
+              <option :value="0" disabled>Select role</option>
+              <option v-for="role in roles" :key="role.id" :value="role.id">{{ role.name }}</option>
+            </select>
+          </div>
+
+          <div v-if="!formData.id && formData.roleMode === 'new'">
+            <label class="mb-1 block text-sm text-gray-700">New Role Name</label>
+            <input
+              v-model="formData.roleName"
+              placeholder="Enter new role name"
+              class="w-full rounded border px-2 py-1"
+            />
+          </div>
+
+          <div>
+            <label class="mb-1 block text-sm text-gray-700">Permissions (User Override)</label>
+            <div class="permissions-grid">
+              <label v-for="permission in permissions" :key="permission.id" class="permission-item">
+                <input
+                  type="checkbox"
+                  :checked="formData.permissionIds.includes(permission.id)"
+                  @change="togglePermission(formData, permission.id)"
+                />
+                <span>{{ permission.key }}</span>
+              </label>
+            </div>
+          </div>
+
+          <select v-model="formData.status" class="w-full rounded border px-2 py-1">
             <option value="active">active</option>
             <option value="inactive">inactive</option>
           </select>
-
-          <div class="space-y-2">
-            <label class="text-sm text-gray-600">Profile Photo</label>
-            <input type="file" accept="image/*" class="w-full" @change="onPhotoChange(formData, )" />
-            <div v-if="formData.photo" class="text-xs text-gray-500">Selected: {{ formData.photo }}</div>
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm text-gray-600">Additional Documents</label>
-            <input type="file" multiple class="w-full" @change="onDocsChange(formData, )" />
-            <div v-if="formData.documents?.length" class="text-xs text-gray-500">
-              Files: {{ formData.documents.join(', ') }}
-            </div>
-          </div>
         </div>
       </template>
     </Modal>
-
-    <!-- Profile Modal -->
-    <div v-if="profileVisible" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-      <div class="bg-white w-full max-w-lg rounded shadow p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-bold text-gray-700">User Profile</h2>
-          <button class="text-gray-500 hover:text-gray-700" @click="closeProfile">Close</button>
-        </div>
-
-        <div class="flex items-center gap-4 mb-4">
-          <div class="profile-avatar">
-            <img v-if="profileUser?.photoUrl" :src="profileUser.photoUrl" alt="" class="avatar-img" />
-            <div v-else class="avatar-fallback">{{ initials(profileUser?.name) }}</div>
-          </div>
-          <div>
-            <div class="text-lg font-semibold">{{ profileUser?.name }}</div>
-            <div class="text-sm text-gray-500">{{ profileUser?.email }}</div>
-            <div class="text-sm text-gray-500">{{ profileUser?.phone }}</div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3 text-sm">
-          <div><span class="text-gray-500">Role:</span> {{ profileUser?.role }}</div>
-          <div><span class="text-gray-500">Status:</span> {{ profileUser?.status }}</div>
-        </div>
-
-        <div class="mt-4">
-          <div class="text-sm text-gray-500 mb-2">Documents</div>
-          <ul class="list-disc pl-5 text-sm">
-            <li v-for="doc in (profileUser?.documents || [])" :key="doc">{{ doc }}</li>
-            <li v-if="!profileUser?.documents?.length" class="text-gray-400">No documents</li>
-          </ul>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import Datatable from '@/components/Datatable.vue'
 import Modal from '@/components/Modal.vue'
 import { useAuthStore } from '@/stores/auth'
+import api, { getResponseData } from '@/services/api'
 
 const auth = useAuthStore()
-const canAdd = auth.can('users.create')
+const canAdd = computed(() => auth.hasPermission('users.create'))
+const canEdit = computed(() => auth.hasPermission('users.update'))
+const canDelete = computed(() => auth.hasPermission('users.delete'))
 
-// Columns for datatable
-const columns = ['name', 'email', 'phone', 'role', 'status', 'documents']
-const roles = ['superadmin', 'admin', 'owner', 'support', 'accountant', 'sale', 'store_keeper', 'customer']
+const columns = ['name', 'email', 'phone', 'role', 'permissionsCount', 'status']
+const users = ref([])
+const roles = ref([])
+const permissions = ref([])
 
-// Modal state
 const modalVisible = ref(false)
-const editItem = reactive({})
+const form = reactive({
+  id: null,
+  name: '',
+  email: '',
+  phone: '',
+  password: '',
+  roleMode: 'existing',
+  roleId: 0,
+  roleName: '',
+  permissionIds: [],
+  status: 'active'
+})
 
-// Profile modal state
-const profileVisible = ref(false)
-const profileUser = ref(null)
+onMounted(async () => {
+  await Promise.all([fetchRoles(), fetchPermissions(), fetchUsers()])
+})
 
-// Mock data for users
-const users = ref([
-  {
-    id: '2f7b6c19-6a4c-4c4a-9b2a-6c8f2c9a1f01',
-    business_id: '11111111-1111-1111-1111-111111111111',
-    name: 'Admin User',
-    email: 'admin@ims.local',
-    phone: '0900000001',
-    role: 'superadmin',
-    status: 'active',
-    photo: 'admin.jpg',
-    photoUrl: '',
-    documents: ['id-card.pdf'],
-    created_at: '2026-01-10T09:00:00Z',
-    updated_at: '2026-01-20T12:00:00Z'
-  },
-  {
-    id: '3f6a7b8c-9d0e-4f12-8a34-5b6c7d8e9f02',
-    business_id: '11111111-1111-1111-1111-111111111111',
-    name: 'Owner One',
-    email: 'owner@ims.local',
-    phone: '0900000002',
-    role: 'owner',
-    status: 'active',
-    photo: 'owner.jpg',
-    photoUrl: '',
-    documents: [],
-    created_at: '2026-01-12T10:00:00Z',
-    updated_at: '2026-01-20T12:00:00Z'
-  },
-  {
-    id: '4a5b6c7d-8e9f-4a10-9b21-2c3d4e5f6a03',
-    business_id: '11111111-1111-1111-1111-111111111111',
-    name: 'Store Keeper One',
-    email: 'storekeeper@ims.local',
-    phone: '0900000003',
-    role: 'store_keeper',
-    status: 'active',
-    photo: '',
-    photoUrl: '',
-    documents: [],
-    created_at: '2026-01-15T11:00:00Z',
-    updated_at: '2026-01-21T08:00:00Z'
-  },
-  {
-    id: '5b6c7d8e-9f01-4b12-9c34-5d6e7f8a9b04',
-    business_id: '11111111-1111-1111-1111-111111111111',
-    name: 'Sales User',
-    email: 'sales@ims.local',
-    phone: '0900000004',
-    role: 'sale',
-    status: 'inactive',
-    photo: '',
-    photoUrl: '',
-    documents: ['contract.pdf'],
-    created_at: '2026-01-18T14:00:00Z',
-    updated_at: '2026-01-25T09:00:00Z'
-  },
-  {
-    id: '6c7d8e9f-0123-4c56-9d78-9e0f1a2b3c05',
-    business_id: '11111111-1111-1111-1111-111111111111',
-    name: 'Accountant One',
-    email: 'accountant@ims.local',
-    phone: '0900000005',
-    role: 'accountant',
-    status: 'active',
-    photo: '',
-    photoUrl: '',
-    documents: [],
-    created_at: '2026-01-20T15:00:00Z',
-    updated_at: '2026-01-28T10:00:00Z'
-  },
-  {
-    id: '7d8e9f01-2345-4d67-9e89-0f1a2b3c4d06',
-    business_id: '11111111-1111-1111-1111-111111111111',
-    name: 'Customer One',
-    email: 'customer@ims.local',
-    phone: '0900000006',
-    role: 'customer',
-    status: 'active',
-    photo: '',
-    photoUrl: '',
-    documents: [],
-    created_at: '2026-01-22T16:00:00Z',
-    updated_at: '2026-01-29T11:00:00Z'
+async function fetchRoles() {
+  const res = await api.get('/roles')
+  const payload = getResponseData(res, [])
+  roles.value = Array.isArray(payload) ? payload : []
+}
+
+async function fetchPermissions() {
+  const res = await api.get('/permissions')
+  const payload = getResponseData(res, [])
+  permissions.value = Array.isArray(payload) ? payload : []
+}
+
+async function fetchUsers() {
+  try {
+    const res = await api.get('/users')
+    const payload = res?.data?.users || getResponseData(res, [])
+    const list = Array.isArray(payload) ? payload : []
+    users.value = list.map(item => ({
+      id: item.id,
+      name: item.fullName || item.name || '-',
+      email: item.email || '-',
+      phone: item.phoneNumber || item.phone || '-',
+      roleId: item.roleId || 0,
+      role: item.role?.name || item.roleName || '-',
+      permissionAdds: Array.isArray(item.permissionAdds) ? item.permissionAdds : [],
+      permissionRemoves: Array.isArray(item.permissionRemoves) ? item.permissionRemoves : [],
+      status: item.isActive ? 'active' : 'inactive',
+      permissionsCount: Array.isArray(item.permissions) ? item.permissions.length : 0
+    }))
+  } catch {
+    users.value = []
   }
-])
+}
+
+function resetForm() {
+  form.id = null
+  form.name = ''
+  form.email = ''
+  form.phone = ''
+  form.password = ''
+  form.roleMode = 'existing'
+  form.roleId = 0
+  form.roleName = ''
+  form.permissionIds = []
+  form.status = 'active'
+}
+
+function permissionIdByKey(key) {
+  const found = permissions.value.find(permission => permission.key === key)
+  return found?.id || null
+}
+
+function rolePermissionIds(roleId) {
+  const role = roles.value.find(item => item.id === Number(roleId))
+  if (!role) return []
+  if (Array.isArray(role.permissionIds) && role.permissionIds.length) return [...role.permissionIds]
+  const keys = Array.isArray(role.permissions) ? role.permissions : []
+  return keys.map(permissionIdByKey).filter(Boolean)
+}
+
+function buildEffectivePermissionIds({ roleId, permissionAdds, permissionRemoves }) {
+  const base = new Set(rolePermissionIds(roleId))
+  const addIds = (Array.isArray(permissionAdds) ? permissionAdds : [])
+    .map(permissionIdByKey)
+    .filter(Boolean)
+  const removeIds = (Array.isArray(permissionRemoves) ? permissionRemoves : [])
+    .map(permissionIdByKey)
+    .filter(Boolean)
+
+  addIds.forEach(id => base.add(id))
+  removeIds.forEach(id => base.delete(id))
+  return Array.from(base)
+}
 
 function openAddModal() {
-  Object.assign(editItem, {
-    id: null,
-    name: '',
-    email: '',
-    phone: '',
-    role: '',
-    status: 'active',
-    photo: '',
-    photoUrl: '',
-    documents: []
-  })
+  resetForm()
   modalVisible.value = true
 }
 
 function openEditModal(user) {
-  Object.assign(editItem, { ...user })
+  form.id = user.id
+  form.name = user.name
+  form.email = user.email
+  form.phone = user.phone
+  form.password = ''
+  form.roleMode = 'existing'
+  form.roleId = user.roleId || 0
+  form.roleName = ''
+  form.permissionIds = buildEffectivePermissionIds(user)
+  form.status = user.status || 'active'
   modalVisible.value = true
 }
 
-function deleteUser(user) {
-  if (confirm(`Are you sure you want to delete ${user.name}?`)) {
-    users.value = users.value.filter(u => u.id !== user.id)
-  }
+function onRoleChanged(formData) {
+  // Prefill overrides from selected role as baseline.
+  formData.permissionIds = rolePermissionIds(formData.roleId)
 }
 
-function saveUser(user) {
-  if (user.id) {
-    const idx = users.value.findIndex(u => u.id === user.id)
-    if (idx >= 0) users.value[idx] = { ...users.value[idx], ...user }
+function onRoleModeChanged(formData) {
+  if (formData.roleMode === 'existing') {
+    formData.roleName = ''
+    formData.permissionIds = rolePermissionIds(formData.roleId)
+    return
+  }
+  formData.roleId = 0
+  formData.permissionIds = []
+}
+
+function togglePermission(formData, permissionId) {
+  if (formData.permissionIds.includes(permissionId)) {
+    formData.permissionIds = formData.permissionIds.filter(id => id !== permissionId)
+    return
+  }
+  formData.permissionIds = [...formData.permissionIds, permissionId]
+}
+
+async function saveUser(formData) {
+  if (!formData.id) {
+    if (!formData.password) {
+      alert('Password is required for new user.')
+      return
+    }
+
+    if (formData.roleMode === 'existing' && !formData.roleId) {
+      alert('Role is required.')
+      return
+    }
+
+    if (formData.roleMode === 'new' && !String(formData.roleName || '').trim()) {
+      alert('Role name is required for new role.')
+      return
+    }
+
+    await auth.signup({
+      fullName: formData.name,
+      phoneNumber: formData.phone,
+      email: formData.email,
+      password: formData.password,
+      roleId: formData.roleMode === 'existing' ? formData.roleId : undefined,
+      roleName: formData.roleMode === 'new' ? String(formData.roleName).trim() : undefined,
+      permissionIds: formData.permissionIds
+    })
   } else {
-    users.value.push({
-      ...user,
-      id: crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()),
-      business_id: '11111111-1111-1111-1111-111111111111',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+    if (!formData.roleId) {
+      alert('Role is required.')
+      return
+    }
+    await api.patch(`/users/${formData.id}`, {
+      fullName: formData.name,
+      phoneNumber: formData.phone,
+      email: formData.email,
+      roleId: formData.roleId,
+      permissionIds: formData.permissionIds,
+      isActive: formData.status === 'active'
     })
   }
+
+  await fetchUsers()
+  await fetchRoles()
 }
 
-function onPhotoChange(formData, e) {
-  const file = e.target.files?.[0]
-  if (!file) return
-  formData.photo = file.name
-  const reader = new FileReader()
-  reader.onload = () => {
-    formData.photoUrl = String(reader.result || '')
-  }
-  reader.readAsDataURL(file)
-}
-
-function onDocsChange(formData, e) {
-  const files = Array.from(e.target.files || [])
-  formData.documents = files.map(f => f.name)
-}
-
-function openProfile(user) {
-  profileUser.value = user
-  profileVisible.value = true
-}
-
-function closeProfile() {
-  profileVisible.value = false
-  profileUser.value = null
-}
-
-function initials(name) {
-  if (!name) return 'U'
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .map(n => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
+async function deleteUser(user) {
+  await api.delete(`/users/${user.id}`)
+  await fetchUsers()
 }
 </script>
 
@@ -309,37 +303,22 @@ function initials(name) {
 .bg-brand {
   background-color: rgb(76, 38, 131);
 }
-.text-brand {
-  color: rgb(76, 38, 131);
+
+.permissions-grid {
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 6px;
 }
-.avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: #e5e7eb;
-  display: inline-flex;
+
+.permission-item {
+  display: flex;
   align-items: center;
-  justify-content: center;
-}
-.profile-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: #e5e7eb;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.avatar-fallback {
+  gap: 8px;
   font-size: 12px;
-  font-weight: 600;
-  color: #374151;
 }
 </style>

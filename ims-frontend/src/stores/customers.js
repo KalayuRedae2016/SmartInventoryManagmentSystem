@@ -24,17 +24,24 @@ export const useCustomersStore = defineStore('customers', () => {
     return []
   }
 
+  function normalizeCustomer(item = {}) {
+    return {
+      ...item,
+      status: item.status || 'active'
+    }
+  }
+
   async function fetchCustomers() {
     loading.value = true
     try {
       if (USE_MOCK) {
-        customers.value = [...mockData]
+        customers.value = [...mockData].map(normalizeCustomer)
         return
       }
       const res = await api.get('/customers')
-      customers.value = asList(getResponseData(res, []))
+      customers.value = asList(getResponseData(res, [])).map(normalizeCustomer)
     } catch (error) {
-      if (USE_MOCK) customers.value = [...mockData]
+      if (USE_MOCK) customers.value = [...mockData].map(normalizeCustomer)
       else throw error
     } finally {
       loading.value = false
@@ -43,25 +50,29 @@ export const useCustomersStore = defineStore('customers', () => {
 
   async function addCustomer(payload) {
     if (USE_MOCK) {
-      customers.value.push({ ...payload, id: Date.now() })
+      customers.value.push(normalizeCustomer({ ...payload, id: Date.now() }))
       return
     }
     const mapped = {
       ...payload,
-      code: payload.code || `CUS-${Date.now().toString().slice(-6)}`
+      code: payload.code || `CUS-${Date.now().toString().slice(-6)}`,
+      email: String(payload.email || '').trim() || null
     }
     const res = await api.post('/customers', mapped)
-    customers.value.push(getResponseData(res, mapped))
+    customers.value.push(normalizeCustomer({ ...mapped, ...getResponseData(res, mapped) }))
   }
 
   async function updateCustomer(payload) {
     if (USE_MOCK) {
       const i = customers.value.findIndex(c => c.id === payload.id)
-      if (i !== -1) customers.value[i] = payload
+      if (i !== -1) customers.value[i] = normalizeCustomer(payload)
       return
     }
-    const res = await api.patch(`/customers/${payload.id}`, payload)
-    const updated = getResponseData(res, payload)
+    const res = await api.patch(`/customers/${payload.id}`, {
+      ...payload,
+      email: String(payload.email || '').trim() || null
+    })
+    const updated = normalizeCustomer({ ...payload, ...getResponseData(res, payload) })
     const i = customers.value.findIndex(c => c.id === payload.id)
     if (i !== -1) customers.value[i] = updated
   }

@@ -113,14 +113,15 @@ exports.getAllProducts = catchAsync(async (req, res, next) => {
   // 4️FETCH USERS (PAGINATED + FILTERED)
   const { rows: products, count: totalFiltered } = await Product.findAndCountAll({
     where: whereQuery,
+    include: [
+      { model: Category, as: 'category', attributes: ['id', 'name'], required: false },
+      { model: Brand, as: 'brand', attributes: ['id', 'name'], required: false },
+      { model: Unit, as: 'unit', attributes: ['id', 'name', 'symbol'], required: false }
+    ],
     offset: skip,
     limit: Number(limit),
     order: [[sortColumn, orderDirection]],
   });
-
-  if (products.length === 0) {
-    return next(new AppError("No products found", 404));
-  }
 
 
   const formattedProducts = products.map(p => ({
@@ -132,6 +133,7 @@ exports.getAllProducts = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 1,
     length: formattedProducts.length,
+    totalFiltered,
     message: 'Products fetched successfully',
     products: formattedProducts,
   });

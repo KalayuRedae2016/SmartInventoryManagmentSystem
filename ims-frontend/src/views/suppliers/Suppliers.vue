@@ -63,8 +63,12 @@ const columns = ['name', 'email', 'phone', 'address', 'status']
 const modalVisible = ref(false)
 const editItem = reactive({})
 
-onMounted(() => {
-  suppliersStore.fetchSuppliers()
+onMounted(async () => {
+  try {
+    await suppliersStore.fetchSuppliers()
+  } catch (error) {
+    alert(error?.response?.data?.message || error?.message || 'Unable to load suppliers')
+  }
 })
 
 function openAddModal() {
@@ -85,21 +89,38 @@ function openEditModal(row) {
   modalVisible.value = true
 }
 
-function deleteSupplier(row) {
+async function deleteSupplier(row) {
   if (confirm(`Are you sure you want to delete ${row.name}?`)) {
-    suppliersStore.deleteSupplier(row.id)
+    try {
+      await suppliersStore.deleteSupplier(row.id)
+    } catch (error) {
+      alert(error?.response?.data?.message || error?.message || 'Unable to delete supplier')
+    }
   }
 }
 
-function saveSupplier(supplier) {
-  if (supplier.id) {
-    suppliersStore.updateSupplier(supplier)
-  } else {
-    suppliersStore.addSupplier({
-      ...supplier,
-      business_id: '11111111-1111-1111-1111-111111111111',
-      created_at: new Date().toISOString()
-    })
+async function saveSupplier(supplier) {
+  if (!String(supplier.name || '').trim()) {
+    alert('Supplier name is required.')
+    return
+  }
+
+  try {
+    if (supplier.id) {
+      await suppliersStore.updateSupplier(supplier)
+    } else {
+      await suppliersStore.addSupplier({
+        ...supplier,
+        business_id: '11111111-1111-1111-1111-111111111111',
+        created_at: new Date().toISOString()
+      })
+    }
+  } catch (error) {
+    if (error?.response?.status === 409) {
+      alert('Supplier with same name/code already exists.')
+      return
+    }
+    alert(error?.response?.data?.message || error?.message || 'Unable to save supplier')
   }
 }
 </script>

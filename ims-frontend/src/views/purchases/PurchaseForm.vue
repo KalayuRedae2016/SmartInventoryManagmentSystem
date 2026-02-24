@@ -50,9 +50,13 @@
         <textarea v-model="form.note" class="input"></textarea>
       </div>
 
+      <p v-if="formError" class="text-sm text-red-600">{{ formError }}</p>
+
       <div class="flex justify-end gap-2">
         <RouterLink to="/purchases" class="btn-secondary">Cancel</RouterLink>
-        <button class="btn-primary" @click="savePurchase">Save</button>
+        <button class="btn-primary" :disabled="saving" @click="savePurchase">
+          {{ saving ? 'Saving...' : 'Save' }}
+        </button>
       </div>
     </div>
   </div>
@@ -82,26 +86,54 @@ const form = ref({
   paymentMethod: 'cash',
   note: ''
 })
+const saving = ref(false)
+const formError = ref('')
 
 onMounted(async () => {
-  await Promise.all([suppliersStore.fetchSuppliers(), warehousesStore.fetchWarehouses()])
+  formError.value = ''
+  try {
+    await Promise.all([suppliersStore.fetchSuppliers(), warehousesStore.fetchWarehouses()])
+  } catch {
+    formError.value = 'Unable to load suppliers or warehouses. Please create them first.'
+  }
 })
 
 async function savePurchase() {
-  if (!form.value.supplierId || !form.value.warehouseId || form.value.totalAmount <= 0) return
-  if (form.value.paidAmount > form.value.totalAmount) return
+  formError.value = ''
+  if (!form.value.supplierId) {
+    formError.value = 'Supplier is required.'
+    return
+  }
+  if (!form.value.warehouseId) {
+    formError.value = 'Warehouse is required.'
+    return
+  }
+  if (form.value.totalAmount <= 0) {
+    formError.value = 'Total amount must be greater than 0.'
+    return
+  }
+  if (form.value.paidAmount > form.value.totalAmount) {
+    formError.value = 'Paid amount cannot exceed total amount.'
+    return
+  }
 
-  await purchasesStore.addPurchase({
-    supplierId: form.value.supplierId,
-    warehouseId: form.value.warehouseId,
-    invoiceNumber: form.value.invoiceNumber,
-    totalAmount: form.value.totalAmount,
-    paidAmount: form.value.paidAmount,
-    paymentMethod: form.value.paymentMethod,
-    note: form.value.note
-  })
-
-  router.push('/purchases')
+  saving.value = true
+  try {
+    await purchasesStore.addPurchase({
+      supplierId: form.value.supplierId,
+      warehouseId: form.value.warehouseId,
+      invoiceNumber: form.value.invoiceNumber,
+      totalAmount: form.value.totalAmount,
+      paidAmount: form.value.paidAmount,
+      paymentMethod: form.value.paymentMethod,
+      note: form.value.note
+    })
+    router.push('/purchases')
+  } catch (error) {
+    formError.value = error?.response?.data?.message || error?.message || 'Failed to save purchase.'
+  } finally {
+    saving.value = false
+  }
 }
 </script>
 
@@ -119,6 +151,10 @@ async function savePurchase() {
   padding: 6px 14px;
   border-radius: 6px;
   cursor: pointer;
+}
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 .btn-secondary {
   background: #eee;

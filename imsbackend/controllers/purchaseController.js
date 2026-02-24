@@ -15,7 +15,7 @@ const calculateStatus = (total, paid) => {
 };
 
 exports.createPurchase = catchAsync(async (req, res, next) => {
-  const { warehouseId, supplierId, totalAmount, paidAmount = 0, paymentMethod, note } = req.body;
+  const { warehouseId, supplierId, invoiceNumber, totalAmount, paidAmount = 0, paymentMethod, note } = req.body;
   const businessId = getBusinessId();
 
   if (!warehouseId || !supplierId || !totalAmount) {
@@ -26,18 +26,42 @@ exports.createPurchase = catchAsync(async (req, res, next) => {
     return next(new AppError('Paid amount cannot exceed total amount', 400));
   }
 
-  const purchase = await Purchase.create({
-    businessId,
-    warehouseId,
-    supplierId,
-    totalAmount,
-    paidAmount,
-    dueAmount: totalAmount - paidAmount,
-    paymentMethod,
-    status: calculateStatus(totalAmount, paidAmount),
-    note,
-    isActive: true,
-  });
+  const [supplier, warehouse] = await Promise.all([
+    Supplier.findByPk(supplierId),
+    Warehouse.findByPk(warehouseId)
+  ]);
+  if (!supplier) return next(new AppError('Invalid supplier selected', 400));
+  if (!warehouse) return next(new AppError('Invalid warehouse selected', 400));
+
+  const safeInvoiceNumber =
+    String(invoiceNumber || '').trim() || `PO-${Date.now().toString().slice(-8)}`;
+
+  const existingInvoice = await Purchase.findOne({ where: { invoiceNumber: safeInvoiceNumber } });
+  if (existingInvoice) {
+    return next(new AppError('Invoice number already exists. Please use a different number.', 409));
+  }
+
+  let purchase;
+  try {
+    purchase = await Purchase.create({
+      businessId,
+      warehouseId,
+      supplierId,
+      invoiceNumber: safeInvoiceNumber,
+      totalAmount,
+      paidAmount,
+      dueAmount: totalAmount - paidAmount,
+      paymentMethod,
+      status: calculateStatus(totalAmount, paidAmount),
+      note,
+      isActive: true,
+    });
+  } catch (error) {
+    if (/Unknown column 'invoiceNumber'/i.test(String(error?.message || ''))) {
+      return next(new AppError('Database schema is outdated: run migrations to add Purchases.invoiceNumber.', 500));
+    }
+    throw error;
+  }
 
   res.status(201).json({
     status: 1,

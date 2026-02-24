@@ -185,17 +185,18 @@ const router = createRouter({
 // =======================
 // Guard
 // =======================
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const auth = useAuthStore()
 
   if (to.meta.public) return next()
+  if (auth.token && !auth.user) auth.logout()
   if (!auth.isAuthenticated) return next('/login')
-  if (to.meta.permission && !auth.can(to.meta.permission)) {
+  if (to.meta.permission && !auth.hasPermission(to.meta.permission)) {
     const fallbackPaths = ['/', '/products', '/stock', '/purchases', '/sales', '/customers', '/suppliers', '/reports']
     const fallback = fallbackPaths.find(path => {
       const resolved = router.resolve(path)
       const permission = resolved?.meta?.permission
-      return !permission || auth.can(permission)
+      return !permission || auth.hasPermission(permission)
     })
 
     if (fallback && fallback !== to.fullPath) return next(fallback)

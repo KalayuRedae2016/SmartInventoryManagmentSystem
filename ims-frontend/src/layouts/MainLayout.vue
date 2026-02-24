@@ -49,13 +49,23 @@
 
 
 
+        <!-- ================= Purchases ================= -->
+        <RouterLink
+          v-if="can('purchases.view') || can('purchases.create')"
+          to="/purchases"
+          class="menu-link"
+          :class="{ 'menu-active': $route.path.startsWith('/purchases') }"
+        >
+          [PU] Purchases
+        </RouterLink>
+
         <!-- ================= Sales ================= -->
-<RouterLink
-  v-if="can('sales.view')"
-  to="/sales/invoices"
-  class="menu-link"
-  :class="{ 'menu-active': $route.path.startsWith('/sales') }"
->
+        <RouterLink
+          v-if="can('sales.view')"
+          to="/sales/invoices"
+          class="menu-link"
+          :class="{ 'menu-active': $route.path.startsWith('/sales') }"
+        >
           [S] Sales
         </RouterLink>
 
@@ -88,20 +98,6 @@
         >
           [A] Stock Adjustments
         </RouterLink>
-
-
-        <!-- ================= Purchases ================= -->
-        <RouterLink
-          v-if="can('purchases.view') || can('purchases.create')"
-          to="/purchases"
-          class="menu-link"
-          :class="{ 'menu-active': $route.path.startsWith('/purchases') }"
-        >
-          [PU] Purchases
-        </RouterLink>
-
-
-
 
         <!-- ================= Users ================= -->
         <RouterLink
@@ -201,22 +197,12 @@ const can = auth.can
 
 const systemOpen = ref(true)
 
-const userDisplayName = computed(() => auth.user?.name || 'User')
+const userDisplayName = computed(() => auth.user?.fullName || auth.user?.name || 'User')
 const userRoleLabel = computed(() => {
-  const role = auth.user?.role || 'user'
-  const map = {
-    superadmin: 'Super Admin',
-    owner: 'Owner',
-    admin: 'Admin',
-    support: 'Support',
-    accountant: 'Accountant',
-    sale: 'Sales',
-    store_keeper: 'Store Keeper',
-    warehouse_manager: 'Warehouse Manager',
-    purchase: 'Purchase',
-    customer: 'Customer'
-  }
-  return map[role] || role
+  const role = auth.user?.role
+  if (!role) return 'User'
+  if (typeof role === 'string') return role
+  return role.name || role.code || 'User'
 })
 const userInitials = computed(() => {
   const name = userDisplayName.value || 'User'
@@ -231,11 +217,15 @@ const userInitials = computed(() => {
 
 const userProfile = computed(() => {
   if (!usersStore.users?.length) return null
+  const currentRole =
+    typeof auth.user?.role === 'string'
+      ? auth.user?.role
+      : auth.user?.role?.name || auth.user?.role?.code || ''
   const byId = usersStore.users.find(u => u.id === auth.user?.id)
   if (byId) return byId
   const byName = usersStore.users.find(u => u.name === auth.user?.name)
   if (byName) return byName
-  const byRole = usersStore.users.find(u => u.role === auth.user?.role)
+  const byRole = usersStore.users.find(u => u.role === currentRole)
   return byRole || null
 })
 

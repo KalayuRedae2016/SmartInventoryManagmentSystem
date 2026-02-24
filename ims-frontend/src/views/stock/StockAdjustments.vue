@@ -18,8 +18,7 @@ const mockAdjustments = [
   { id: 2, product: 'Mouse', warehouseName: 'Branch Warehouse', type: 'subtraction', qty: 5, reason: 'Damage', created_at: '2026-02-02' },
 ]
 
-const role = computed(() => auth.user?.role)
-const canManage = computed(() => ['owner', 'admin', 'store_keeper'].includes(role.value))
+const canManage = computed(() => auth.hasPermission('stock.adjust'))
 
 const fetchAdjustments = async () => {
   loading.value = true

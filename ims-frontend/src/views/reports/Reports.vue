@@ -28,6 +28,30 @@
       </div>
     </div>
 
+    <section v-if="activeReport" class="report-section">
+      <div class="section-header">
+        <span class="section-icon">[D]</span>
+        <h2 class="section-title">{{ activeReport.title }}</h2>
+      </div>
+      <div class="rounded border border-gray-200 bg-white p-4 space-y-2">
+        <p class="text-sm text-gray-600">{{ activeReport.description }}</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="rounded bg-gray-50 p-3">
+            <div class="text-xs text-gray-500">Metric A</div>
+            <div class="font-semibold">{{ activeReport.metrics[0] }}</div>
+          </div>
+          <div class="rounded bg-gray-50 p-3">
+            <div class="text-xs text-gray-500">Metric B</div>
+            <div class="font-semibold">{{ activeReport.metrics[1] }}</div>
+          </div>
+          <div class="rounded bg-gray-50 p-3">
+            <div class="text-xs text-gray-500">Metric C</div>
+            <div class="font-semibold">{{ activeReport.metrics[2] }}</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Sales -->
     <section class="report-section">
       <div class="section-header">
@@ -166,7 +190,80 @@
   </div>
 </template>
 
-<script setup></script>
+<script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+
+const reportMap = {
+  'sales-summary': {
+    title: 'Sales Summary',
+    description: 'Revenue, invoices, payments, and sales trend for the selected period.',
+    metrics: ['Revenue: 0.00', 'Invoices: 0', 'Payments: 0.00']
+  },
+  'sales-returns': {
+    title: 'Sales Returns',
+    description: 'Returned sales with reasons and effect on total revenue.',
+    metrics: ['Returned Qty: 0', 'Return Value: 0.00', 'Return Rate: 0%']
+  },
+  'profit-loss': {
+    title: 'Profit and Loss',
+    description: 'Income vs cost and net result for the selected period.',
+    metrics: ['Gross Profit: 0.00', 'Expense: 0.00', 'Net: 0.00']
+  },
+  'purchases-summary': {
+    title: 'Purchases Summary',
+    description: 'Purchase totals, outstanding dues, and supplier spend.',
+    metrics: ['Purchases: 0.00', 'Paid: 0.00', 'Due: 0.00']
+  },
+  'purchase-returns': {
+    title: 'Purchase Returns',
+    description: 'Returned purchases and total return value.',
+    metrics: ['Returns: 0', 'Return Value: 0.00', 'Adjusted: 0']
+  },
+  'supplier-ledger': {
+    title: 'Supplier Ledger',
+    description: 'Supplier transactions and outstanding balances.',
+    metrics: ['Suppliers: 0', 'Open Bills: 0', 'Balance: 0.00']
+  },
+  'inventory-valuation': {
+    title: 'Inventory Valuation',
+    description: 'Current inventory value by product/warehouse.',
+    metrics: ['Items: 0', 'Stock Qty: 0', 'Value: 0.00']
+  },
+  'stock-transactions': {
+    title: 'Stock Transactions',
+    description: 'In/Out stock movements, transfers, and adjustments.',
+    metrics: ['Transactions: 0', 'In: 0', 'Out: 0']
+  },
+  'low-stock': {
+    title: 'Low Stock',
+    description: 'Products under reorder level.',
+    metrics: ['Low Items: 0', 'Critical: 0', 'Reorder Value: 0.00']
+  },
+  'customer-ledger': {
+    title: 'Customer Ledger',
+    description: 'Customer balances, invoices, and payments.',
+    metrics: ['Customers: 0', 'Open Invoices: 0', 'Receivable: 0.00']
+  },
+  'tax-summary': {
+    title: 'Tax Summary',
+    description: 'Tax collected and payable summary.',
+    metrics: ['Output Tax: 0.00', 'Input Tax: 0.00', 'Payable: 0.00']
+  },
+  'user-activity': {
+    title: 'User Activity',
+    description: 'Recent actions and approvals by users.',
+    metrics: ['Users: 0', 'Actions: 0', 'Approvals: 0']
+  }
+}
+
+const activeReport = computed(() => {
+  const reportType = String(route.query.type || '')
+  return reportMap[reportType] || null
+})
+</script>
 
 <style scoped>
 .text-brand { color: rgb(76, 38, 131); }

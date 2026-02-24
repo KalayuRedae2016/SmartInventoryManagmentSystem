@@ -14,6 +14,7 @@ const globalErrorHandler = require('./controllers/errorController');
 const bussinessRouter=require('./routes/businessRoutes');
 const authRouter = require('./routes/authRoutes');
 const roleRouter=require("./routes/roleRoutes");
+const permissionRouter=require("./routes/permissionRoutes");
 const userRouter = require('./routes/userRoutes');
 const wharehouseRouter = require('./routes/wharehouseRoutes');
 
@@ -149,6 +150,7 @@ app.use('/api/ims/auth',authRouter);
 
 app.use('/api/ims/business',bussinessRouter);
 app.use('/api/ims/roles',roleRouter);
+app.use('/api/ims/permissions',permissionRouter);
 app.use('/api/ims/warehouses',wharehouseRouter);
 
 app.use('/api/ims/users',userRouter);

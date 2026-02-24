@@ -4,6 +4,9 @@ const db = require('../models');
 const { Op, where } = require('sequelize');
 const validator = require('validator');
 const User = db.User;
+const Role = db.Role;
+const Permission = db.Permission;
+const { syncMasterPermissions } = require('../services/permissionService');
 
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
@@ -34,8 +37,9 @@ const {createMulterMiddleware,processUploadFilesToSave,importFromExcel,exportToE
 exports.getAllUsers = catchAsync(async (req, res, next) => {
   const { isActive, search, sortBy, sortOrder, page = 1, limit = 20 } = req.query;
   let whereQuery = {};
-  if (!req.user.role==="admin") {
-    whereQuery = { role: req.user.role };
+  const requesterRoleCode = req.user?.role?.code || req.user?.role || '';
+  if (String(requesterRoleCode).toUpperCase() !== 'ADMIN' && String(requesterRoleCode).toUpperCase() !== 'SUPER_ADMIN') {
+    whereQuery = { businessId: req.user?.businessId || 1 };
   } 
 
   // isActive Filter
@@ -50,7 +54,6 @@ exports.getAllUsers = catchAsync(async (req, res, next) => {
       { email: { [Op.like]: `%${search}%` } },
       { phoneNumber: { [Op.like]: `%${search}%` } },
       { address: { [Op.like]: `%${search}%` } },
-      { role: { [Op.like]: `%${search}%` } },
     ];
   }
 
@@ -64,6 +67,14 @@ exports.getAllUsers = catchAsync(async (req, res, next) => {
   // 4️FETCH USERS (PAGINATED + FILTERED)
   const { rows: users, count: totalFiltered } = await User.findAndCountAll({
     where: whereQuery,
+    include: [
+      {
+        model: Role,
+        as: 'role',
+        attributes: ['id', 'name', 'code', 'permissions'],
+        required: false
+      }
+    ],
     offset: skip,
     limit: Number(limit),
     order: [[sortColumn, orderDirection]],
@@ -76,6 +87,13 @@ exports.getAllUsers = catchAsync(async (req, res, next) => {
 
   const formattedUsers = users.map(u => ({
     ...u.toJSON(),
+    permissions: Array.from(
+      new Set(
+        ((Array.isArray(u.role?.permissions) ? u.role.permissions : []).filter(
+          permission => !(Array.isArray(u.permissionRemoves) ? u.permissionRemoves : []).includes(permission)
+        )).concat(Array.isArray(u.permissionAdds) ? u.permissionAdds : [])
+      )
+    ),
     formattedCreatedAt: u.createdAt ? formatDate(u.createdAt) : null,
     formattedUpdatedAt: u.updatedAt ? formatDate(u.updatedAt) : null,
   }));
@@ -200,6 +218,44 @@ exports.updateUser= catchAsync(async (req, res, next) => {
     ...req.body,
     profileImage
   };
+
+  const parsePermissionIds = (input) => {
+    if (!input) return [];
+    if (Array.isArray(input)) return input.map(id => Number(id)).filter(Number.isFinite);
+    if (typeof input === 'string') {
+      try {
+        const parsed = JSON.parse(input);
+        return Array.isArray(parsed) ? parsed.map(id => Number(id)).filter(Number.isFinite) : [];
+      } catch {
+        return input.split(',').map(id => Number(id.trim())).filter(Number.isFinite);
+      }
+    }
+    return [];
+  };
+
+  if (req.body.roleId !== undefined || req.body.permissionIds !== undefined) {
+    const nextRoleId = Number(req.body.roleId || existingUser.roleId);
+    const role = await Role.findByPk(nextRoleId, {
+      include: [{ model: Permission, as: 'permissionItems', attributes: ['id', 'key', 'name'] }]
+    });
+    if (!role) return next(new AppError('Selected role not found', 400));
+
+    const rolePermissions = Array.isArray(role.permissionItems)
+      ? role.permissionItems.map(item => item.key)
+      : Array.isArray(role.permissions)
+        ? role.permissions
+        : [];
+
+    const selectedIds = parsePermissionIds(req.body.permissionIds);
+    const requestedKeys = selectedIds.length
+      ? (await syncMasterPermissions()).filter(item => selectedIds.includes(item.id)).map(item => item.key)
+      : rolePermissions;
+
+    updateData.roleId = nextRoleId;
+    updateData.permissionAdds = requestedKeys.filter(key => !rolePermissions.includes(key));
+    updateData.permissionRemoves = rolePermissions.filter(key => !requestedKeys.includes(key));
+    delete updateData.permissionIds;
+  }
 
   // Update user
   await existingUser.update(updateData);

@@ -27,8 +27,7 @@ import { useSalesStore } from '@/stores/sales'
 const auth = useAuthStore()
 const salesStore = useSalesStore()
 
-const role = computed(() => auth.user?.role || '')
-const canRecord = computed(() => ['admin', 'owner', 'accountant', 'superadmin'].includes(role.value))
+const canRecord = computed(() => auth.hasPermission('sales.update') || auth.hasPermission('payment.manage'))
 const columns = ['sale_id', 'customer', 'amount', 'status', 'paymentMethod']
 
 const rows = computed(() =>

@@ -21,20 +21,31 @@ export const useSuppliersStore = defineStore('suppliers', () => {
   function asList(payload) {
     if (Array.isArray(payload)) return payload
     if (Array.isArray(payload?.rows)) return payload.rows
+    if (Array.isArray(payload?.suppliers)) return payload.suppliers
+    if (Array.isArray(payload?.data?.suppliers)) return payload.data.suppliers
     return []
+  }
+
+  function normalizeSupplier(item = {}) {
+    return {
+      ...item,
+      status: item.status || 'active'
+    }
   }
 
   async function fetchSuppliers() {
     loading.value = true
     try {
       if (USE_MOCK) {
-        suppliers.value = [...mockData]
+        suppliers.value = [...mockData].map(normalizeSupplier)
         return
       }
       const res = await api.get('/suppliers')
-      suppliers.value = asList(getResponseData(res, []))
+      const payload = getResponseData(res, res?.data)
+      suppliers.value = asList(payload).map(normalizeSupplier)
     } catch (error) {
-      if (USE_MOCK) suppliers.value = [...mockData]
+      if (USE_MOCK) suppliers.value = [...mockData].map(normalizeSupplier)
+      else if (error?.response?.status === 404) suppliers.value = []
       else throw error
     } finally {
       loading.value = false
@@ -43,32 +54,38 @@ export const useSuppliersStore = defineStore('suppliers', () => {
 
   async function addSupplier(payload) {
     if (USE_MOCK) {
-      suppliers.value.push({ ...payload, id: Date.now() })
+      suppliers.value.push(normalizeSupplier({ ...payload, id: Date.now() }))
       return
     }
     const mapped = {
       ...payload,
-      code: payload.code || `SUP-${Date.now().toString().slice(-6)}`
+      code: payload.code || `SUP-${Date.now().toString().slice(-6)}`,
+      email: String(payload.email || '').trim() || null
     }
-    const res = await api.post('/suppliers', mapped)
-    suppliers.value.push(getResponseData(res, mapped))
+    await api.post('/suppliers', mapped)
+    await fetchSuppliers()
   }
 
   async function updateSupplier(payload) {
     if (USE_MOCK) {
       const i = suppliers.value.findIndex(s => s.id === payload.id)
-      if (i !== -1) suppliers.value[i] = payload
+      if (i !== -1) suppliers.value[i] = normalizeSupplier(payload)
       return
     }
-    const res = await api.patch(`/suppliers/${payload.id}`, payload)
-    const updated = getResponseData(res, payload)
-    const i = suppliers.value.findIndex(s => s.id === payload.id)
-    if (i !== -1) suppliers.value[i] = updated
+    await api.patch(`/suppliers/${payload.id}`, {
+      ...payload,
+      email: String(payload.email || '').trim() || null
+    })
+    await fetchSuppliers()
   }
 
   async function deleteSupplier(id) {
     if (!USE_MOCK) await api.delete(`/suppliers/${id}`)
-    suppliers.value = suppliers.value.filter(s => s.id !== id)
+    if (USE_MOCK) {
+      suppliers.value = suppliers.value.filter(s => s.id !== id)
+      return
+    }
+    await fetchSuppliers()
   }
 
   return { suppliers, loading, fetchSuppliers, addSupplier, updateSupplier, deleteSupplier }

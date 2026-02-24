@@ -74,6 +74,7 @@ export const useWarehouseStore = defineStore('warehouses', () => {
       warehouses.value = asList(getResponseData(res, [])).map(normalizeWarehouse)
     } catch (error) {
       if (USE_MOCK) warehouses.value = mockData.map(normalizeWarehouse)
+      else if (error?.response?.status === 404) warehouses.value = []
       else throw error
     } finally {
       loading.value = false

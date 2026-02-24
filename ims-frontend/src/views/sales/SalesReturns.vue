@@ -8,15 +8,8 @@ import { getResponseData } from '@/services/api'
    AUTH & RBAC
 ========================= */
 const auth = useAuthStore()
-const role = computed(() => auth.user?.role || '')
-
-const canCreate = computed(() =>
-  role.value === 'sale' || role.value === 'sales'
-)
-
-const canApprove = computed(() =>
-  role.value === 'admin' || role.value === 'owner' || role.value === 'superadmin'
-)
+const canCreate = computed(() => auth.hasPermission('sale-return.create') || auth.hasPermission('sales.create'))
+const canApprove = computed(() => auth.hasPermission('sale-return.approve') || auth.hasPermission('sales.update'))
 
 /* =========================
    STATE
