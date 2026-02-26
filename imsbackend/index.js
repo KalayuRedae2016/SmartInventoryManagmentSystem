@@ -153,10 +153,15 @@ app.use((req, res, next) => {
 app.use('/api/ims/auth',authRouter);
 
 app.use('/api/ims/business',bussinessRouter);
-app.use('/api/ims/roles',roleRouter);
 app.use('/api/ims/warehouses',wharehouseRouter);
 
+app.use('/api/ims/roles',roleRouter);
+app.use('/api/ims/permissions',permissionRouter)
+app.use('/api/ims/role-permissions',rolePermissionRouter)
+
+
 app.use('/api/ims/users',userRouter);
+app.use('/api/ims/user-permissions',userPermissionRouter)
 
   //Swagger UI setup
 app.use('/api/ims/categories',categoryRouter);

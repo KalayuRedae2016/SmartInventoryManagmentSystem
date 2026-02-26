@@ -7,6 +7,7 @@ const AppError = require('../utils/appError');
 const getBusinessId = () => 1;
 
 exports.createPermission = catchAsync(async (req, res, next) => {
+  console.log("requeste Permission Body",req.body)
   const { name, key, module, description } = req.body;
   if (!name || !key || !module) {
     return next(new AppError('name, key, and module are required', 400));

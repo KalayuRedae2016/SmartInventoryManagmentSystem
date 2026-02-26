@@ -13,12 +13,7 @@ router.use(function (req, res, next) {
   next();
 });
 
-
-
-// Only admin users can manage permissions
 router.use(authenticationJwt);
-// router.use(requirePermission('role:manage'));
-
 
 router.route('/')
   .post(requirePermission('permission:create'), permissionController.createPermission)
