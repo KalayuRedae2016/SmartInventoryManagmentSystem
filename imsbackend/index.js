@@ -16,7 +16,7 @@ const wharehouseRouter = require('./routes/wharehouseRoutes');
 
 const authRouter = require('./routes/authRoutes');
 const roleRouter=require("./routes/roleRoutes");
-const permissionRouter=require("./routes/rolePermissionRoutes")
+const permissionRouter=require("./routes/permissionRoutes")
 const rolePermissionRouter=require("./routes/rolePermissionRoutes")
 
 const userRouter = require('./routes/userRoutes');

@@ -18,10 +18,11 @@ router.use(authenticationJwt);
 router.route('/')
   .post(requirePermission('permission:create'), permissionController.createPermission)
   .get(requirePermission('permission:view'), permissionController.getPermissions)
-  .delete(requirePermission('permission:delete'), permissionController.deletePermission);
+  // .delete(requirePermission('permission:delete'), permissionController.deleteAllPermission);
 
 router.route('/:permissionId')
   .get(requirePermission('permission:view'), permissionController.getPermission)
-  .patch(requirePermission('permission:update'), permissionController.updatePermission);
+  .patch(requirePermission('permission:update'), permissionController.updatePermission)
+  .delete(requirePermission('permission:delete'), permissionController.deletePermission);
 
 module.exports = router;

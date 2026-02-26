@@ -14,9 +14,16 @@ exports.assignPermissionsToUser = catchAsync(async (req, res, next) => {
 
 exports.getUserPermissions = catchAsync(async (req, res, next) => {
   const { userId } = req.params;
+  console.log("user id ",req.params)
   const user = await User.findOne({ where: { id: userId, businessId: req.user.businessId }, include: [{ model: Permission, as: 'permissions' }] });
   if (!user) return next(new AppError('User not found', 404));
-  res.status(200).json({ status: 1, data: user.permissions });
+
+  res.status(200).json({ 
+    Error:false,
+    status: 1,
+    message:"user Permissions Fetched Succefffullly",
+    result:user.length,
+    data: user.permissions });
 });
 
 exports.removePermissionFromUser = catchAsync(async (req, res, next) => {

@@ -14,6 +14,8 @@ router.use(function (req, res, next) {
   next();
 });
 
+router.use(authenticationJwt)
+
 router.route('/')
   .post(requirePermission('user:update'), userPermissionController.assignPermissionsToUser)
   .delete(requirePermission('user:update'), userPermissionController.removePermissionFromUser);

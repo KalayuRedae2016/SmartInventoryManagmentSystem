@@ -13,14 +13,15 @@ router.use(function (req, res, next) {
   next();
 });
 
+router.use(authenticationJwt);
 
 router.route('/')
+  // .get(requirePermission('role:update'), rolePermissionController.getrolePermissions)
   .post(requirePermission('role:update'), rolePermissionController.assignPermissionsToRole)
-  .delete(requirePermission('role:update'), rolePermissionController.removePermissionFromRole);
+  .delete(requirePermission('role:update'), rolePermissionController.removePermissionFromRole);//Remove single permission from role
 
 router.route('/:roleId')
-  .get(requirePermission('role:view'), rolePermissionController.getRolePermissions);
+  .get(requirePermission("role:view"),rolePermissionController.getRolePermissions)
+  .delete(requirePermission('role:update'), rolePermissionController.clearRolePermissions);//Remove all permissions from role
 
 module.exports = router;
-
-module.exports=router

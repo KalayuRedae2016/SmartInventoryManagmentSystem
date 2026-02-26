@@ -102,12 +102,13 @@ const normalizePermissions = (permissions) => {
 
 exports.requirePermission = (requiredPermissions, options = { mode: 'any' }) => {
   return (req, res, next) => {
+    console.log("req.user",req.user.roleCode)
     if (!req.user) {
       return res.status(401).json({ status: 0, message: 'Authorization data missing' });
     }
 
     // ✅ Owner or SuperAdmin bypass
-    if (req.user.Role?.code === 'owner' || req.user.Role?.code === 'superAdmin') {
+    if (req.user.roleCode=== 'owner' || req.user.roleCode === 'superAdmin') {
       return next();
     }
 
@@ -175,6 +176,7 @@ if (!user || !user.role) {
   return next(new AppError('User no longer exists', 401));
 }
 
+
 req.user = {
   id: user.id,
   businessId: user.businessId,
@@ -183,6 +185,7 @@ req.user = {
   permissions: user.role.permissions ? user.role.permissions.map(p => p.key) : []
 };
 
+// console.log("requestedUsers",req.user)
   next();
 };
 
