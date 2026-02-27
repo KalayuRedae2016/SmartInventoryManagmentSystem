@@ -145,6 +145,13 @@
       </template>
     </Modal>
 
+    <Modal
+      v-model:show="confirmVisible"
+      :title="confirmTitle"
+      type="confirm"
+      @confirm="confirmDelete"
+    />
+
     <div v-if="viewModalVisible" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div class="bg-white rounded shadow w-full max-w-lg">
         <div class="px-4 py-3 border-b">
@@ -195,6 +202,8 @@ const viewUser = reactive({})
 const profilePreviewUrl = ref('')
 
 const modalVisible = ref(false)
+const confirmVisible = ref(false)
+const rowToDelete = ref(null)
 const form = reactive({
   id: null,
   name: '',
@@ -428,8 +437,20 @@ async function saveUser(formData) {
 }
 
 async function deleteUser(user) {
-  await api.delete(`/users/${user.id}`)
+  rowToDelete.value = user
+  confirmVisible.value = true
+}
+
+const confirmTitle = computed(() => {
+  const name = rowToDelete.value?.name ? `"${rowToDelete.value.name}"` : null
+  return name ? `Delete user ${name}?` : 'Delete this user?'
+})
+
+async function confirmDelete() {
+  if (!rowToDelete.value) return
+  await api.delete(`/users/${rowToDelete.value.id}`)
   await fetchUsers()
+  rowToDelete.value = null
 }
 
 async function toggleUserStatus(user) {

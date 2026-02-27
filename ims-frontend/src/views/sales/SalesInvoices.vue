@@ -50,14 +50,22 @@
         </tr>
       </tbody>
     </table>
+
+    <Modal
+      v-model:show="confirmVisible"
+      :title="confirmTitle"
+      type="confirm"
+      @confirm="confirmDelete"
+    />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useSalesStore } from '@/stores/sales'
 import { useAuthStore } from '@/stores/auth'
+import Modal from '@/components/Modal.vue'
 
 const store = useSalesStore()
 const invoices = computed(() => store.sales)
@@ -66,6 +74,8 @@ const canCreate = computed(() => auth.hasPermission('sales.create'))
 const canView = computed(() => auth.hasPermission('sales.view'))
 const canUpdate = computed(() => auth.hasPermission('sales.update'))
 const canDelete = computed(() => auth.hasPermission('sales.delete'))
+const confirmVisible = ref(false)
+const rowToDelete = ref(null)
 
 onMounted(() => {
   store.fetchSales()
@@ -77,8 +87,19 @@ function formatDate(value) {
 }
 
 async function deleteInvoice(invoice) {
-  if (!confirm(`Delete invoice ${invoice.invoiceNumber || invoice.id}?`)) return
-  await store.deleteSale(invoice.id)
+  rowToDelete.value = invoice
+  confirmVisible.value = true
+}
+
+const confirmTitle = computed(() => {
+  const label = rowToDelete.value?.invoiceNumber || rowToDelete.value?.id
+  return label ? `Delete invoice ${label}?` : 'Delete this invoice?'
+})
+
+async function confirmDelete() {
+  if (!rowToDelete.value) return
+  await store.deleteSale(rowToDelete.value.id)
+  rowToDelete.value = null
 }
 </script>
 

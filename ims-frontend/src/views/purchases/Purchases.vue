@@ -56,14 +56,22 @@
       </table>
       <div v-if="loading" class="p-4 text-center text-purple-800">Loading...</div>
     </div>
+
+    <Modal
+      v-model:show="confirmVisible"
+      :title="confirmTitle"
+      type="confirm"
+      @confirm="confirmDelete"
+    />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { usePurchasesStore } from '@/stores/purchases'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import Modal from '@/components/Modal.vue'
 
 const purchasesStore = usePurchasesStore()
 const purchases = computed(() => purchasesStore.purchases)
@@ -73,13 +81,27 @@ const canCreate = computed(() => auth.hasPermission('purchases.create'))
 const canView = computed(() => auth.hasPermission('purchases.view'))
 const canUpdate = computed(() => auth.hasPermission('purchases.update'))
 const canDelete = computed(() => auth.hasPermission('purchases.delete'))
+const confirmVisible = ref(false)
+const rowToDelete = ref(null)
 
 onMounted(() => {
   purchasesStore.fetchPurchases()
 })
 
-async function deletePurchase(id) {
-  await purchasesStore.deletePurchase(id)
+function deletePurchase(id) {
+  rowToDelete.value = purchases.value.find(p => p.id === id) || { id }
+  confirmVisible.value = true
+}
+
+const confirmTitle = computed(() => {
+  const id = rowToDelete.value?.id
+  return id ? `Delete purchase #${id}?` : 'Delete this purchase?'
+})
+
+async function confirmDelete() {
+  if (!rowToDelete.value) return
+  await purchasesStore.deletePurchase(rowToDelete.value.id)
+  rowToDelete.value = null
 }
 
 const statusClass = status => ({

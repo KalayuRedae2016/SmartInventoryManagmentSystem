@@ -44,7 +44,8 @@ const props = defineProps({
   title: { type: String, default: 'Modal' },
   modelValue: { type: Object, default: () => ({}) },
   maxWidth: { type: String, default: 'max-w-lg' },
-  type: { type: String, default: 'form' } // 'form' or 'confirm'
+  type: { type: String, default: 'form' }, // 'form' or 'confirm'
+  closeOnSubmit: { type: Boolean, default: true }
 })
 
 const emits = defineEmits(['update:show', 'submit', 'confirm'])
@@ -52,9 +53,13 @@ const emits = defineEmits(['update:show', 'submit', 'confirm'])
 const isForm = props.type === 'form'
 const formData = reactive({ ...props.modelValue })
 
-watch(() => props.modelValue, val => {
+watch(
+  () => props.modelValue,
+  val => {
   Object.assign(formData, val)
-})
+  },
+  { deep: true }
+)
 
 function close() {
   emits('update:show', false)
@@ -62,7 +67,7 @@ function close() {
 
 function submit() {
   emits('submit', { ...formData })
-  close()
+  if (props.closeOnSubmit) close()
 }
 
 function confirm() {

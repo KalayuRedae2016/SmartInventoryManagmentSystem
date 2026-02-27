@@ -36,14 +36,21 @@
     <!-- Add/Edit Modal -->
     <Modal
       v-model:show="modalVisible"
-      :title="editItem ? 'Edit Warehouse' : 'Add Warehouse'"
+      :title="editItem.id ? 'Edit Warehouse' : 'Add Warehouse'"
       :modelValue="editItem"
       type="form"
       @submit="saveWarehouse"
     >
       <template #default="{ formData }">
         <div class="space-y-2">
-          <input v-model.number="formData.id" type="number" placeholder="ID (INT)" class="w-full border px-2 py-1 rounded" />
+          <input
+            v-if="isValidId(formData.id)"
+            v-model.number="formData.id"
+            type="number"
+            placeholder="ID (INT)"
+            class="w-full border px-2 py-1 rounded bg-gray-100"
+            readonly
+          />
           <input v-model.number="formData.businessId" type="number" placeholder="Business ID (INT)" class="w-full border px-2 py-1 rounded" />
           <input v-model="formData.name" placeholder="Name" class="w-full border px-2 py-1 rounded" />
           <input v-model="formData.code" placeholder="Code" class="w-full border px-2 py-1 rounded" />
@@ -174,7 +181,7 @@ async function saveWarehouse(item) {
     createdAt: toIsoIfLocal(item.createdAt),
     updatedAt: toIsoIfLocal(item.updatedAt)
   }
-  if (item.id) await store.updateWarehouse(payload)
+  if (isValidId(item.id)) await store.updateWarehouse(payload)
   else await store.addWarehouse(payload)
 }
 
@@ -210,6 +217,11 @@ function toIsoIfLocal(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toISOString()
+}
+
+function isValidId(value) {
+  const asNumber = Number(value)
+  return Number.isFinite(asNumber) && asNumber > 0
 }
 </script>
 

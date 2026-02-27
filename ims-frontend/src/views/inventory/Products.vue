@@ -72,9 +72,10 @@
     <!-- Add/Edit Modal -->
     <Modal
       v-model:show="modalVisible"
-      :title="editItem ? 'Edit Product' : 'Add Product'"
+      :title="isValidId(editItem.id) ? 'Edit Product' : 'Add Product'"
       :modelValue="editItem"
       type="form"
+      :closeOnSubmit="false"
       @submit="saveProduct"
     >
       <template #default="{ formData }">
@@ -130,6 +131,7 @@
           <div v-if="Array.isArray(formData.imagePreviews) && formData.imagePreviews.length" class="flex flex-wrap gap-2">
             <img v-for="(src, i) in formData.imagePreviews" :key="`${src}-${i}`" :src="src" alt="" class="w-16 h-16 object-cover rounded border" />
           </div>
+          <p v-if="productError" class="text-sm text-red-600">{{ productError }}</p>
         </div>
       </template>
     </Modal>
@@ -182,6 +184,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import DataTable from '@/components/DataTable.vue'
 import Modal from '@/components/Modal.vue'
 import { useProductsStore } from '@/stores/products'
@@ -190,7 +193,7 @@ import { useUnitsStore } from '@/stores/units'
 import { useBrandsStore } from '@/stores/brands'
 
 const store = useProductsStore()
-const products = store.products
+const { products } = storeToRefs(store)
 const categoriesStore = useCategoriesStore()
 const unitsStore = useUnitsStore()
 const brandsStore = useBrandsStore()
@@ -225,14 +228,14 @@ function removeFilter(index) {
 const fieldValuesMap = computed(() => {
   const map = {}
   for (const col of columns) {
-    const values = new Set(products.map(p => String(p[col] ?? '')))
+    const values = new Set(products.value.map(p => String(p[col] ?? '')))
     map[col] = Array.from(values).filter(v => v !== '').sort()
   }
   return map
 })
 
 const filteredProducts = computed(() => {
-  return products.filter(p => {
+  return products.value.filter(p => {
     return filters.value.every(f => {
       if (!f.field || !f.value) return true
       return String(p[f.field] ?? '') === f.value
@@ -246,12 +249,14 @@ const confirmVisible = ref(false)
 const viewModalVisible = ref(false)
 const editItem = reactive({})
 const viewItem = reactive({})
+const productError = ref('')
 
 // Selected row for deletion
 let rowToDelete = null
 
 // Open modals
 function openAddModal() {
+  productError.value = ''
   Object.assign(editItem, {
     id: null,
     businessId: 1,
@@ -276,6 +281,7 @@ function openAddModal() {
 }
 
 function openEditModal(row) {
+  productError.value = ''
   Object.assign(editItem, {
     ...row,
     partNumber: row.partNumber || '',
@@ -314,15 +320,34 @@ function onProductImagesSelected(event, formData) {
 
 // Actions
 async function saveProduct(product) {
+  productError.value = ''
   if (!String(product.name || '').trim()) {
-    alert('Name is required.')
+    productError.value = 'Name is required.'
     return
   }
-  const index = products.findIndex(p => p.id === product.id)
-  if (index >= 0) {
-    await store.updateProduct(product)
-  } else {
-    await store.addProduct(product)
+  if (!isValidId(product.categoryId)) {
+    productError.value = 'Category is required.'
+    return
+  }
+  if (!isValidId(product.brandId)) {
+    productError.value = 'Brand is required.'
+    return
+  }
+  if (!isValidId(product.unitId)) {
+    productError.value = 'Unit is required.'
+    return
+  }
+  try {
+    if (isValidId(product.id)) {
+      await store.updateProduct(product)
+    } else {
+      await store.addProduct(product)
+    }
+    await store.fetchProducts()
+    modalVisible.value = false
+  } catch (error) {
+    productError.value = error?.response?.data?.message || error?.message || 'Unable to save product'
+    modalVisible.value = true
   }
 }
 
@@ -335,6 +360,11 @@ function deleteProduct() {
 
 function exportData(format) {
   alert(`Exporting ${format}. Implement export logic.`)
+}
+
+function isValidId(value) {
+  const asNumber = Number(value)
+  return Number.isFinite(asNumber) && asNumber > 0
 }
 </script>
 

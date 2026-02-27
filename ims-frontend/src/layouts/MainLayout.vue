@@ -303,6 +303,7 @@
                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 type="password"
                 autocomplete="new-password"
+                @paste.prevent
               />
             </div>
             <p v-if="passwordError" class="text-sm text-red-600">{{ passwordError }}</p>
@@ -461,8 +462,8 @@ function openPasswordModal() {
   isPasswordModalOpen.value = true
 }
 
-function closePasswordModal() {
-  if (isPasswordSaving.value) return
+function closePasswordModal(force = false) {
+  if (isPasswordSaving.value && !force) return
   clearPasswordFeedback()
   resetPasswordForm()
   isPasswordModalOpen.value = false
@@ -549,7 +550,7 @@ async function submitPasswordUpdate() {
   isPasswordSaving.value = true
   try {
     await auth.updatePassword({ currentPassword, newPassword })
-    closePasswordModal()
+    closePasswordModal(true)
     showPasswordSuccess('Password updated successfully.')
   } catch (error) {
     passwordError.value = error?.message || 'Unable to update password.'

@@ -64,6 +64,13 @@
       </template>
     </Modal>
 
+    <Modal
+      v-model:show="confirmVisible"
+      :title="confirmTitle"
+      type="confirm"
+      @confirm="confirmDelete"
+    />
+
     <div v-if="showViewModal" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div class="bg-white rounded shadow w-full max-w-lg">
         <div class="px-4 py-3 border-b">
@@ -87,7 +94,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import DataTable from '@/components/DataTable.vue'
 import Modal from '@/components/Modal.vue'
 import { useCategoriesStore } from '@/stores/categories'
@@ -96,8 +103,10 @@ const store = useCategoriesStore()
 
 const showModal = ref(false)
 const showViewModal = ref(false)
+const confirmVisible = ref(false)
 const editingId = ref(null)
 const viewItem = reactive({})
+const rowToDelete = ref(null)
 
 const form = reactive({
   id: null,
@@ -144,6 +153,11 @@ function closeView() {
   showViewModal.value = false
 }
 
+const confirmTitle = computed(() => {
+  const name = rowToDelete.value?.name ? `"${rowToDelete.value.name}"` : 'this category'
+  return `Delete ${name}?`
+})
+
 async function save(formData) {
   if (!String(formData.name || '').trim()) {
     alert('Name is required.')
@@ -176,12 +190,19 @@ async function save(formData) {
   }
 }
 
-async function remove(row) {
-  if (!confirm(`Delete category "${row.name}"?`)) return
+function remove(row) {
+  rowToDelete.value = row
+  confirmVisible.value = true
+}
+
+async function confirmDelete() {
+  if (!rowToDelete.value) return
   try {
-    await store.deleteCategory(row.id)
+    await store.deleteCategory(rowToDelete.value.id)
   } catch (error) {
     alert(error?.response?.data?.message || error?.message || 'Unable to delete category')
+  } finally {
+    rowToDelete.value = null
   }
 }
 

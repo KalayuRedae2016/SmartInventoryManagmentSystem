@@ -58,17 +58,17 @@
       type="form"
       @submit="saveCustomer"
     >
-      <template #default="{ formData }">
+      <template #default>
         <div class="space-y-2">
-          <input v-model="formData.code" placeholder="Code" class="w-full border px-2 py-1 rounded" />
-          <input v-model="formData.name" placeholder="Customer Name" class="w-full border px-2 py-1 rounded" />
-          <input v-model="formData.phone" placeholder="Phone Number" class="w-full border px-2 py-1 rounded" />
-          <input v-model="formData.email" placeholder="Email (optional)" class="w-full border px-2 py-1 rounded" />
-          <input v-model="formData.country" placeholder="Country" class="w-full border px-2 py-1 rounded" />
-          <input v-model="formData.city" placeholder="City" class="w-full border px-2 py-1 rounded" />
-          <input v-model="formData.address" placeholder="Address" class="w-full border px-2 py-1 rounded" />
-          <input v-model="formData.taxNumber" placeholder="Tax Number" class="w-full border px-2 py-1 rounded" />
-          <textarea v-model="formData.additionalInfo" placeholder="Additional Info" rows="3" class="w-full border px-2 py-1 rounded"></textarea>
+          <input v-model="form.code" placeholder="Code" class="w-full border px-2 py-1 rounded" />
+          <input v-model="form.name" placeholder="Customer Name" class="w-full border px-2 py-1 rounded" />
+          <input v-model="form.phone" placeholder="Phone Number" class="w-full border px-2 py-1 rounded" />
+          <input v-model="form.email" placeholder="Email (optional)" class="w-full border px-2 py-1 rounded" />
+          <input v-model="form.country" placeholder="Country" class="w-full border px-2 py-1 rounded" />
+          <input v-model="form.city" placeholder="City" class="w-full border px-2 py-1 rounded" />
+          <input v-model="form.address" placeholder="Address" class="w-full border px-2 py-1 rounded" />
+          <input v-model="form.taxNumber" placeholder="Tax Number" class="w-full border px-2 py-1 rounded" />
+          <textarea v-model="form.additionalInfo" placeholder="Additional Info" rows="3" class="w-full border px-2 py-1 rounded"></textarea>
           <input type="file" accept="image/*" class="w-full border px-2 py-1 rounded" @change="onProfileImageSelected" />
           <img
             v-if="profilePreviewUrl"
@@ -76,7 +76,7 @@
             alt="Profile preview"
             class="w-16 h-16 rounded-full object-cover border"
           />
-          <select v-model="formData.status" class="w-full border px-2 py-1 rounded">
+          <select v-model="form.status" class="w-full border px-2 py-1 rounded">
             <option value="active">active</option>
             <option value="inactive">inactive</option>
           </select>
@@ -201,13 +201,13 @@ function onProfileImageSelected(event) {
   profilePreviewUrl.value = file ? URL.createObjectURL(file) : ''
 }
 
-async function saveCustomer(formData) {
+async function saveCustomer() {
   if (!canCreate.value && !canUpdate.value) {
     alert('You do not have permission to save customers.')
     return
   }
   try {
-    if (!String(formData.name || '').trim()) {
+    if (!String(form.name || '').trim()) {
       alert('Customer name is required.')
       return
     }
@@ -215,33 +215,33 @@ async function saveCustomer(formData) {
     if (editingId.value) {
       await store.updateCustomer({
         id: editingId.value,
-        code: String(formData.code || '').trim(),
-        name: String(formData.name || '').trim(),
-        phone: String(formData.phone || '').trim(),
-        email: String(formData.email || '').trim(),
-        country: String(formData.country || '').trim(),
-        city: String(formData.city || '').trim(),
-        address: String(formData.address || '').trim(),
-        taxNumber: String(formData.taxNumber || '').trim(),
-        additionalInfo: String(formData.additionalInfo || '').trim(),
+        code: String(form.code || '').trim(),
+        name: String(form.name || '').trim(),
+        phone: String(form.phone || '').trim(),
+        email: String(form.email || '').trim(),
+        country: String(form.country || '').trim(),
+        city: String(form.city || '').trim(),
+        address: String(form.address || '').trim(),
+        taxNumber: String(form.taxNumber || '').trim(),
+        additionalInfo: String(form.additionalInfo || '').trim(),
         profileImage: form.profileImage,
-        status: formData.status || 'active'
+        status: form.status || 'active'
       })
       return
     }
 
     await store.addCustomer({
-      code: String(formData.code || '').trim() || `CUS-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      name: String(formData.name || '').trim(),
-      phone: String(formData.phone || '').trim(),
-      email: String(formData.email || '').trim(),
-      country: String(formData.country || '').trim(),
-      city: String(formData.city || '').trim(),
-      address: String(formData.address || '').trim(),
-      taxNumber: String(formData.taxNumber || '').trim(),
-      additionalInfo: String(formData.additionalInfo || '').trim(),
+      code: String(form.code || '').trim() || `CUS-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      name: String(form.name || '').trim(),
+      phone: String(form.phone || '').trim(),
+      email: String(form.email || '').trim(),
+      country: String(form.country || '').trim(),
+      city: String(form.city || '').trim(),
+      address: String(form.address || '').trim(),
+      taxNumber: String(form.taxNumber || '').trim(),
+      additionalInfo: String(form.additionalInfo || '').trim(),
       profileImage: form.profileImage,
-      status: formData.status || 'active'
+      status: form.status || 'active'
     })
   } catch (error) {
     const status = error?.response?.status

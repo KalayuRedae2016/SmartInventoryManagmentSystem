@@ -6,6 +6,7 @@ import { useStockStore } from '@/stores/stock'
 import { useWarehouseStore } from '@/stores/warehouse'
 import { useProductsStore } from '@/stores/products'
 import api, { getResponseData } from '@/services/api'
+import Modal from '@/components/Modal.vue'
 
 const auth = useAuthStore()
 const adjustments = ref([])
@@ -14,6 +15,8 @@ const showForm = ref(false)
 const viewModalVisible = ref(false)
 const viewItem = ref(null)
 const formError = ref('')
+const confirmVisible = ref(false)
+const rowToDelete = ref(null)
 
 const stockStore = useStockStore()
 const warehouseStore = useWarehouseStore()
@@ -89,14 +92,26 @@ function openViewModal(item) {
   viewModalVisible.value = true
 }
 
-async function deleteAdjustment(item) {
-  if (!confirm(`Delete stock adjustment #${item.id}?`)) return
+function deleteAdjustment(item) {
+  rowToDelete.value = item
+  confirmVisible.value = true
+}
+
+const confirmTitle = computed(() => {
+  const id = rowToDelete.value?.id
+  return id ? `Delete stock adjustment #${id}?` : 'Delete this stock adjustment?'
+})
+
+async function confirmDelete() {
+  if (!rowToDelete.value) return
   try {
-    await api.delete(`/stock-adjustments/${item.id}`)
+    await api.delete(`/stock-adjustments/${rowToDelete.value.id}`)
     await fetchAdjustments()
     await stockStore.fetchStock()
   } catch (error) {
     formError.value = error?.response?.data?.message || error?.message || 'Unable to delete adjustment.'
+  } finally {
+    rowToDelete.value = null
   }
 }
 
@@ -169,6 +184,13 @@ function formatDate(value) {
         </tbody>
       </table>
     </div>
+
+    <Modal
+      v-model:show="confirmVisible"
+      :title="confirmTitle"
+      type="confirm"
+      @confirm="confirmDelete"
+    />
 
     <div v-if="viewModalVisible && viewItem" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div class="bg-white rounded shadow w-full max-w-lg">
