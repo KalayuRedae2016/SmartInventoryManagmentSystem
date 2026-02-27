@@ -1,0 +1,15 @@
+get:
+  summary: Get all roles
+  tags:
+    - Roles
+  responses:
+    '200':
+      description: List of roles
+
+post:
+  summary: Create role
+  tags:
+    - Roles
+  responses:
+    '201':
+      description: Role created

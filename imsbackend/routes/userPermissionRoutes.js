@@ -17,10 +17,13 @@ router.use(function (req, res, next) {
 router.use(authenticationJwt)
 
 router.route('/')
-  .post(requirePermission('user:update'), userPermissionController.assignPermissionsToUser)
-  .delete(requirePermission('user:update'), userPermissionController.removePermissionFromUser);
+  // .post(requirePermission('user:update'), userPermissionController.assignPermissionsToUser)
+  // .delete(requirePermission('user:update'), userPermissionController.removePermissionFromUser);
 
 router.route('/:userId')
-  .get(requirePermission('user:view'), userPermissionController.getUserPermissions);
+  .get(requirePermission('user:view'), userPermissionController.getUserPermissions)
+  .post(requirePermission('user:update'), userPermissionController.assignPermissionsToUser)
+  .delete(requirePermission('user:update'), userPermissionController.removePermissionFromUser)
+  
 
 module.exports = router;

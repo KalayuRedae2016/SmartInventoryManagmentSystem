@@ -40,29 +40,15 @@ exports.uploadFilesMiddleware = attachments.fields([
 exports.signup = catchAsync(async (req, res, next) => {
   console.log("registration request", req.body)
   console.log("profileImages", req.files)
-  const { fullName, phoneNumber, password, email, address} = req.body;
-  if (!fullName || !phoneNumber || !password) {
+  const { fullName, phoneNumber, roleId,password, email, address} = req.body;
+  if (!fullName ||!roleId|| !phoneNumber || !password) {
     return next(new AppError("missing required Fields(name,phone or password)", 404))
   }
-  // if (role=== "staff") {
-  //   if (!licenseNumber || !education || !specialization) {
-  //     return next(new AppError("Missing requred filds for Physician or Admin"))
-  //   }
-  // }
 
   let { profileImage, documents } = await processUploadFilesToSave(req, req.files, req.body)
   if(!profileImage){
   profileImage=`${req.protocol}://${req.get('host')}/uploads/default.png`;// full URL to default image
   }
-
-  console.log("User model:", User === undefined ? "Not loaded" : "Loaded");
-console.log("Testing table access...");
-try {
-  const test = await User.findAll({ limit: 1 });
-  console.log("Table exists, sample row:", test);
-} catch (err) {
-  console.error("Table access error:", err);
-}
 
   const existingUser = await User.findOne({ where: { phoneNumber } });
   if (existingUser) {
@@ -70,12 +56,12 @@ try {
     return (next(new AppError("PhoneNumber already in use", 404)))
   }
 
-  
+
   // const hashedPassword = await bcrypt.hash(password, 12);// Hash password see on hooks
 
   const newUser = await User.create({
     businessId: 1, // Default businessId, adjust as needed
-    roleId:1,
+    roleId:roleId,
     fullName,
     phoneNumber,
     email,

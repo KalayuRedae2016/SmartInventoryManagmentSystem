@@ -1,0 +1,15 @@
+get:
+  summary: Get all permissions
+  tags:
+    - Permissions
+  responses:
+    '200':
+      description: List of permissions
+
+post:
+  summary: Create permission
+  tags:
+    - Permissions
+  responses:
+    '201':
+      description: Permission created

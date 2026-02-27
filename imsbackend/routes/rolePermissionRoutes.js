@@ -17,11 +17,13 @@ router.use(authenticationJwt);
 
 router.route('/')
   // .get(requirePermission('role:update'), rolePermissionController.getrolePermissions)
-  .post(requirePermission('role:update'), rolePermissionController.assignPermissionsToRole)
-  .delete(requirePermission('role:update'), rolePermissionController.removePermissionFromRole);//Remove single permission from role
 
 router.route('/:roleId')
   .get(requirePermission("role:view"),rolePermissionController.getRolePermissions)
-  .delete(requirePermission('role:update'), rolePermissionController.clearRolePermissions);//Remove all permissions from role
+  .post(requirePermission('role:update'), rolePermissionController.assignPermissionsToRole)
+  .delete(requirePermission('role:update'), rolePermissionController.removePermissionFromRole);//Remove single or select permission from role
+
+router.route('/:roleId/clear')
+  .delete(requirePermission('role:update'), rolePermissionController.clearRolePermissions);//Remove all permission from role
 
 module.exports = router;

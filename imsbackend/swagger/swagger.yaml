@@ -1,0 +1,16 @@
+openapi: 3.0.0
+
+info:
+  title: Smart Inventory Management System
+  version: 1.0.0
+  description: API for managing roles and permissions
+
+servers:
+  - url: http://localhost:8083/api/ims
+
+paths:
+  /roles:
+    $ref: './paths/roles.yml'
+
+  /permissions:
+    $ref: './paths/permissions.yml'

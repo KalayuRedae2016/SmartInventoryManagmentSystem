@@ -1,6 +1,6 @@
 'use strict';
 
-const { Role,Us } = require('../models');
+const { Role,User } = require('../models');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const { search, get } = require('../routes/roleRoutes');
@@ -35,19 +35,24 @@ exports.createRole = catchAsync(async (req, res, next) => {
 });
 
 exports.getRoles = catchAsync(async (req, res, next) => {
-  const { search } = req.query;
+  const { search,isActive } = req.query;
   const whereClause = { businessId: req.user.businessId };
   if (search) {
     whereClause[Op.or] = [
       { name: { [Op.iLike]: `%${search}%` } },
-      { code: { [Op.iLike]: `%${search}%` } }
+      { code: { [Op.iLike]: `%${search}%` } },
+      { description: { [Op.iLike]: `%${search}%` } }
     ];
   }
+
+  if(isActive!==undefined) whereClause.isActive=isActive
   
   const roles = await Role.findAll({ where: whereClause });
 
   res.status(200).json({
+    error:false,
     status: 1,
+    message:"role fetched succeffully",
     results: roles.length,
     data: roles
   });
@@ -79,7 +84,7 @@ exports.updateRole = catchAsync(async (req, res, next) => {
   if (!role) {
     return next(new AppError('Role not found', 404));
   }
-
+  
   await role.update(req.body);
 
   res.status(200).json({
@@ -104,14 +109,14 @@ exports.deleteRole = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.deleteRoles = catchAsync(async (req, res, next) => {
-  await Role.destroy({ where: { businessId: req.user.businessId } });
+// exports.deleteRoles = catchAsync(async (req, res, next) => {
+//   await Role.destroy({ where: { businessId: req.user.businessId } });
 
-  res.status(200).json({
-    status: 1,
-    message: 'All roles deleted successfully'
-  });
-});
+//   res.status(200).json({
+//     status: 1,
+//     message: 'All roles deleted successfully'
+//   });
+// });
 
 exports.getUsersByRole = catchAsync(async (req, res, next) => {
   const roleId = Number(req.params.roleId);
@@ -123,36 +128,43 @@ exports.getUsersByRole = catchAsync(async (req, res, next) => {
     include: { model: User, as: 'users' }
   });
 
+  console.log("roles",role.dataValues)
   if (!role) {
     return next(new AppError('Role not found', 404));
   }
   res.status(200).json({
+    console:false,   
     status: 1,
+    message:"users by role fetched Scucefffully",
+    roleCode:role.code,
     data: role.users
   });
 });
 
 exports.assignUsersToRole = catchAsync(async (req, res, next) => {
+  
   const roleId = Number(req.params.roleId);
   const { userIds } = req.body;
 
   console.log(`Assigning users ${userIds} to role ID ${roleId}`);
-  if (isNaN(roleId)) {
-    return next(new AppError('Invalid role ID', 400));
-  } 
-  if (!Array.isArray(userIds)) {
-    return next(new AppError('userIds must be an array', 400));
-  }
+
+  if (isNaN(roleId))  return next(new AppError('Invalid role ID', 400));
+  if (!Array.isArray(userIds))   return next(new AppError('userIds must be an array', 400));
+  
   const role = await Role.findByPk(roleId);
-  if (!role) {
-    return next(new AppError('Role not found', 404));
+  if (!role)    return next(new AppError('Role not found', 404));
+  if(!role.isActive) return next(new AppError("Role status are not active",404))
+  console.log("roles",role)
+  if(role.code==="owner" ||role.code==="superAdmin"){
+    return next(new AppError(`${role.code} role can't assign to users`))
   }
-  await User.update({ roleId }, { where: { id: userIds } });
+
+ await User.update({ roleId }, { where: { id: userIds } });
 
   res.status(200).json({
     status: 1,
-    message: 'Users assigned to role successfully',
-    data: { roleId, userIds }
+    message: `Users assigned to ${role.code} role successfully`,
+    data: { roleCode:role.code,roleId, userIds }
   });
 });
 

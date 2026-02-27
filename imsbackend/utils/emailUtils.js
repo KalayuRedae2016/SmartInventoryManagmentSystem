@@ -37,33 +37,46 @@ exports.sendEmail = catchAsync(async (options) => {
 });
 
 exports.sendWelcomeEmail = async (user, password) => {
-  // const subject = defaultVariables.subject;
-  const subject='Welcome to Our Smart Inventory Managment System!'
+  const subject = 'Welcome to Smart Inventory Management System 🎉';
+
   const email = user.email;
-  const loginLink = process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:8083'
-    : 'https://grandinventory.com';
 
-  const message = `Hi ${user.fullName},
-  
-  Welcome to Our Platform! We're excited to have you on board.
-  
-  Here are your account details:
-  - FullName: ${user.fullName}
-  - Email: ${email}
-  - Password: ${password}
-  
-  Login here: ${loginLink}
-  
-  Please visit our platform to explore our Inventory Services.
-  If you have any questions or need assistance, feel free to contact our support team.
-  
-  Best regards,
-  Inventory managment Sysetem Group Team`;
+  const loginLink =
+    process.env.NODE_ENV === 'development'
+      ? 'http://localhost:8083'
+      : 'https://grandinventory.com';
 
-  // console.log("subb",subject,email,message)
+  const message = `
+Hi ${user.fullName},
+
+Welcome to the Smart Inventory Management System!
+
+Your account has been successfully created. Below are your login details:
+
+----------------------------------------
+Full Name : ${user.fullName}
+Email     : ${email}
+PhoneNumber  : ${user.phoneNumber}
+Password  : ${password}
+----------------------------------------
+
+🔐 For security reasons, we strongly recommend changing your password immediately after your first login.
+
+You can access your account here:
+${loginLink}
+
+With our system, you can manage inventory efficiently and securely.
+
+If you need any assistance, our support team is always ready to help.
+
+We’re excited to have you on board!
+
+Best regards,
+Smart Inventory Management System Team
+${loginLink}
+`;
+
   await exports.sendEmail({ email, subject, message });
-
 };
 
 exports.emailBusinessDetail = async (user, role,password) => {

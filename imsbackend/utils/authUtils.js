@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
 const catchAsync = require('./catchAsync');
-const { User, Role, Permission } = require('../models');
+const { User, Role, Permission,UserPermission,RolePermission } = require('../models');
 
 require('dotenv').config();
 
@@ -100,6 +100,15 @@ const normalizePermissions = (permissions) => {
   return [];
 };
 
+exports.requireRole = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.roleCode)) {
+      return next(new AppError('Access denied', 403));
+    }
+    next();
+  };
+};
+
 exports.requirePermission = (requiredPermissions, options = { mode: 'any' }) => {
   return (req, res, next) => {
     console.log("req.user",req.user.roleCode)
@@ -108,7 +117,7 @@ exports.requirePermission = (requiredPermissions, options = { mode: 'any' }) => 
     }
 
     // ✅ Owner or SuperAdmin bypass
-    if (req.user.roleCode=== 'owner' || req.user.roleCode === 'superAdmin') {
+    if (req.user.roleCode=== 'ownr' || req.user.roleCode === 'superAdmin') {
       return next();
     }
 
@@ -150,42 +159,113 @@ exports.requirePermissionOrSelf = (permission) => {
   };
 };
 
-exports.authenticationJwt = async (req, res, next) => {
-  console.log("auth reach")
-  let token;
+// exports.authenticationJwt = async (req, res, next) => {
+//   console.log("auth reach")
+//   let token;
 
-  if (req.headers.authorization &&req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  }
+//   if (req.headers.authorization &&req.headers.authorization.startsWith('Bearer')) {
+//     token = req.headers.authorization.split(' ')[1];
+//   }
 
-  if (!token) return next(new AppError('Not logged in', 401));
+//   if (!token) return next(new AppError('Not logged in', 401));
 
-  // console.log('Received token:', token);
+//   // console.log('Received token:', token);
   
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+// const decoded = jwt.verify(token, process.env.JWT_SECRET);
+// // console.log("decoded",decoded)
 
-const user = await User.findByPk(decoded.id, {
-  include: {
-    model: Role,
-    as: 'role',
-    include: { model: Permission, as: 'permissions' } // optional if you need permissions
+// const user = await User.findByPk(decoded.id, {
+//   include:[ {
+//     model: Role,
+//     as: 'role',
+//     include: { model: RolePermission, as: 'rolePermissions' } 
+//   },
+//    {
+//     model: UserPermission,
+//     as: 'userPermissions',
+//   }
+// ]
+// });
+
+// console.log("user::",user)
+
+// if (!user || !user.role) {
+//   return next(new AppError('User no longer exists', 401));
+// }
+
+// req.user = {
+//   id: user.id,
+//   businessId: user.businessId,
+//   roleId: user.roleId,
+//   roleCode: user.role.code,
+//   permissions: user.role.permissions ? user.role.permissions.map(p => p.key) : []
+// };
+
+// // console.log("requestedUsers",req.user)
+//   next();
+// };
+
+
+exports.authenticationJwt = async (req, res, next) => {
+  try {
+    let token;
+
+    if (req.headers.authorization &&req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+    if (!token)  return next(new AppError('Not logged in', 401));
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Load user with Role + RolePermissions + UserPermissions
+    const user = await User.findByPk(decoded.id, {
+      include: [
+        {
+          model: Role,
+          as: 'role',
+          include: [
+            {
+              model: Permission,
+              as: 'permissions',
+              through: { attributes: [] }
+            }
+          ]
+        },
+        {
+          model: Permission,
+          as: 'permissions',
+          through: { attributes: ['granted'] }
+        }
+      ]
+    });
+    // console.log("user::",user)
+
+    if (!user || !user.role)   return next(new AppError('User no longer exists', 401));
+    if (!user.isActive) {
+      return next(new AppError('User is inactive', 403));
+    }
+
+    const rolePermissions =user.role.permissions?.map(p => p.key) || [];
+    const userGrantedPermissions =user.permissions?.filter(p => p.UserPermission?.granted === true).map(p => p.key) || [];
+    const userRevokedPermissions =user.permissions?.filter(p => p.UserPermission?.granted === false).map(p => p.key) || [];
+    let mergedPermissions = [...new Set([...rolePermissions, ...userGrantedPermissions])];
+    mergedPermissions = mergedPermissions.filter(p => !userRevokedPermissions.includes(p));
+
+
+    req.user = {
+      id: user.id,
+      businessId: user.businessId,
+      roleId: user.roleId,
+      roleCode: user.role.code,
+      // rolePermissions:rolePermissions,
+      // userGrantedPermissions,
+      // userRevokedPermissions,
+      permissions: mergedPermissions
+    };
+
+    console.log("authenticated User",req.user)
+    next();
+  } catch (error) {
+    return next(new AppError('Invalid or expired token', 401));
   }
-});
-
-if (!user || !user.role) {
-  return next(new AppError('User no longer exists', 401));
-}
-
-
-req.user = {
-  id: user.id,
-  businessId: user.businessId,
-  roleId: user.roleId,
-  roleCode: user.role.code,
-  permissions: user.role.permissions ? user.role.permissions.map(p => p.key) : []
 };
-
-// console.log("requestedUsers",req.user)
-  next();
-};
-

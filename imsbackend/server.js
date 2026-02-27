@@ -24,13 +24,43 @@
 // });
 
 
-
 const https = require("https");
 const http = require("http");
 const fs = require("fs");
 const dotenv = require("dotenv");
+const path = require('path');
 const app = require("./index");
 const { connectDB, sequelize } = require("./config/db");
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require('swagger-jsdoc');
+
+const options = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Smart Inventory Management System',
+      version: '1.0.0',
+      description: 'API documentation'
+    },
+    servers: [
+      {
+        url: 'http://localhost:8083/api/ims'
+      }
+    ]
+  },
+  apis: ['./routes/**/*.js'], // 👈 VERY IMPORTANT
+};
+
+const swaggerSpec = swaggerJsdoc(options);
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+
+// const swaggerUi = require('swagger-ui-express');
+// const YAML = require('yamljs');
+
+// const swaggerDocument = YAML.load(path.join(__dirname, 'swagger/swagger.yaml'));
+// app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));// Swagger route
 
 //const { createDefaultAdminUser } = require("./utils/userUtils"); // Import the function
 // Load environment variables based on the NODE_ENV
@@ -42,8 +72,6 @@ const { formatDate } = require("./utils/dateUtils");
 dotenv.config({ path: envFile });
 
 connectDB();
-
-
 
 
 const initializeServer = async () => {
