@@ -93,48 +93,40 @@ exports.generateCode = async ({
 
 const normalizePermissions = (permissions) => {
   if (!permissions) return [];
-
   if (Array.isArray(permissions)) return permissions;
-
   if (typeof permissions === 'string') {
-    try {
-      return JSON.parse(permissions);
-    } catch {
-      return [];
-    }
+    try { return JSON.parse(permissions); } catch { return []; }
   }
-
   return [];
 };
 
 exports.requirePermission = (requiredPermissions, options = { mode: 'any' }) => {
   return (req, res, next) => {
+    console.log("req.user",req.user.roleCode)
     if (!req.user) {
-      return res.status(401).json({
-        status: 0,
-        message: 'Authorization data missing'
-      });
+      return res.status(401).json({ status: 0, message: 'Authorization data missing' });
     }
-    // const permissions = normalizePermissions(req.user.role?.permissions);
+
+    // ✅ Owner or SuperAdmin bypass
+    if (req.user.roleCode=== 'owner' || req.user.roleCode === 'superAdmin') {
+      return next();
+    }
+
+    // Normalize permissions
     const permissions = normalizePermissions(req.user.permissions);
     console.log('User permissions:', permissions);
 
-    // Super admin
+    // Super admin full wildcard bypass
     if (permissions.includes("*")) return next();
 
-    const required = Array.isArray(requiredPermissions)
-      ? requiredPermissions
-      : [requiredPermissions];
+    const required = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
 
-    const hasAccess =options.mode === 'all'
-        ? required.every(p => permissions.includes(p))
-        : required.some(p => permissions.includes(p));
+    const hasAccess = options.mode === 'all'
+      ? required.every(p => permissions.includes(p))
+      : required.some(p => permissions.includes(p));
 
     if (!hasAccess) {
-      return res.status(403).json({
-        status: 0,
-        message: 'Insufficient permissions'
-      });
+      return res.status(403).json({ status: 0, message: 'Insufficient permissions' });
     }
 
     next();
@@ -143,23 +135,23 @@ exports.requirePermission = (requiredPermissions, options = { mode: 'any' }) => 
 
 exports.requirePermissionOrSelf = (permission) => {
   return (req, res, next) => {
-    if (req.user && req.user.id === Number(req.params.id)) {
-      return next();
-    }
+    if (req.user && req.user.id === Number(req.params.id)) return next();
+
+    // Owner bypass
+    if (req.user.Role?.code === 'owner' || req.user.Role?.code === 'superAdmin') return next();
 
     const permissions = normalizePermissions(req.user.permissions);
 
     if (permissions.includes('*')) return next();
 
-    if (!permissions.includes(permission)) {
-      return next(new AppError('Insufficient permissions', 403));
-    }
+    if (!permissions.includes(permission)) return next(new AppError('Insufficient permissions', 403));
 
     next();
   };
 };
 
 exports.authenticationJwt = async (req, res, next) => {
+  console.log("auth reach")
   let token;
 
   if (req.headers.authorization &&req.headers.authorization.startsWith('Bearer')) {
@@ -172,23 +164,28 @@ exports.authenticationJwt = async (req, res, next) => {
   
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-  const user = await User.findByPk(decoded.id, {
-    include: { model: Role,as: 'role' }
-  });
-
-  if (!user || !user.role) {
-    return next(new AppError('User no longer exists', 401));
+const user = await User.findByPk(decoded.id, {
+  include: {
+    model: Role,
+    as: 'role',
+    include: { model: Permission, as: 'permissions' } // optional if you need permissions
   }
-  console.log('Authenticated user:',user.fullName, 'with role:', user.role.code,'and Permissions:', user.role.permissions);
+});
 
-  req.user = {
-    id: user.id,
-    businessId: user.businessId,
-    roleId: user.roleId,
-    roleCode: user.role.code,
-    permissions: user.role.permissions || []
-  };
+if (!user || !user.role) {
+  return next(new AppError('User no longer exists', 401));
+}
 
+
+req.user = {
+  id: user.id,
+  businessId: user.businessId,
+  roleId: user.roleId,
+  roleCode: user.role.code,
+  permissions: user.role.permissions ? user.role.permissions.map(p => p.key) : []
+};
+
+// console.log("requestedUsers",req.user)
   next();
 };
 

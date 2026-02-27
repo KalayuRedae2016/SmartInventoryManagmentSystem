@@ -82,12 +82,10 @@ Model:
     businessId(INT),
     name(STRING),
     code(STRING),
-    permissions(JSON),
     description(STRING),
     isActive(BOOLEAN),
     createdAt(DATETIME),
     updatedAt(DATETIME)
-
 Endpoints:
     GET    /roles
     POST   /roles
@@ -97,15 +95,83 @@ Endpoints:
     PATCH  /roles/:roleId
     DELETE /roles/:roleId
 
-    GET    /roles/roleId/users
-    POST   /roles/roleId/assign
+    GET    /roles/:roleId/users
+    POST   /roles/:roleId/assign
     PATCH  /roles/:roleId/status
+# Permission
+Model:
+    id(INT),
+    businessId(INT),
+    name(STRING),
+    key(STRING),
+    module(STRING),
+    description(STRING),
+    isActive(BOOLEAN),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+Endpoints:
+    GET    /permissions
+    POST   /permissions
+    DELETE /permissions
 
-Permissions:
-    role:create
-    role:view
-    role:delete
-    role:update
+    GET    /permissions/:permissionId
+    PATCH  /permissions/:permissionId
+    DELETE /permissions/:permissionId
+# RolePermission**
+Model:
+    id(INT),
+    roleId(INT),
+    permissionId(INT),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+Endpoints:
+    GET    /role-permissions
+    POST   /role-permissions
+    DELETE /role-permissions
+
+    GET    /role-permissions/:id
+    PATCH  /role-permissions/:id
+    DELETE /role-permissions/:id
+# UserPermission**
+Model:
+    id(INT),
+    userId(INT),
+    permissionId(INT),
+    granted(BOOLEAN),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+Endpoints:
+    GET    /user-permissions
+    POST   /user-permissions
+    DELETE /user-permissions
+
+    GET    /user-permissions/:id
+    PATCH  /user-permissions/:id
+    DELETE /user-permissions/:id
+
+    GET    /users/:userId/permissions
+    POST   /users/:userId/permissions/assign
+    PATCH  /users/:userId/permissions/:permissionId
+
+
+model
+    id(INT),
+    businessId(INT),
+    name(STRING),
+    key(STRING),
+    module(STRING),
+    description(STRING),
+    isActive(BOOLEAN),
+    createdAt(DATETIME),
+    updatedAt(DATETIME)
+endpoints
+    GET    /permissions
+    POST   /permissions
+    DELETE /permissions
+
+    GET    /permissions/:permissionId
+    PATCH  /permissions/:permissionId
+    DELETE /permissions/:permissionId
 # Warehouse
 Model:
     id(INT),
@@ -742,11 +808,6 @@ Endpoints:
     report:export
     report:pdf
     report:excel
-
-
-
-
-
 
 
 
