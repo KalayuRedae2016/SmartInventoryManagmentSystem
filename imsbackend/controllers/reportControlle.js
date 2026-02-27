@@ -1,16 +1,52 @@
-const {db}= require('../models');
+'use strict';
 
-const User=db.User
-
+const { db } = require('../models');
 const catchAsync = require('../utils/catchAsync');
 const { Op } = require('sequelize');
 
+const User = db.User;
+const Sale = db.Sale;
+const SaleItem = db.SaleItem;
+const Purchase = db.Purchase;
+const PurchaseItem = db.PurchaseItem;
+const PurchaseReturn = db.PurchaseReturn;
+const PurchaseReturnItem = db.PurchaseReturnItem;
+const Customer = db.Customer;
+const Supplier = db.Supplier;
+const Stock = db.Stock;
+const StockAdjustment = db.StockAdjustment;
+const StockTransfer = db.StockTransfer;
+const Warehouse = db.Warehouse;
+const Product = db.Product;
+
+// Helper to build date filters
 const getDateFilter = (startDate, endDate) => {
   if (startDate && endDate) return { [Op.between]: [startDate, endDate] };
+  if (startDate) return { [Op.gte]: startDate };
+  if (endDate) return { [Op.lte]: endDate };
   return {};
 };
 
+// ---------------- Dashboard ----------------
+exports.dashboardData = catchAsync(async (req, res) => {
+  // Placeholder: you can count total users, sales, purchases, stock value, etc.
+  const totalUsers = await User.count();
+  const totalSales = await Sale.sum('totalAmount');
+  const totalPurchases = await Purchase.sum('totalAmount');
+  const totalStock = await Stock.sum('quantity');
 
+  res.status(200).json({
+    status: 1,
+    data: {
+      totalUsers,
+      totalSales,
+      totalPurchases,
+      totalStock
+    }
+  });
+});
+
+// ---------------- User Reports ----------------
 exports.getUserReport = catchAsync(async (req, res) => {
   const { userId, startDate, endDate } = req.query;
 
@@ -19,7 +55,7 @@ exports.getUserReport = catchAsync(async (req, res) => {
     include: [
       {
         model: Sale,
-        attributes: ['id', 'totalAmount', 'createdAt'],
+        attributes: ['id', 'totalAmount', 'saleDate'],
         where: { saleDate: getDateFilter(startDate, endDate) },
         required: false
       },
@@ -45,17 +81,18 @@ exports.getUserReport = catchAsync(async (req, res) => {
   });
 
   const report = users.map(u => ({
-    username: u.username,
-    totalSales: u.Sales.reduce((a, s) => a + s.totalAmount, 0),
-    totalPurchases: u.Purchases.reduce((a, p) => a + p.totalAmount, 0),
-    totalTransfers: u.StockTransfers.reduce((a, t) => a + t.quantity, 0),
-    totalAdjustments: u.StockAdjustments.reduce((a, a2) => a + a2.quantity, 0),
+    username: u.fullName,
+    totalSales: u.Sales?.reduce((a, s) => a + s.totalAmount, 0) || 0,
+    totalPurchases: u.Purchases?.reduce((a, p) => a + p.totalAmount, 0) || 0,
+    totalTransfers: u.StockTransfers?.reduce((a, t) => a + t.quantity, 0) || 0,
+    totalAdjustments: u.StockAdjustments?.reduce((a, a2) => a + a2.quantity, 0) || 0,
     userId: u.id
   }));
 
   res.status(200).json({ status: 1, data: report });
 });
 
+// ---------------- Customer Reports ----------------
 exports.getBestCustomers = catchAsync(async (req, res) => {
   const { startDate, endDate, warehouseId } = req.query;
 
@@ -63,18 +100,18 @@ exports.getBestCustomers = catchAsync(async (req, res) => {
     include: [{
       model: Sale,
       include: [{ model: SaleItem }],
-      where: { saleDate: getDateFilter(startDate, endDate) },
+      where: { saleDate: getDateFilter(startDate, endDate), ...(warehouseId && { warehouseId }) },
       required: false
     }]
   });
 
   const report = customers.map(c => {
-    const totalSalesAmount = c.Sales.reduce((sum, s) => sum + s.totalAmount, 0);
+    const totalSalesAmount = c.Sales?.reduce((sum, s) => sum + s.totalAmount, 0) || 0;
     return {
       name: c.name,
       phone: c.phone,
       email: c.email,
-      totalSales: c.Sales.length,
+      totalSales: c.Sales?.length || 0,
       totalAmount: totalSalesAmount
     };
   }).sort((a, b) => b.totalAmount - a.totalAmount);
@@ -82,6 +119,7 @@ exports.getBestCustomers = catchAsync(async (req, res) => {
   res.status(200).json({ status: 1, data: report });
 });
 
+// ---------------- Supplier Reports ----------------
 exports.getSupplierReport = catchAsync(async (req, res) => {
   const { startDate, endDate } = req.query;
 
@@ -95,12 +133,12 @@ exports.getSupplierReport = catchAsync(async (req, res) => {
   });
 
   const report = suppliers.map(s => {
-    const totalPurchases = s.Purchases.reduce((sum, p) => sum + p.totalAmount, 0);
-    const totalPurchaseReturns = s.Purchases.reduce((sum, p) =>
-      sum + p.PurchaseReturns.reduce((rSum, r) => rSum + r.totalAmount, 0), 0
-    );
+    const totalPurchases = s.Purchases?.reduce((sum, p) => sum + p.totalAmount, 0) || 0;
+    const totalPurchaseReturns = s.Purchases?.reduce((sum, p) =>
+      sum + p.PurchaseReturns?.reduce((rSum, r) => rSum + r.totalAmount, 0) || 0, 0
+    ) || 0;
 
-    const paidAmount = s.Purchases.reduce((sum, p) => sum + p.paidAmount, 0);
+    const paidAmount = s.Purchases?.reduce((sum, p) => sum + p.paidAmount, 0) || 0;
     const dueAmount = totalPurchases - paidAmount;
 
     return {
@@ -116,6 +154,7 @@ exports.getSupplierReport = catchAsync(async (req, res) => {
   res.status(200).json({ status: 1, data: report });
 });
 
+// ---------------- Purchase Reports ----------------
 exports.getPurchaseReport = catchAsync(async (req, res) => {
   const { warehouseId, supplierId, startDate, endDate } = req.query;
 
@@ -131,8 +170,8 @@ exports.getPurchaseReport = catchAsync(async (req, res) => {
   const report = purchases.map(p => ({
     date: p.createdAt,
     reference: p.id,
-    supplier: p.Supplier.name,
-    warehouse: p.Warehouse.name,
+    supplier: p.Supplier?.name,
+    warehouse: p.Warehouse?.name,
     status: p.status,
     grandTotal: p.totalAmount,
     paid: p.paidAmount,
@@ -142,6 +181,7 @@ exports.getPurchaseReport = catchAsync(async (req, res) => {
   res.status(200).json({ status: 1, data: report });
 });
 
+// ---------------- Sale Reports ----------------
 exports.getSaleReport = catchAsync(async (req, res) => {
   const { warehouseId, customerId, startDate, endDate } = req.query;
 
@@ -157,8 +197,8 @@ exports.getSaleReport = catchAsync(async (req, res) => {
   const report = sales.map(s => ({
     date: s.saleDate,
     reference: s.id,
-    customer: s.Customer.name,
-    warehouse: s.Warehouse.name,
+    customer: s.Customer?.name,
+    warehouse: s.Warehouse?.name,
     status: s.status,
     grandTotal: s.totalAmount,
     paid: s.totalAmount - s.due,
@@ -168,6 +208,7 @@ exports.getSaleReport = catchAsync(async (req, res) => {
   res.status(200).json({ status: 1, data: report });
 });
 
+// ---------------- Stock Reports ----------------
 exports.getStockReport = catchAsync(async (req, res) => {
   const { warehouseId, productId } = req.query;
   const where = {};
@@ -180,22 +221,21 @@ exports.getStockReport = catchAsync(async (req, res) => {
   });
 
   const report = stocks.map(s => ({
-    code: s.Product.code,
-    name: s.Product.name,
-    category: s.Product.category,
-    price: s.Product.price,
+    code: s.Product?.code,
+    name: s.Product?.name,
+    category: s.Product?.category,
+    price: s.Product?.defaultCostPrice,
     currentStock: s.quantity
   }));
 
   res.status(200).json({ status: 1, data: report });
 });
 
+// ---------------- Profit & Loss Placeholder ----------------
 exports.getProfitLossReport = catchAsync(async (req, res) => {
   const { startDate, endDate, method = 'FIFO' } = req.query;
 
-  // Example: you can calculate based on stock valuation method
-  // This requires joining SaleItems, PurchaseItems, PurchaseReturns, SaleReturns, Expenses
-  // For now, just placeholder structure
+  // Placeholder: extend with actual calculation logic joining saleItems, purchaseItems, etc.
   const report = {
     salesAmount: 0,
     purchaseAmount: 0,
@@ -214,9 +254,10 @@ exports.getProfitLossReport = catchAsync(async (req, res) => {
   res.status(200).json({ status: 1, data: report });
 });
 
+// ---------------- Payments Placeholder ----------------
 exports.getPaymentsReport = catchAsync(async (req, res) => {
   const { type, startDate, endDate } = req.query;
   // type: purchase, sale, purchase-return, sale-return
-  // Build queries accordingly
+  // Extend with queries for payment filtering
   res.status(200).json({ status: 1, data: [] });
 });
