@@ -52,8 +52,16 @@ export const useWarehouseStore = defineStore('warehouses', () => {
       email: item.email || '',
       isActive: Boolean(isActive),
       status: Boolean(isActive) ? 'active' : 'inactive',
+      createdAt: item.createdAt || item.created_at || null,
+      updatedAt: item.updatedAt || item.updated_at || null,
       stock: item.stock || {}
     }
+  }
+
+  function resolveIsActive(data = {}) {
+    if (typeof data.isActive === 'boolean') return data.isActive
+    if (typeof data.isActive === 'string') return ['true', '1', 'yes', 'on'].includes(data.isActive.toLowerCase())
+    return (data.status || 'active') === 'active'
   }
 
   function asList(payload) {
@@ -74,6 +82,7 @@ export const useWarehouseStore = defineStore('warehouses', () => {
       warehouses.value = asList(getResponseData(res, [])).map(normalizeWarehouse)
     } catch (error) {
       if (USE_MOCK) warehouses.value = mockData.map(normalizeWarehouse)
+      else if (error?.response?.status === 404) warehouses.value = []
       else throw error
     } finally {
       loading.value = false
@@ -87,14 +96,14 @@ export const useWarehouseStore = defineStore('warehouses', () => {
     }
 
     const payload = {
-      businessId: 1,
+      businessId: data.businessId ?? 1,
       name: data.name || '',
       code: data.code || `WH-${Date.now().toString().slice(-6)}`,
       location: data.location || '',
       managerName: data.managerName || '',
       phone: data.phone || '',
       email: data.email || '',
-      isActive: (data.status || 'active') === 'active'
+      isActive: resolveIsActive(data)
     }
 
     const res = await api.post('/warehouses', payload)
@@ -109,12 +118,14 @@ export const useWarehouseStore = defineStore('warehouses', () => {
     }
 
     const payload = {
+      businessId: data.businessId ?? 1,
       name: data.name,
+      code: data.code,
       location: data.location,
       managerName: data.managerName,
       phone: data.phone,
       email: data.email,
-      isActive: (data.status || 'active') === 'active'
+      isActive: resolveIsActive(data)
     }
 
     const res = await api.patch(`/warehouses/${data.id}`, payload)

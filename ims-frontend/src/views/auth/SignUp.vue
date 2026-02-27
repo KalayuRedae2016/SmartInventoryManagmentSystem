@@ -124,10 +124,6 @@ async function submit() {
   color: rgba(255, 255, 255, 0.62);
 }
 
-.auth-form input:focus {
-  border-color: rgba(255, 255, 255, 0.48);
-}
-
 .submit-btn {
   margin-top: 6px;
   height: 46px;
@@ -149,3 +145,4 @@ async function submit() {
   text-decoration: underline;
 }
 </style>
+

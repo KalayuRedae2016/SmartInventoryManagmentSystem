@@ -1,6 +1,6 @@
 <template>
-  <div v-if="show" class="fixed inset-0 z-50 bg-black bg-opacity-50 flex justify-center items-center">
-    <div class="bg-white p-6 rounded shadow w-full max-w-lg">
+  <div v-if="show" class="fixed inset-0 z-50 bg-black bg-opacity-50 overflow-y-auto p-4">
+    <div :class="['bg-white p-6 rounded shadow w-full mx-auto my-4', maxWidth]">
       <!-- Title -->
       <h2 class="text-lg font-bold mb-4 text-gray-700">{{ title }}</h2>
 
@@ -43,7 +43,9 @@ const props = defineProps({
   show: { type: Boolean, default: false },
   title: { type: String, default: 'Modal' },
   modelValue: { type: Object, default: () => ({}) },
-  type: { type: String, default: 'form' } // 'form' or 'confirm'
+  maxWidth: { type: String, default: 'max-w-lg' },
+  type: { type: String, default: 'form' }, // 'form' or 'confirm'
+  closeOnSubmit: { type: Boolean, default: true }
 })
 
 const emits = defineEmits(['update:show', 'submit', 'confirm'])
@@ -51,9 +53,13 @@ const emits = defineEmits(['update:show', 'submit', 'confirm'])
 const isForm = props.type === 'form'
 const formData = reactive({ ...props.modelValue })
 
-watch(() => props.modelValue, val => {
+watch(
+  () => props.modelValue,
+  val => {
   Object.assign(formData, val)
-})
+  },
+  { deep: true }
+)
 
 function close() {
   emits('update:show', false)
@@ -61,7 +67,7 @@ function close() {
 
 function submit() {
   emits('submit', { ...formData })
-  close()
+  if (props.closeOnSubmit) close()
 }
 
 function confirm() {

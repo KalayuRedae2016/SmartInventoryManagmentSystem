@@ -17,17 +17,17 @@
       </RouterLink>
       <RouterLink to="/sales/invoices" class="stat-card card-link">
         <p class="stat-label">Sales</p>
-        <p class="stat-value text-green-600">{{ salesCount }}</p>
+        <p class="stat-value text-brand">{{ salesCount }}</p>
         <p class="stat-sub">Pending: {{ salesPendingCount }}</p>
       </RouterLink>
       <RouterLink to="/purchases" class="stat-card card-link">
         <p class="stat-label">Purchases</p>
-        <p class="stat-value text-blue-600">{{ purchasesCount }}</p>
+        <p class="stat-value text-brand">{{ purchasesCount }}</p>
         <p class="stat-sub">Pending: {{ purchasesPendingCount }}</p>
       </RouterLink>
-      <RouterLink to="/stock-transfers" class="stat-card card-link">
+      <RouterLink to="/stock-transactions" class="stat-card card-link">
         <p class="stat-label">Stock Transactions</p>
-        <p class="stat-value text-purple-700">{{ transfersCount }}</p>
+        <p class="stat-value text-brand">{{ transfersCount }}</p>
         <p class="stat-sub">Pending: {{ transfersPendingCount }}</p>
       </RouterLink>
     </div>
@@ -53,7 +53,7 @@
         <div class="section-links">
           <RouterLink to="/products" class="link">View Products</RouterLink>
           <RouterLink to="/warehouses" class="link">View Warehouses</RouterLink>
-          <RouterLink to="/stock-transfers" class="link">Stock Transactions</RouterLink>
+          <RouterLink to="/stock-transactions" class="link">Stock Transactions</RouterLink>
         </div>
       </div>
 

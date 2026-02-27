@@ -49,13 +49,23 @@
 
 
 
+        <!-- ================= Purchases ================= -->
+        <RouterLink
+          v-if="can('purchases.view') || can('purchases.create')"
+          to="/purchases"
+          class="menu-link"
+          :class="{ 'menu-active': $route.path.startsWith('/purchases') }"
+        >
+          [PU] Purchases
+        </RouterLink>
+
         <!-- ================= Sales ================= -->
-<RouterLink
-  v-if="can('sales.view')"
-  to="/sales/invoices"
-  class="menu-link"
-  :class="{ 'menu-active': $route.path.startsWith('/sales') }"
->
+        <RouterLink
+          v-if="can('sales.view')"
+          to="/sales/invoices"
+          class="menu-link"
+          :class="{ 'menu-active': $route.path.startsWith('/sales') }"
+        >
           [S] Sales
         </RouterLink>
 
@@ -89,19 +99,15 @@
           [A] Stock Adjustments
         </RouterLink>
 
-
-        <!-- ================= Purchases ================= -->
+        <!-- ================= Users ================= -->
         <RouterLink
-          v-if="can('purchases.view') || can('purchases.create')"
-          to="/purchases"
+          v-if="can('role:view') || can('roles.view')"
+          to="/roles"
           class="menu-link"
-          :class="{ 'menu-active': $route.path.startsWith('/purchases') }"
+          :class="{ 'menu-active': $route.path === '/roles' }"
         >
-          [PU] Purchases
+          [RL] Roles
         </RouterLink>
-
-
-
 
         <!-- ================= Users ================= -->
         <RouterLink
@@ -125,7 +131,7 @@
 
         <!-- ================= Suppliers ================= -->
         <RouterLink
-          v-if="can('suppliers.view')"
+          v-if="canAnySupplier"
           to="/suppliers"
           class="menu-link"
           :class="{ 'menu-active': $route.path === '/suppliers' }"
@@ -156,29 +162,169 @@
 
       </nav>
 
-      <!-- ================= Logout ================= -->
-      <div class="p-3 border-t border-white/20">
-        <button
-          class="w-full bg-white text-brand py-2 rounded hover:bg-gray-100 transition"
-          @click="logout"
-        >
-          Logout
-        </button>
-      </div>
     </aside>
 
     <!-- ================= Main Content ================= -->
     <main class="flex-1 p-6 overflow-auto">
+      <div
+        v-if="passwordSuccess"
+        class="fixed right-6 top-6 z-[60] rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 shadow"
+      >
+        {{ passwordSuccess }}
+      </div>
       <div class="flex justify-end items-center mb-4">
         <div class="flex items-center gap-3">
-          <div class="user-avatar">
-            <img v-if="userPhotoUrl" :src="userPhotoUrl" alt="" class="user-avatar-img" />
-            <span v-else>{{ userInitials }}</span>
+          <div class="relative">
+            <button
+              type="button"
+              class="flex items-center gap-3 rounded-md px-2 py-1 hover:bg-gray-100"
+              @click="isProfileMenuOpen = !isProfileMenuOpen"
+            >
+              <div class="user-avatar">
+                <img v-if="userPhotoUrl" :src="userPhotoUrl" alt="" class="user-avatar-img" />
+                <span v-else>{{ userInitials }}</span>
+              </div>
+              <div class="leading-tight text-left">
+                <div class="text-sm font-semibold text-gray-800">{{ userDisplayName }}</div>
+                <div class="text-xs text-gray-500">{{ userRoleLabel }}</div>
+              </div>
+            </button>
+            <div
+              v-if="isProfileMenuOpen"
+              class="absolute right-0 z-40 mt-2 w-44 rounded-md border border-gray-200 bg-white p-1 shadow-lg"
+            >
+              <button
+                type="button"
+                class="w-full rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                @click="handleEditProfile"
+              >
+                Edit Profile
+              </button>
+              <button
+                type="button"
+                class="w-full rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                @click="openPasswordModal"
+              >
+                Change Password
+              </button>
+              <button
+                type="button"
+                class="w-full rounded px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                @click="handleLogout"
+              >
+                Logout
+              </button>
+            </div>
           </div>
-          <div class="leading-tight">
-            <div class="text-sm font-semibold text-gray-800">{{ userDisplayName }}</div>
-            <div class="text-xs text-gray-500">{{ userRoleLabel }}</div>
-          </div>
+        </div>
+      </div>
+      <div
+        v-if="isProfileModalOpen"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        @click.self="closeProfileModal"
+      >
+        <div class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
+          <h2 class="mb-4 text-lg font-semibold text-gray-900">Update Profile</h2>
+          <form class="space-y-3" @submit.prevent="submitProfileUpdate">
+            <div>
+              <label class="mb-1 block text-xs font-medium text-gray-600">Full Name</label>
+              <input v-model="profileForm.fullName" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" type="text" @blur="validateField('fullName')" />
+              <p v-if="profileFieldErrors.fullName" class="mt-1 text-xs text-red-600">{{ profileFieldErrors.fullName }}</p>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-medium text-gray-600">Phone Number</label>
+              <input v-model="profileForm.phoneNumber" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" type="text" @blur="validateField('phoneNumber')" />
+              <p v-if="profileFieldErrors.phoneNumber" class="mt-1 text-xs text-red-600">{{ profileFieldErrors.phoneNumber }}</p>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-medium text-gray-600">Email</label>
+              <input v-model="profileForm.email" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" type="email" @blur="validateField('email')" />
+              <p v-if="profileFieldErrors.email" class="mt-1 text-xs text-red-600">{{ profileFieldErrors.email }}</p>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-medium text-gray-600">Address</label>
+              <input v-model="profileForm.address" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" type="text" />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-medium text-gray-600">Profile Image</label>
+              <input class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" type="file" accept="image/*" @change="onProfileImageChange" />
+            </div>
+            <p v-if="profileError" class="text-sm text-red-600">{{ profileError }}</p>
+            <div class="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+                @click="closeProfileModal"
+                :disabled="isProfileSaving"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="rounded-md bg-brand px-3 py-1.5 text-sm text-white hover:opacity-95 disabled:opacity-60"
+                :disabled="isProfileSaving"
+              >
+                {{ isProfileSaving ? 'Saving...' : 'Save' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div
+        v-if="isPasswordModalOpen"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        @click.self="closePasswordModal"
+      >
+        <div class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
+          <h2 class="mb-4 text-lg font-semibold text-gray-900">Update Password</h2>
+          <form class="space-y-3" @submit.prevent="submitPasswordUpdate">
+            <div>
+              <label class="mb-1 block text-xs font-medium text-gray-600">Current Password</label>
+              <input
+                v-model="passwordForm.currentPassword"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                type="password"
+                autocomplete="current-password"
+              />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-medium text-gray-600">New Password</label>
+              <input
+                v-model="passwordForm.newPassword"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                type="password"
+                autocomplete="new-password"
+              />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-medium text-gray-600">Confirm New Password</label>
+              <input
+                v-model="passwordForm.confirmPassword"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                type="password"
+                autocomplete="new-password"
+                @paste.prevent
+              />
+            </div>
+            <p v-if="passwordError" class="text-sm text-red-600">{{ passwordError }}</p>
+            <div class="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+                @click="closePasswordModal"
+                :disabled="isPasswordSaving"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="rounded-md bg-brand px-3 py-1.5 text-sm text-white hover:opacity-95 disabled:opacity-60"
+                :disabled="isPasswordSaving"
+              >
+                {{ isPasswordSaving ? 'Updating...' : 'Update Password' }}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
       <RouterView />
@@ -187,7 +333,7 @@
 </template>
 
 <script setup>
-import { ref, watchEffect, computed, onMounted } from 'vue'
+import { ref, watchEffect, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useUsersStore } from '@/stores/users'
@@ -198,25 +344,22 @@ const auth = useAuthStore()
 const usersStore = useUsersStore()
 
 const can = auth.can
+const canAnySupplier = computed(
+  () =>
+    can('suppliers.view') ||
+    can('suppliers.create') ||
+    can('suppliers.update') ||
+    can('suppliers.delete')
+)
 
 const systemOpen = ref(true)
 
-const userDisplayName = computed(() => auth.user?.name || 'User')
+const userDisplayName = computed(() => auth.user?.fullName || auth.user?.name || 'User')
 const userRoleLabel = computed(() => {
-  const role = auth.user?.role || 'user'
-  const map = {
-    superadmin: 'Super Admin',
-    owner: 'Owner',
-    admin: 'Admin',
-    support: 'Support',
-    accountant: 'Accountant',
-    sale: 'Sales',
-    store_keeper: 'Store Keeper',
-    warehouse_manager: 'Warehouse Manager',
-    purchase: 'Purchase',
-    customer: 'Customer'
-  }
-  return map[role] || role
+  const role = auth.user?.role
+  if (!role) return 'User'
+  if (typeof role === 'string') return role
+  return role.name || role.code || 'User'
 })
 const userInitials = computed(() => {
   const name = userDisplayName.value || 'User'
@@ -231,15 +374,45 @@ const userInitials = computed(() => {
 
 const userProfile = computed(() => {
   if (!usersStore.users?.length) return null
+  const currentRole =
+    typeof auth.user?.role === 'string'
+      ? auth.user?.role
+      : auth.user?.role?.name || auth.user?.role?.code || ''
   const byId = usersStore.users.find(u => u.id === auth.user?.id)
   if (byId) return byId
   const byName = usersStore.users.find(u => u.name === auth.user?.name)
   if (byName) return byName
-  const byRole = usersStore.users.find(u => u.role === auth.user?.role)
+  const byRole = usersStore.users.find(u => u.role === currentRole)
   return byRole || null
 })
 
-const userPhotoUrl = computed(() => userProfile.value?.photoUrl || '')
+const userPhotoUrl = computed(() => auth.user?.profileImage || userProfile.value?.photoUrl || '')
+const isProfileModalOpen = ref(false)
+const isPasswordModalOpen = ref(false)
+const isProfileMenuOpen = ref(false)
+const isProfileSaving = ref(false)
+const isPasswordSaving = ref(false)
+const profileError = ref('')
+const passwordError = ref('')
+const passwordSuccess = ref('')
+const profileForm = ref({
+  fullName: '',
+  phoneNumber: '',
+  email: '',
+  address: '',
+  profileImage: null
+})
+const profileFieldErrors = ref({
+  fullName: '',
+  phoneNumber: '',
+  email: ''
+})
+const passwordForm = ref({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+let passwordSuccessTimer = null
 
 onMounted(() => {
   usersStore.fetchUsers()
@@ -254,6 +427,162 @@ function logout() {
   auth.logout()
   router.push('/login')
 }
+
+function openProfileModal() {
+  profileError.value = ''
+  profileFieldErrors.value = {
+    fullName: '',
+    phoneNumber: '',
+    email: ''
+  }
+  profileForm.value = {
+    fullName: auth.user?.fullName || '',
+    phoneNumber: auth.user?.phoneNumber || '',
+    email: auth.user?.email || '',
+    address: auth.user?.address || '',
+    profileImage: null
+  }
+  isProfileModalOpen.value = true
+}
+
+function handleEditProfile() {
+  isProfileMenuOpen.value = false
+  openProfileModal()
+}
+
+function handleLogout() {
+  isProfileMenuOpen.value = false
+  logout()
+}
+
+function openPasswordModal() {
+  isProfileMenuOpen.value = false
+  clearPasswordFeedback()
+  resetPasswordForm()
+  isPasswordModalOpen.value = true
+}
+
+function closePasswordModal(force = false) {
+  if (isPasswordSaving.value && !force) return
+  clearPasswordFeedback()
+  resetPasswordForm()
+  isPasswordModalOpen.value = false
+}
+
+function closeProfileModal() {
+  if (isProfileSaving.value) return
+  isProfileModalOpen.value = false
+}
+
+function onProfileImageChange(event) {
+  const file = event?.target?.files?.[0] || null
+  profileForm.value.profileImage = file
+}
+
+function validateField(field) {
+  const fullName = String(profileForm.value.fullName || '').trim()
+  const phoneNumber = String(profileForm.value.phoneNumber || '').trim()
+  const email = String(profileForm.value.email || '').trim()
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const phoneDigits = phoneNumber.replace(/\D/g, '')
+
+  if (field === 'fullName') {
+    profileFieldErrors.value.fullName = fullName ? '' : 'Full name is required.'
+  }
+  if (field === 'phoneNumber') {
+    profileFieldErrors.value.phoneNumber =
+      !phoneNumber || phoneDigits.length < 8 || phoneDigits.length > 15
+        ? 'Phone number must be 8 to 15 digits.'
+        : ''
+  }
+  if (field === 'email') {
+    profileFieldErrors.value.email = !emailRegex.test(email) ? 'Enter a valid email address.' : ''
+  }
+}
+
+function validateProfileForm() {
+  validateField('fullName')
+  validateField('phoneNumber')
+  validateField('email')
+  return !profileFieldErrors.value.fullName && !profileFieldErrors.value.phoneNumber && !profileFieldErrors.value.email
+}
+
+async function submitProfileUpdate() {
+  profileError.value = ''
+  if (!validateProfileForm()) return
+  isProfileSaving.value = true
+  try {
+    await auth.updateProfile({
+      fullName: profileForm.value.fullName,
+      phoneNumber: profileForm.value.phoneNumber,
+      email: profileForm.value.email,
+      address: profileForm.value.address,
+      profileImage: profileForm.value.profileImage
+    })
+    isProfileModalOpen.value = false
+  } catch (error) {
+    profileError.value = error?.message || 'Unable to update profile.'
+  } finally {
+    isProfileSaving.value = false
+  }
+}
+
+async function submitPasswordUpdate() {
+  clearPasswordFeedback()
+
+  const currentPassword = String(passwordForm.value.currentPassword || '')
+  const newPassword = String(passwordForm.value.newPassword || '')
+  const confirmPassword = String(passwordForm.value.confirmPassword || '')
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    passwordError.value = 'All password fields are required.'
+    return
+  }
+  if (newPassword.length < 8) {
+    passwordError.value = 'New password must be at least 8 characters.'
+    return
+  }
+  if (newPassword !== confirmPassword) {
+    passwordError.value = 'New password and confirm password do not match.'
+    return
+  }
+
+  isPasswordSaving.value = true
+  try {
+    await auth.updatePassword({ currentPassword, newPassword })
+    closePasswordModal(true)
+    showPasswordSuccess('Password updated successfully.')
+  } catch (error) {
+    passwordError.value = error?.message || 'Unable to update password.'
+  } finally {
+    isPasswordSaving.value = false
+  }
+}
+
+function resetPasswordForm() {
+  passwordForm.value = {
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  }
+}
+
+function clearPasswordFeedback() {
+  passwordError.value = ''
+}
+
+function showPasswordSuccess(message) {
+  passwordSuccess.value = message
+  if (passwordSuccessTimer) clearTimeout(passwordSuccessTimer)
+  passwordSuccessTimer = setTimeout(() => {
+    passwordSuccess.value = ''
+    passwordSuccessTimer = null
+  }, 3000)
+}
+
+onBeforeUnmount(() => {
+  if (passwordSuccessTimer) clearTimeout(passwordSuccessTimer)
+})
 </script>
 
 <style scoped>

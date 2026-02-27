@@ -23,6 +23,7 @@ export const useSalesStore = defineStore('sales', () => {
   function asList(payload) {
     if (Array.isArray(payload)) return payload
     if (Array.isArray(payload?.rows)) return payload.rows
+    if (Array.isArray(payload?.data)) return payload.data
     return []
   }
 
@@ -34,6 +35,9 @@ export const useSalesStore = defineStore('sales', () => {
       dueAmount: Number(s.dueAmount ?? s.due_amount ?? 0),
       warehouseId: s.warehouseId ?? s.warehouse_id ?? null,
       customerId: s.customerId ?? s.customer_id ?? null,
+      invoiceNumber: s.invoiceNumber ?? s.invoice_number ?? '',
+      saleDate: s.saleDate ?? s.sale_date ?? '',
+      paymentMethod: s.paymentMethod ?? s.payment_method ?? 'cash',
       customer: s.customer?.name || s.customer || s.customerName || s.customer_id || '-'
     }
   }

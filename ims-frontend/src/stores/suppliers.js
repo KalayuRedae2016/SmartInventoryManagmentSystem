@@ -21,20 +21,60 @@ export const useSuppliersStore = defineStore('suppliers', () => {
   function asList(payload) {
     if (Array.isArray(payload)) return payload
     if (Array.isArray(payload?.rows)) return payload.rows
+    if (Array.isArray(payload?.suppliers)) return payload.suppliers
+    if (Array.isArray(payload?.data?.suppliers)) return payload.data.suppliers
     return []
+  }
+
+  function normalizeSupplier(item = {}) {
+    let normalizedAdditionalInfo = item.additionalInfo || ''
+    if (typeof normalizedAdditionalInfo === 'string') {
+      try {
+        const parsed = JSON.parse(normalizedAdditionalInfo)
+        if (parsed && typeof parsed === 'object') {
+          normalizedAdditionalInfo = parsed.note || ''
+        }
+      } catch {
+        // Keep plain text additionalInfo as-is.
+      }
+    } else if (normalizedAdditionalInfo && typeof normalizedAdditionalInfo === 'object') {
+      normalizedAdditionalInfo = normalizedAdditionalInfo.note || ''
+    }
+
+    return {
+      ...item,
+      additionalInfo: normalizedAdditionalInfo,
+      status: item.status || 'active',
+      profileImage: item.profileImage || ''
+    }
+  }
+
+  function toFormData(payload) {
+    const formData = new FormData()
+    Object.entries(payload || {}).forEach(([key, value]) => {
+      if (value === undefined || value === null) return
+      if (key === 'profileImage' && value instanceof File) {
+        formData.append('profileImage', value)
+        return
+      }
+      if (key !== 'profileImage') formData.append(key, String(value))
+    })
+    return formData
   }
 
   async function fetchSuppliers() {
     loading.value = true
     try {
       if (USE_MOCK) {
-        suppliers.value = [...mockData]
+        suppliers.value = [...mockData].map(normalizeSupplier)
         return
       }
       const res = await api.get('/suppliers')
-      suppliers.value = asList(getResponseData(res, []))
+      const payload = getResponseData(res, res?.data)
+      suppliers.value = asList(payload).map(normalizeSupplier)
     } catch (error) {
-      if (USE_MOCK) suppliers.value = [...mockData]
+      if (USE_MOCK) suppliers.value = [...mockData].map(normalizeSupplier)
+      else if (error?.response?.status === 404) suppliers.value = []
       else throw error
     } finally {
       loading.value = false
@@ -43,33 +83,60 @@ export const useSuppliersStore = defineStore('suppliers', () => {
 
   async function addSupplier(payload) {
     if (USE_MOCK) {
-      suppliers.value.push({ ...payload, id: Date.now() })
+      suppliers.value.push(normalizeSupplier({ ...payload, id: Date.now() }))
       return
     }
     const mapped = {
       ...payload,
-      code: payload.code || `SUP-${Date.now().toString().slice(-6)}`
+      code: payload.code || `SUP-${Date.now().toString().slice(-6)}`,
+      email: String(payload.email || '').trim() || null,
+      status: payload.status || 'active'
     }
-    const res = await api.post('/suppliers', mapped)
-    suppliers.value.push(getResponseData(res, mapped))
+    const hasImage = mapped.profileImage instanceof File
+    if (hasImage) {
+      await api.post('/suppliers', toFormData(mapped), {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+    } else {
+      await api.post('/suppliers', mapped)
+    }
+    await fetchSuppliers()
   }
 
   async function updateSupplier(payload) {
     if (USE_MOCK) {
       const i = suppliers.value.findIndex(s => s.id === payload.id)
-      if (i !== -1) suppliers.value[i] = payload
+      if (i !== -1) suppliers.value[i] = normalizeSupplier(payload)
       return
     }
-    const res = await api.patch(`/suppliers/${payload.id}`, payload)
-    const updated = getResponseData(res, payload)
-    const i = suppliers.value.findIndex(s => s.id === payload.id)
-    if (i !== -1) suppliers.value[i] = updated
+    const mapped = {
+      ...payload,
+      email: String(payload.email || '').trim() || null
+    }
+    const hasImage = mapped.profileImage instanceof File
+    if (hasImage) {
+      await api.patch(`/suppliers/${payload.id}`, toFormData(mapped), {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+    } else {
+      await api.patch(`/suppliers/${payload.id}`, mapped)
+    }
+    await fetchSuppliers()
+  }
+
+  async function toggleSupplierStatus(supplier) {
+    const nextStatus = supplier?.status === 'active' ? 'inactive' : 'active'
+    await updateSupplier({ ...supplier, status: nextStatus })
   }
 
   async function deleteSupplier(id) {
     if (!USE_MOCK) await api.delete(`/suppliers/${id}`)
-    suppliers.value = suppliers.value.filter(s => s.id !== id)
+    if (USE_MOCK) {
+      suppliers.value = suppliers.value.filter(s => s.id !== id)
+      return
+    }
+    await fetchSuppliers()
   }
 
-  return { suppliers, loading, fetchSuppliers, addSupplier, updateSupplier, deleteSupplier }
+  return { suppliers, loading, fetchSuppliers, addSupplier, updateSupplier, deleteSupplier, toggleSupplierStatus }
 })

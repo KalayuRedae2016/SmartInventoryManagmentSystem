@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { USE_MOCK } from '@/config/env'
+import { USE_MOCK, ENABLE_STOCK_TRANSFER_API } from '@/config/env'
 import { useWarehouseStore } from '@/stores/warehouse'
 import { useProductsStore } from '@/stores/products'
 import api, { getResponseData } from '@/services/api'
@@ -38,7 +38,7 @@ export const useStockTransfersStore = defineStore('stockTransfers', () => {
   async function fetchTransfers() {
     loading.value = true
     try {
-      if (USE_MOCK) {
+      if (USE_MOCK || !ENABLE_STOCK_TRANSFER_API) {
         transfers.value = [...mockData]
         return
       }

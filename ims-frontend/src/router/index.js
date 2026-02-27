@@ -126,6 +126,7 @@ const routes = [
         children: [
           { path: '', component: PurchasesList },
           { path: 'new', component: PurchaseForm, meta: { permission: 'purchases.create' } },
+          { path: ':id/edit', component: PurchaseForm, meta: { permission: 'purchases.update' } },
           { path: 'returns', component: PurchaseReturns },
           { path: ':id', component: PurchaseDetail }
         ]
@@ -140,6 +141,7 @@ const routes = [
           { path: '', redirect: 'invoices' },
           { path: 'invoices', component: SalesInvoices },
           { path: 'invoice/new', component: InvoiceForm },
+          { path: 'invoice/:id/edit', component: InvoiceForm, meta: { permission: 'sales.update' } },
           { path: 'invoice/:id', component: InvoiceDetails },
           { path: 'payments', component: SalesPayments },
           { path: 'returns', component: SalesReturns }
@@ -161,6 +163,7 @@ const routes = [
       },
 
       // ---------- People ----------
+      { path: 'roles', component: SystemRoles, meta: { permission: 'role:view' } },
       { path: 'users', component: Users, meta: { permission: 'users.view' } },
       { path: 'customers', component: Customers, meta: { permission: 'customers.view' } },
       { path: 'suppliers', component: Suppliers, meta: { permission: 'suppliers.view' } },
@@ -185,17 +188,24 @@ const router = createRouter({
 // =======================
 // Guard
 // =======================
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const auth = useAuthStore()
+  const hasAnySupplierPermission = () =>
+    auth.hasPermission('suppliers.view') ||
+    auth.hasPermission('suppliers.create') ||
+    auth.hasPermission('suppliers.update') ||
+    auth.hasPermission('suppliers.delete')
 
   if (to.meta.public) return next()
+  if (auth.token && !auth.user) auth.logout()
   if (!auth.isAuthenticated) return next('/login')
-  if (to.meta.permission && !auth.can(to.meta.permission)) {
+  if (to.path.startsWith('/suppliers') && hasAnySupplierPermission()) return next()
+  if (to.meta.permission && !auth.hasPermission(to.meta.permission)) {
     const fallbackPaths = ['/', '/products', '/stock', '/purchases', '/sales', '/customers', '/suppliers', '/reports']
     const fallback = fallbackPaths.find(path => {
       const resolved = router.resolve(path)
       const permission = resolved?.meta?.permission
-      return !permission || auth.can(permission)
+      return !permission || auth.hasPermission(permission)
     })
 
     if (fallback && fallback !== to.fullPath) return next(fallback)

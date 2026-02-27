@@ -19,11 +19,17 @@ export const useBrandsStore = defineStore('brands', () => {
   }
 
   function normalizeBrand(item) {
+    const isActive = item.isActive ?? item.status === 'active'
     return {
       id: item.id,
+      businessId: item.businessId ?? item.business_id ?? 1,
       name: item.name || '',
       description: item.description || '',
-      country: item.country || ''
+      country: item.country || '',
+      isActive: Boolean(isActive),
+      status: Boolean(isActive) ? 'active' : 'inactive',
+      createdAt: item.createdAt || item.created_at || '',
+      updatedAt: item.updatedAt || item.updated_at || ''
     }
   }
 
@@ -53,7 +59,8 @@ export const useBrandsStore = defineStore('brands', () => {
       businessId: 1,
       name: b.name,
       country: b.country || '',
-      description: b.description || b.name || ''
+      description: b.description || b.name || '',
+      isActive: typeof b.isActive === 'boolean' ? b.isActive : true
     }
     const res = await api.post('/brands', payload)
     brands.value.push(normalizeBrand(getResponseData(res, payload)))
@@ -65,7 +72,13 @@ export const useBrandsStore = defineStore('brands', () => {
       if (i !== -1) brands.value[i] = b
       return
     }
-    const res = await api.patch(`/brands/${b.id}`, b)
+    const payload = {
+      name: b.name,
+      country: b.country || '',
+      description: b.description || '',
+      isActive: typeof b.isActive === 'boolean' ? b.isActive : true
+    }
+    const res = await api.patch(`/brands/${b.id}`, payload)
     const updated = normalizeBrand(getResponseData(res, b))
     const i = brands.value.findIndex(x => x.id === b.id)
     if (i !== -1) brands.value[i] = updated
@@ -76,5 +89,13 @@ export const useBrandsStore = defineStore('brands', () => {
     brands.value = brands.value.filter(b => b.id !== id)
   }
 
-  return { brands, loading, fetchBrands, addBrand, updateBrand, deleteBrand }
+  async function toggleBrandStatus(brand) {
+    const nextIsActive = !(brand?.isActive ?? brand?.status === 'active')
+    await updateBrand({
+      ...brand,
+      isActive: nextIsActive
+    })
+  }
+
+  return { brands, loading, fetchBrands, addBrand, updateBrand, deleteBrand, toggleBrandStatus }
 })
