@@ -1,5 +1,6 @@
 const { Op, where } = require('sequelize');
 const Sequelize=require("sequelize")
+
 const xlsx = require('xlsx'); //for import user from excel
 const ExcelJS = require("exceljs");
 
@@ -15,7 +16,7 @@ require('dotenv').config();
 const { formatDate } = require("../utils/dateUtils");
 const { sendEmail } = require('../utils/emailUtils');
 
-const {createMulterMiddleware,processUploadFilesToSave,importFromExcel,exportToExcel,exportToPdf} = require('../utils/fileUtils');
+const {createMulterMiddleware,processUploadFilesToSave,importFromExcelFile,exportToExcelFile,exportToPDFFile} = require('../utils/fileUtils');
 
 // Configure multer for payment file uploads
 const userUpload = createMulterMiddleware(
@@ -38,7 +39,6 @@ exports.uploaduserAttachements=userUpload.fields([
     { name: 'logo', maxCount: 1 },
   ])
 exports.uploaduserFile = userUpload.single('file');// Middleware for handling single file upload
-
 
 const buildUserWhereClause = (query) => {
   const { isActive,search, warehouseId, roleId, startDate, endDate } = query;
@@ -375,126 +375,65 @@ exports.sendEmailMessages = catchAsync(async (req, res, next) => {
     return next(new AppError('Failed to send one or more emails', 500));
   }
 });
-exports.importUsers = catchAsync(async (req, res, next) => {
-  console.log('usersexcelhere');
-  console.log('request File', req.file);
 
-  // Check if the file exists and is an Excel file
+exports.importUsers = catchAsync(async (req, res, next) => {
   if (!req.file || !req.file.path) {
     return next(new AppError('File not uploaded or path is invalid.', 400));
   }
 
-  if (
-    !req.file.mimetype.includes('spreadsheetml') &&
-    !req.file.originalname.endsWith('.xlsx')
-  ) {
+  // Only allow Excel files
+  if (!req.file.mimetype.includes('spreadsheetml') && !req.file.originalname.endsWith('.xlsx')) {
     return next(new AppError('Please upload a valid Excel file (.xlsx)', 400));
   }
 
-  const filePath = req.file.path;
+  const requiredFields = [
+    'businessId', 'warehouseId', 'roleId',
+    'fullName', 'phoneNumber', 'email', 'password',
+    'isActive', 'address'
+  ];
 
-  // Validate and transform payment data
-  const validateAndTransformData = async (data) => {
-   // console.log('Validating data:', data); // Log incoming data
+  // Transform each row before saving
+  const transformFn = async (row) => ({
+    businessId: row.businessId,
+    warehouseId: row.warehouseId,
+    roleId: row.roleId,
+    fullName: row.fullName,
+    phoneNumber: String(row.phoneNumber),
+    email: String(row.email).toLowerCase(),
+    password: String(row.password),
+    isActive: Boolean(row.isActive),
+    address: row.address,
+    profileImage: null
+  });
 
-    // Required fields for validation
-    const requiredFields = [
-      'businessId',
-      'warehouseId',
-      'roleId',
-      'fullName',
-      'phoneNumber',
-      'email',
-      'password',
-      'isActive',
-      'address',
-    ];
-    console.log("requiredFields",requiredFields)
+  const saveFn = async (data) => await User.create(data);
 
-    const missingFields = requiredFields.filter((field) => !data[field]);
-
-    if (missingFields.length > 0) {
-      return next(new AppError(`Missing required fields: ${missingFields.join(', ')}`,400))};
-
-    const user = {
-      businessId:data.businessId,
-      warehouseId:data.warehouseId,
-      roleId:data.roleId,
-      fullName:data.fullName,
-      phoneNumber: String(data.phoneNumber),
-      email: String(data.email).toLowerCase(),
-      password: String(data.password),
-      isActive: Boolean(data.isActive),
-      address:data.address,
-      profileImage:null
-
-      
-    };
-    return user;
-  };
-
-  // Process the Excel file and import payments
-  const importFromExcel = async () => {
-    const workbook = xlsx.readFile(filePath);
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const jsonData = xlsx.utils.sheet_to_json(worksheet); // Convert the sheet to JSON
-
-    if (!Array.isArray(jsonData) || jsonData.length === 0) {
-      throw new AppError(
-        'Excel file is empty or data is not in the correct format.',
-        400
-      );
-    }
-
-    const importedData = [];
-    const errors = [];
-
-    for (const [index, data] of jsonData.entries()) {
-      try {
-        const userDocument = await validateAndTransformData(data);
-        console.log('Transformed Users:', userDocument); // Log transformed user data
-        const savedUser = await User.create(userDocument); // Save the user to the database
-         importedData.push(savedUser);
-        console.log('Saved Users:', savedUser); // Log saved User
-      } catch (error) {
-        console.log("DATABASE ERROR:", error);
-        errors.push({ row: index + 1, error: error.message, data });
-      }
-    }
-
-    console.log('Imported Data:', importedData); // Log final imported data
-    return { importedData, errors };
-  };
-
-  const { importedData, errors } = await importFromExcel();
-  console.log('Imported Data:', importedData);
-
-  // Cleanup: Remove uploaded file after processing
-  fs.unlinkSync(filePath);
+  const { importedData, errors } = await importFromExcelFile({
+    filePath: req.file.path,
+    requiredFields,
+    transformFn,
+    saveFn
+  });
 
   if (!importedData.length) {
-    return next(
-      new AppError('No valid Users were imported from the file.', 400)
-    );
+    return next(new AppError('No valid Users were imported from the file.', 400));
   }
 
   res.status(200).json({
     status: 1,
-    message:
-      errors.length > 0
-        ? 'Import completed with some errors'
-        : 'Data imported successfully',
+    message: errors.length > 0 ? 'Import completed with some errors' : 'Data imported successfully',
     successCount: importedData.length,
     errorCount: errors.length,
     errors,
-    importedUsers: importedData,
+    importedUsers: importedData
   });
 });
 
 exports.exportUsers = catchAsync(async (req, res, next) => {
-  const {format = "excel",sortBy = "createdAt", sortOrder = "desc", page = 1,limit = 1000} = req.query;
+  const { sortBy = "createdAt", sortOrder = "desc", page = 1, limit = 1000 } = req.query;
 
   const whereQuery = buildUserWhereClause(req.query);
+
   const validSortColumns = ["createdAt", "updatedAt", "fullName", "email"];
   const orderColumn = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
   const orderDirection = sortOrder.toLowerCase() === "asc" ? "ASC" : "DESC";
@@ -510,47 +449,36 @@ exports.exportUsers = catchAsync(async (req, res, next) => {
     offset: (page - 1) * limit
   });
 
-  if (!users.length)  return next(new AppError("No users found for the given filters.", 404));
-  
-  // --- Prepare data for export ---
+  if (!users.length) {
+    return next(new AppError("No users found for the given filters.", 404));
+  }
+
+  // Format users for export
   const formattedUsers = users.map(u => ({
-    id: u.id,
-    fullName: u.fullName,
-    email: u.email,
-    phoneNumber: u.phoneNumber,
-    roleName: u.role?.name || "N/A",
-    warehouseName: u.warehouse?.name || "N/A",
-    isActive: u.isActive ? "Yes" : "No"
+    ID: u.id,
+    "Full Name": u.fullName,
+    Email: u.email,
+    Phone: u.phoneNumber,
+    Role: u.role?.name || "N/A",
+    Warehouse: u.warehouse?.name || "N/A",
+    Active: u.isActive ? "Yes" : "No"
   }));
 
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet("Users");
+  // Define columns for Excel
+  const columns = Object.keys(formattedUsers[0]).map(key => ({
+    header: key,
+    key,
+    width: 20
+  }));
 
-    worksheet.columns = [
-      { header: "ID", key: "id", width: 10 },
-      { header: "Full Name", key: "fullName", width: 25 },
-      { header: "Email", key: "email", width: 30 },
-      { header: "Phone", key: "phoneNumber", width: 20 },
-      { header: "Role", key: "roleName", width: 20 },
-      { header: "Warehouse", key: "warehouseName", width: 25 },
-      { header: "Active", key: "isActive", width: 10 }
-    ];
-
-    formattedUsers.forEach(user => worksheet.addRow(user));
-
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=users-${Date.now()}.xlsx`
-    );
-
-    await workbook.xlsx.write(res);
-    return res.end();
-  }
-);
+  // Call generic Excel export
+  await exportToExcelFile({
+    data: formattedUsers,
+    columns,
+    fileName: "users",
+    res
+  });
+});
 
 exports.getUserDashboardSummary = catchAsync(async (req, res, next) => {
 
@@ -638,257 +566,3 @@ exports.getUserDashboardSummary = catchAsync(async (req, res, next) => {
   });
 
 });
-
-// exports.exportUsers = catchAsync(async (req, res, next) => {
-//   const {format = "excel",sortBy = "createdAt", sortOrder = "desc", page = 1,limit = 1000} = req.query;
-
-//   const whereQuery = buildUserWhereClause(req.query);
-//   const validSortColumns = ["createdAt", "updatedAt", "fullName", "email"];
-//   const orderColumn = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
-//   const orderDirection = sortOrder.toLowerCase() === "asc" ? "ASC" : "DESC";
-
-//   const users = await User.findAll({
-//     where: whereQuery,
-//     include: [
-//       { model: Role, as: "role", attributes: ["id", "name"] },
-//       { model: Warehouse, as: "warehouse", attributes: ["id", "name"] }
-//     ],
-//     order: [[orderColumn, orderDirection]],
-//     limit: Number(limit),
-//     offset: (page - 1) * limit
-//   });
-
-//   if (!users.length)  return next(new AppError("No users found for the given filters.", 404));
-  
-//   // --- Prepare data for export ---
-//   const formattedUsers = users.map(u => ({
-//     id: u.id,
-//     fullName: u.fullName,
-//     email: u.email,
-//     phoneNumber: u.phoneNumber,
-//     roleName: u.role?.name || "N/A",
-//     warehouseName: u.warehouse?.name || "N/A",
-//     isActive: u.isActive ? "Yes" : "No"
-//   }));
-
-//   // --- Excel Export ---
-//   if (format.toLowerCase() === "excel") {
-//     const workbook = new ExcelJS.Workbook();
-//     const worksheet = workbook.addWorksheet("Users");
-
-//     worksheet.columns = [
-//       { header: "ID", key: "id", width: 10 },
-//       { header: "Full Name", key: "fullName", width: 25 },
-//       { header: "Email", key: "email", width: 30 },
-//       { header: "Phone", key: "phoneNumber", width: 20 },
-//       { header: "Role", key: "roleName", width: 20 },
-//       { header: "Warehouse", key: "warehouseName", width: 25 },
-//       { header: "Active", key: "isActive", width: 10 }
-//     ];
-
-//     formattedUsers.forEach(user => worksheet.addRow(user));
-
-//     res.setHeader(
-//       "Content-Type",
-//       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-//     );
-//     res.setHeader(
-//       "Content-Disposition",
-//       `attachment; filename=users-${Date.now()}.xlsx`
-//     );
-
-//     await workbook.xlsx.write(res);
-//     return res.end();
-//   }
-
-//   // --- PDF Export ---
-//   if (format.toLowerCase() === "pdf") {
-//     const htmlTemplate = `
-//       <html>
-//         <head>
-//           <style>
-//             body { font-family: Arial, sans-serif; }
-//             table { width: 100%; border-collapse: collapse; }
-//             th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-//             th { background-color: #f4f4f4; }
-//           </style>
-//         </head>
-//         <body>
-//           <h2>User Report</h2>
-//           <table>
-//             <thead>
-//               <tr>
-//                 <th>ID</th>
-//                 <th>Full Name</th>
-//                 <th>Email</th>
-//                 <th>Phone</th>
-//                 <th>Role</th>
-//                 <th>Warehouse</th>
-//                 <th>Active</th>
-//               </tr>
-//             </thead>
-//             <tbody>
-//               {{#each users}}
-//                 <tr>
-//                   <td>{{id}}</td>
-//                   <td>{{fullName}}</td>
-//                   <td>{{email}}</td>
-//                   <td>{{phoneNumber}}</td>
-//                   <td>{{roleName}}</td>
-//                   <td>{{warehouseName}}</td>
-//                   <td>{{isActive}}</td>
-//                 </tr>
-//               {{/each}}
-//             </tbody>
-//           </table>
-//         </body>
-//       </html>
-//     `;
-
-//     const template = Handlebars.compile(htmlTemplate);
-//     const html = template({ users: formattedUsers });
-
-//     const browser = await puppeteer.launch();
-//     const page = await browser.newPage();
-//     await page.setContent(html, { waitUntil: "networkidle0" });
-
-//     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
-//     await browser.close();
-
-//     res.setHeader("Content-Type", "application/pdf");
-//     res.setHeader(
-//       "Content-Disposition",
-//       `attachment; filename=users-${Date.now()}.pdf`
-//     );
-//     return res.send(pdfBuffer);
-//   }
-
-//   return next(new AppError("Invalid export format. Use 'excel' or 'pdf'.", 400));
-// });
-// exports.exportUsers = catchAsync(async (req, res, next) => {
-//   const {format = "excel",sortBy = "createdAt", sortOrder = "desc", page = 1,limit = 1000} = req.query;
-
-//   const whereQuery = buildUserWhereClause(req.query);
-//   const validSortColumns = ["createdAt", "updatedAt", "fullName", "email"];
-//   const orderColumn = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
-//   const orderDirection = sortOrder.toLowerCase() === "asc" ? "ASC" : "DESC";
-
-//   const users = await User.findAll({
-//     where: whereQuery,
-//     include: [
-//       { model: Role, as: "role", attributes: ["id", "name"] },
-//       { model: Warehouse, as: "warehouse", attributes: ["id", "name"] }
-//     ],
-//     order: [[orderColumn, orderDirection]],
-//     limit: Number(limit),
-//     offset: (page - 1) * limit
-//   });
-
-//   if (!users.length)  return next(new AppError("No users found for the given filters.", 404));
-  
-//   // --- Prepare data for export ---
-//   const formattedUsers = users.map(u => ({
-//     id: u.id,
-//     fullName: u.fullName,
-//     email: u.email,
-//     phoneNumber: u.phoneNumber,
-//     roleName: u.role?.name || "N/A",
-//     warehouseName: u.warehouse?.name || "N/A",
-//     isActive: u.isActive ? "Yes" : "No"
-//   }));
-
-//   // --- Excel Export ---
-//   if (format.toLowerCase() === "excel") {
-//     const workbook = new ExcelJS.Workbook();
-//     const worksheet = workbook.addWorksheet("Users");
-
-//     worksheet.columns = [
-//       { header: "ID", key: "id", width: 10 },
-//       { header: "Full Name", key: "fullName", width: 25 },
-//       { header: "Email", key: "email", width: 30 },
-//       { header: "Phone", key: "phoneNumber", width: 20 },
-//       { header: "Role", key: "roleName", width: 20 },
-//       { header: "Warehouse", key: "warehouseName", width: 25 },
-//       { header: "Active", key: "isActive", width: 10 }
-//     ];
-
-//     formattedUsers.forEach(user => worksheet.addRow(user));
-
-//     res.setHeader(
-//       "Content-Type",
-//       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-//     );
-//     res.setHeader(
-//       "Content-Disposition",
-//       `attachment; filename=users-${Date.now()}.xlsx`
-//     );
-
-//     await workbook.xlsx.write(res);
-//     return res.end();
-//   }
-
-//   // --- PDF Export ---
-//   if (format.toLowerCase() === "pdf") {
-//     const htmlTemplate = `
-//       <html>
-//         <head>
-//           <style>
-//             body { font-family: Arial, sans-serif; }
-//             table { width: 100%; border-collapse: collapse; }
-//             th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-//             th { background-color: #f4f4f4; }
-//           </style>
-//         </head>
-//         <body>
-//           <h2>User Report</h2>
-//           <table>
-//             <thead>
-//               <tr>
-//                 <th>ID</th>
-//                 <th>Full Name</th>
-//                 <th>Email</th>
-//                 <th>Phone</th>
-//                 <th>Role</th>
-//                 <th>Warehouse</th>
-//                 <th>Active</th>
-//               </tr>
-//             </thead>
-//             <tbody>
-//               {{#each users}}
-//                 <tr>
-//                   <td>{{id}}</td>
-//                   <td>{{fullName}}</td>
-//                   <td>{{email}}</td>
-//                   <td>{{phoneNumber}}</td>
-//                   <td>{{roleName}}</td>
-//                   <td>{{warehouseName}}</td>
-//                   <td>{{isActive}}</td>
-//                 </tr>
-//               {{/each}}
-//             </tbody>
-//           </table>
-//         </body>
-//       </html>
-//     `;
-
-//     const template = Handlebars.compile(htmlTemplate);
-//     const html = template({ users: formattedUsers });
-
-//     const browser = await puppeteer.launch();
-//     const page = await browser.newPage();
-//     await page.setContent(html, { waitUntil: "networkidle0" });
-
-//     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
-//     await browser.close();
-
-//     res.setHeader("Content-Type", "application/pdf");
-//     res.setHeader(
-//       "Content-Disposition",
-//       `attachment; filename=users-${Date.now()}.pdf`
-//     );
-//     return res.send(pdfBuffer);
-//   }
-
-//   return next(new AppError("Invalid export format. Use 'excel' or 'pdf'.", 400));
-// });
-

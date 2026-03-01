@@ -7,7 +7,6 @@ const { User, Role, Permission,UserPermission,RolePermission } = require('../mod
 
 require('dotenv').config();
 
-
 exports.VerifyToken = (req, res, next) => {
   const token = req.headers['token'];
 
@@ -166,12 +165,12 @@ exports.authenticationJwt = async (req, res, next) => {
     if (req.headers.authorization &&req.headers.authorization.startsWith('Bearer ')) {
       token = req.headers.authorization.split(' ')[1];
     }
-    //if (!token)  return next(new AppError('Not logged in', 401));
+    if (!token)  return next(new AppError('Not logged in', 401));
     
-    //const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Load user with Role + RolePermissions + UserPermissions
-    const user = await User.findByPk(1, {
+    const user = await User.findByPk(decoded.id, {
       include: [
         {
           model: Role,

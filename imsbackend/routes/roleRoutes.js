@@ -1,4 +1,50 @@
 
+const express = require('express');
+const router = express.Router();
+
+const roleController = require('../controllers/roleController');
+const { authenticationJwt, requirePermission } = require('../utils/authUtils');
+
+/* =======================
+   MIDDLEWARE
+======================= */
+router.use(authenticationJwt);
+
+/* =======================
+   REAL ROUTES (LOGIC FIRST)
+======================= */
+router
+  .route('/')
+  .get(requirePermission('role:view'), roleController.getRoles)
+  .post(requirePermission('role:create'), roleController.createRole)
+  // .delete(requirePermission('role:delete'), roleController.deleteRoles);
+
+router
+  .route('/:roleId')
+  .get(requirePermission('role:view'), roleController.getRole)
+  .patch(requirePermission('role:update'), roleController.updateRole)
+  .delete(requirePermission('role:delete'), roleController.deleteRole);
+
+router.get(
+  '/:roleId/users',
+  requirePermission('role:view'),
+  roleController.getUsersByRole
+);
+
+router.post(
+  '/:roleId/assign',
+  requirePermission('role:update'),
+  roleController.assignUsersToRole
+);
+router.patch(
+  '/:roleId/status',
+  requirePermission('role:update'),
+  roleController.changeRoleStatus
+);
+
+
+module.exports = router;
+
 /* =====================================================
    SWAGGER DOCUMENTATION (ALL AT BOTTOM ✅)
 ===================================================== */
@@ -139,48 +185,3 @@
  *       200:
  *         description: Users assigned successfully
  */
-const express = require('express');
-const router = express.Router();
-
-const roleController = require('../controllers/roleController');
-const { authenticationJwt, requirePermission } = require('../utils/authUtils');
-
-/* =======================
-   MIDDLEWARE
-======================= */
-router.use(authenticationJwt);
-
-/* =======================
-   REAL ROUTES (LOGIC FIRST)
-======================= */
-router
-  .route('/')
-  .get(requirePermission('role:view'), roleController.getRoles)
-  .post(requirePermission('role:create'), roleController.createRole)
-  // .delete(requirePermission('role:delete'), roleController.deleteRoles);
-
-router
-  .route('/:roleId')
-  .get(requirePermission('role:view'), roleController.getRole)
-  .patch(requirePermission('role:update'), roleController.updateRole)
-  .delete(requirePermission('role:delete'), roleController.deleteRole);
-
-router.get(
-  '/:roleId/users',
-  requirePermission('role:view'),
-  roleController.getUsersByRole
-);
-
-router.post(
-  '/:roleId/assign',
-  requirePermission('role:update'),
-  roleController.assignUsersToRole
-);
-router.patch(
-  '/:roleId/status',
-  requirePermission('role:update'),
-  roleController.changeRoleStatus
-);
-
-
-module.exports = router;

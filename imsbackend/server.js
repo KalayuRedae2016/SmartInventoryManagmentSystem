@@ -1,74 +1,17 @@
-// const dotenv = require("dotenv");
-// const app = require("./index");
-// const { connectDB } = require("./config/db");
-
-// const envFile =
-//   process.env.NODE_ENV === "production"
-//     ? ".env.production"
-//     : ".env.development";
-
-// dotenv.config({ path: envFile });
-
-// // Connect database
-// connectDB();
-
-// // IMPORTANT: DO NOT listen here (Passenger will)
-// module.exports = app;
-
-// // Safety logs
-// process.on("unhandledRejection", (err) => {
-//   console.error("Unhandled Rejection:", err);
-// });
-// process.on("uncaughtException", (err) => {
-//   console.error("Uncaught Exception:", err);
-// });
-
-
 const https = require("https");
 const http = require("http");
-const fs = require("fs");
+
 const dotenv = require("dotenv");
-const path = require('path');
 const app = require("./index");
+
 const { connectDB, sequelize } = require("./config/db");
-const swaggerUi = require('swagger-ui-express');
-const swaggerJsdoc = require('swagger-jsdoc');
 
-const options = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'Smart Inventory Management System',
-      version: '1.0.0',
-      description: 'API documentation'
-    },
-    servers: [
-      {
-        url: 'http://localhost:8083/api/ims'
-      }
-    ]
-  },
-  apis: ['./routes/**/*.js'], // 👈 VERY IMPORTANT
-};
-
-const swaggerSpec = swaggerJsdoc(options);
-
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-
-// const swaggerUi = require('swagger-ui-express');
-// const YAML = require('yamljs');
-
-// const swaggerDocument = YAML.load(path.join(__dirname, 'swagger/swagger.yaml'));
-// app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));// Swagger route
+const swaggerSetup = require('./swagger');
+swaggerSetup(app);
 
 //const { createDefaultAdminUser } = require("./utils/userUtils"); // Import the function
-// Load environment variables based on the NODE_ENV
+
 const envFile = process.env.NODE_ENV === "production" ? ".env.production" : ".env.development";
-
-
-const { formatDate } = require("./utils/dateUtils");
-
 dotenv.config({ path: envFile });
 
 connectDB();
@@ -84,14 +27,6 @@ const initializeServer = async () => {
     const PORT = process.env.PORT || 8085;
     const SSL = process.env.SSL
     if (SSL === "true") {
-      // const SSL_KEY_PATH = process.env.SSL_KEY_PATH || "/etc/letsencrypt/live/grandinventory.com/privkey.pem";
-      // const SSL_CERT_PATH = process.env.SSL_CERT_PATH || "/etc/letsencrypt/live/grandinventory.com/fullchain.pem";
-      // const key = fs.readFileSync(SSL_KEY_PATH, "utf8");
-      // const cert = fs.readFileSync(SSL_CERT_PATH, "utf8");
-      // Start HTTPS server
-      // https.createServer({ key, cert }, app).listen(PORT, () => {
-      //   console.log(`HTTPS Server is running on https://localhost:${PORT}`);
-      // });
        https.createServer(app).listen(() => {
         console.log(`HTTPS Server is running on https://localhost:${PORT}`);
       });

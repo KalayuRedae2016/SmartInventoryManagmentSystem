@@ -1,14 +1,18 @@
 const fs = require('fs');
 const fss = require('fs').promises;  // Use fs.promises for async file reading
 const path = require('path');
-const xlsx = require('xlsx'); //for import user from excel
 const fsp = require('fs').promises;
+
+const xlsx = require("xlsx");
+const ExcelJS = require("exceljs");
+const puppeteer = require("puppeteer");
+const Handlebars = require("handlebars");
 
 const { sequelize } = require('../models'); // adjust path
 const multer = require('multer');
+
 const catchAsync = require('./catchAsync');
 const AppError = require('./appError');
-const {buildFilter}=require("../utils/buildFilter")
 
 
 exports.createMulterMiddleware = (destinationFolder,filenamePrefix,allowedTypes = [],maxFileSizeMB = 5) => {
@@ -158,179 +162,64 @@ exports.mapImportRows = (rows, mapFn) => {
   });
 }
 
-//exports.importFromExcel = catchAsync(async (req,Model, transformFn) => {
-//     console.log("hereexcel")
-//     console.log("request File",req.file)
-//   if (!req.file || !req.file.path) {
-//     return next(new AppError('File not uploaded or path is invalid.', 400));
-//   }
+exports.importFromExcelFile = async ({ filePath, requiredFields = [], transformFn = null, saveFn }) => {
+  if (!filePath || !fs.existsSync(filePath)) {
+    throw new AppError('Excel file not found', 400);
+  }
 
-//   if (!req.file.mimetype.includes('spreadsheetml') && !req.file.originalname.endsWith('.xlsx')) {
-//     return next(new AppError('Please upload a valid Excel file (.xlsx)', 400));
-//   }
+  const workbook = xlsx.readFile(filePath);
+  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+  const jsonData = xlsx.utils.sheet_to_json(worksheet);
 
-//   const filePath = req.file.path;
-//   const workbook = xlsx.readFile(filePath);
-//   const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-//   const jsonData = xlsx.utils.sheet_to_json(worksheet);
-  
-//   console.log(jsonData)
+  if (!Array.isArray(jsonData) || jsonData.length === 0) {
+    throw new AppError('Excel file is empty or data is not in correct format', 400);
+  }
 
-//   if (!Array.isArray(jsonData) || jsonData.length === 0) {
-//     throw new AppError("Excel file is empty or data is not in the correct format.", 400);
-//   }
+  const importedData = [];
+  const errors = [];
 
-//   const importedData = [];
-//   const errors = [];
-//   for (const [index, data] of jsonData.entries()) {
-//     try {
-//       const document = transformFn ? await transformFn(data) : new Model(data);
-//       console.log("Transformed Data:", document); // Log transformed user data
-//       const savedDocument = await document.save();
-//       importedData.push(savedDocument);
-//     } catch (error) {
-//       errors.push({ row: index + 1, error: error.message, data });
-//       continue; // Ensure processing continues for subsequent rows
-//     }
-//   }
-//   console.log("Returning from importFromExcel:", { importedData, errors });
-// return { importedData, errors };
-// });
-
-exports.importFromExcel = (Model, options = {}) => {
-  const {transformFn = null,injectFields = [],uniqueCheckFields = []} = options;
-
-  return async (req, res, next) => {
-    if (!req.file || !req.file.path) {
-      return next(new AppError("Excel file not uploaded", 400));
-    }
-
-    const transaction = await sequelize.transaction();
-
+  for (const [index, row] of jsonData.entries()) {
     try {
-
-      const workbook = xlsx.readFile(req.file.path);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = xlsx.utils.sheet_to_json(worksheet);
-
-      if (!rows.length) {
-        throw new AppError("Excel file is empty", 400);
+      // Check for missing required fields
+      const missingFields = requiredFields.filter(f => !row[f]);
+      if (missingFields.length > 0) {
+        throw new AppError(`Missing required fields: ${missingFields.join(', ')}`, 400);
       }
 
-      const imported = [];
-      const errors = [];
+      // Transform row if a transform function is provided
+      let transformed = transformFn ? await transformFn(row) : row;
 
-      for (const [index, row] of rows.entries()) {
-
-        try {
-
-          let data = row;
-
-          // Optional transform per module
-          if (transformFn) {
-            data = await transformFn(row, req);
-          }
-
-          // Inject system fields (like businessId)
-          injectFields.forEach(field => {
-            if (req.user && req.user[field]) {
-              data[field] = req.user[field];
-            }
-          });
-
-          // Optional duplicate check
-          if (uniqueCheckFields.length) {
-            const where = {};
-            uniqueCheckFields.forEach(field => {
-              where[field] = data[field];
-            });
-
-            const exists = await Model.findOne({ where });
-            if (exists) {
-              throw new Error("Duplicate entry detected");
-            }
-          }
-
-          const created = await Model.create(data, { transaction });
-          imported.push(created);
-
-        } catch (err) {
-          errors.push({
-            row: index + 2, // +2 because Excel header
-            message: err.message
-          });
-        }
-      }
-
-      await transaction.commit();
-
-      fs.unlinkSync(req.file.path);
-
-      return res.status(200).json({
-        status: 1,
-        message: "Import completed",
-        importedCount: imported.length,
-        errorCount: errors.length,
-        errors
-      });
-
+      // Save using provided save function
+      const saved = await saveFn(transformed);
+      importedData.push(saved);
     } catch (err) {
-
-      await transaction.rollback();
-      fs.unlinkSync(req.file.path);
-
-      return next(err);
+      errors.push({ row: index + 2, error: err.message, data: row }); // +2 for Excel header
     }
-  };
+  }
+
+  // Cleanup: remove file
+  fs.unlinkSync(filePath);
+
+  return { importedData, errors };
 };
 
-exports.readExcelFile = catchAsync(async (filePath) => {
-    const workbook = xlsx.readFile(filePath);
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const jsonData = xlsx.utils.sheet_to_json(worksheet);
-    return jsonData;
-});
+exports.exportToExcelFile = async ({ data, columns, fileName, res }) => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Sheet1');
 
-exports.exportToExcel = (Model, include = [], allowedFilters = []) => {
-  return async (req, res, next) => {
-    try {
+  worksheet.columns = columns;
 
-      // Build dynamic filters
-      const where = buildFilter(req.query, allowedFilters);
+  data.forEach(row => worksheet.addRow(row));
 
-      const data = await Model.findAll({
-        where,
-        include
-      });
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename=${fileName}-${Date.now()}.xlsx`
+  );
 
-      // Convert Sequelize objects to plain JSON
-      const formatted = data.map(item => item.toJSON());
-
-      const worksheet = xlsx.utils.json_to_sheet(formatted);
-      const workbook = xlsx.utils.book_new();
-
-      xlsx.utils.book_append_sheet(workbook, worksheet, "Report");
-
-      // Generate buffer instead of writing to disk
-      const buffer = xlsx.write(workbook, {
-        type: "buffer",
-        bookType: "xlsx"
-      });
-
-      res.setHeader(
-        "Content-Type",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      );
-
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename=report-${Date.now()}.xlsx`
-      );
-
-      return res.send(buffer);
-
-    } catch (err) {
-      return next(err);
-    }
-  };
+  await workbook.xlsx.write(res);
+  res.end();
 };

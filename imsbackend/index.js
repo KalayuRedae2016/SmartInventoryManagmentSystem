@@ -86,7 +86,7 @@ if (process.env.NODE_ENV === 'production') {
 } else {
   corsOptions = {
     origin: '*', // Allow all origins for development
-    credentials: true, // Enable credentials like cookies
+    credentials: false, // Enable credentials like cookies
     methods: ['GET', 'POST', 'PUT', 'PATCH','DELETE','OPTIONS'], // Add allowed methods
   };
 }
@@ -150,8 +150,7 @@ app.use((req, res, next) => {
 });
 
 
-//  #2 Routers
-
+//  # Routers
 app.use('/api/ims/auth',authRouter);
 
 app.use('/api/ims/business',bussinessRouter);

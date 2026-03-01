@@ -10,8 +10,7 @@ require('dotenv').config();
 //console.log("Loading model: ", db);
 const { sendEmail, sendWelcomeEmail } = require('../utils/emailUtils');
 // const {logAction}=require("../utils/logUtils")
-//const { deleteFile, createMulterMiddleware, processUploadFilesToSave } = require('../utils/fileUtils');
-const { deleteFile, createMulterMiddleware, processUploadFilesToSave } = require('../utils/fileUtils');
+
 const path = require('path');
 const { formatDate } = require('../utils/dateUtils');
 const { permission } = require('process');
@@ -22,25 +21,35 @@ const signInToken = (user) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
 };
 
-//attachements=documents and images
-const attachments = createMulterMiddleware(
-  'uploads/documents', // Destination folder
-  'doc', // Prefix for filenames
-  ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf', 'application/msword'] // Allowed types
+const {createMulterMiddleware,processUploadFilesToSave,deleteFile} = require('../utils/fileUtils');
+
+// Configure multer for payment file uploads
+const userUpload = createMulterMiddleware(
+  'uploads/users/',
+  'user',
+  [
+    'image/jpeg',
+    'image/png',
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel'
+  ]
 );
 
+// Middleware for handling multiple file 
+exports.uploaduserAttachements=userUpload.fields([
+    { name: 'profileImage', maxCount: 1 },
+    { name: 'images', maxCount: 5 },
+    { name: 'documents', maxCount: 10 },
+    { name: 'logo', maxCount: 1 },
+  ])
 
-exports.uploadFilesMiddleware = attachments.fields([
-  { name: 'profileImage', maxCount: 1 },// Single file for profileImage
-  { name: 'images', maxCount: 10 }, // upto to 10 images
-  { name: 'documents', maxCount: 10 }, // Up to 10 files for documents
-]);
 
 // Signup controller
 exports.signup = catchAsync(async (req, res, next) => {
   console.log("registration request", req.body)
   console.log("profileImages", req.files)
-  const { fullName, phoneNumber, roleId,password, email, address} = req.body;
+  const { fullName, phoneNumber, roleId,warehouseId,password, email, address} = req.body;
   if (!fullName ||!roleId|| !phoneNumber || !password) {
     return next(new AppError("missing required Fields(name,phone or password)", 404))
   }
@@ -55,13 +64,13 @@ exports.signup = catchAsync(async (req, res, next) => {
     if (req.files) deleteFile(req.files.path);
     return (next(new AppError("PhoneNumber already in use", 404)))
   }
-
+console.log("requested user",req.user)
 
   // const hashedPassword = await bcrypt.hash(password, 12);// Hash password see on hooks
 
   const newUser = await User.create({
     businessId: 1, // Default businessId, adjust as needed
-    businessId: req.user.warehouseId,
+    warehouseId: warehouseId,
     roleId:roleId,
     fullName,
     phoneNumber,
@@ -189,8 +198,9 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
     return next(new AppError('User is not found.', 404));
   }
 
-  const hashedNewPassword = await bcrypt.hash(newPassword, 12);
-  user.password = hashedNewPassword;
+  // /const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+  // user.password = hashedNewPassword;
+  user.password=newPassword
   await user.save();
 
   const token = signInToken(user);
@@ -249,53 +259,33 @@ exports.getMe = catchAsync(async (req, res, next) => {
   });
 })
 exports.updateMe = catchAsync(async (req, res, next) => {
-  console.log("requestUser", req.user)
-  console.log("request body", req.body)
+  console.log("requested body",req.body)
+  const user = await User.findByPk(req.user.id);
+  if (!user) return next(new AppError("No user found", 404));
 
-  if (req.body.password || req.body.role || req.body.roleId) {
-    return next(new AppError('This route is not for password or role updates', 400));
-  }
-
-  const user=await User.findByPk(req.user.id)
-  if(!user) return next(new AppError("No user Found",404))
-    
-  const filterObj = (obj, ...allowedFields) => {
-  const newObj = {};
-  Object.keys(obj).forEach(el => {
-    if (allowedFields.includes(el)) {
-      newObj[el] = obj[el];
-    }
+  const allowedFields = ["fullName", "phoneNumber", "email", "address"];
+  const filteredBody = {};
+  allowedFields.forEach(field => {
+    if (req.body[field] !== undefined) filteredBody[field] = req.body[field];
   });
-  return newObj;
-};
 
-  const filteredBody = filterObj(
-    req.body,
-    'fullName',
-    'phoneNumber',
-    'email',
-    'address'
-  );
-
-  // Step 5: Handle profile image upload
-  if (req.files && req.files.profileImage) {
-    let {profileImage}= await processUploadFilesToSave(req,req.files, req.body, existingUser)
-  if(!profileImage){
-    profileImage=existingUser.profileImage
+  // Validate email
+  if (filteredBody.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(filteredBody.email)) {
+    return next(new AppError("Invalid email format", 400));
   }
-  filteredBody.profileImage = profileImage;
-}
 
-  await user.update(filteredBody, { where: { id: req.user.id } }, { new: true, runValidators: true });
+  // Handle profileImage from multipart/form-data
+  if (req.files && req.files.profileImage) {
+    const { profileImage } = await processUploadFilesToSave(req, req.files, req.body, user);
+    filteredBody.profileImage = profileImage || user.profileImage;
+  }
 
-  await user.save();
+  // Update the instance
+  await user.update(filteredBody);
 
   res.status(200).json({
     status: 1,
-    message: "user Updated Sucessfully",
-    data:user
+    message: "User updated successfully",
+    data: user,
   });
-
 });
-
-
