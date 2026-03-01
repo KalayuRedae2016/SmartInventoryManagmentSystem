@@ -1,10 +1,14 @@
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const db = require('../models');
 const { Op, where } = require('sequelize');
-const validator = require('validator');
-const User = db.User;
+const Sequelize=require("sequelize")
+const xlsx = require('xlsx'); //for import user from excel
+const ExcelJS = require("exceljs");
 
+const puppeteer = require("puppeteer");
+const Handlebars = require("handlebars");
+
+const validator = require('validator');
+const { User, Role, Warehouse } = require('../models');
+const fs = require('fs');
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
 require('dotenv').config();
@@ -13,203 +17,162 @@ const { sendEmail } = require('../utils/emailUtils');
 
 const {createMulterMiddleware,processUploadFilesToSave,importFromExcel,exportToExcel,exportToPdf} = require('../utils/fileUtils');
 
-// // Configure multer for user file uploads
-// const userFileUpload = createMulterMiddleware(
-//   'uploads/importedUsers/', // Destination folder
-//   'User', // Prefix for filenames
-//   ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'] // Allowed file types
-// );
+// Configure multer for payment file uploads
+const userUpload = createMulterMiddleware(
+  'uploads/users/',
+  'user',
+  [
+    'image/jpeg',
+    'image/png',
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel'
+  ]
+);
 
-// const filterObj = (obj, ...allowedFields) => {
-//   const newObj = {};
-//   Object.keys(obj).forEach(el => {
-//     if (allowedFields.includes(el)) newObj[el] = obj[el];
-//   });
-//   return newObj;
-// };
+// Middleware for handling multiple file 
+exports.uploaduserAttachements=userUpload.fields([
+    { name: 'profileImage', maxCount: 1 },
+    { name: 'images', maxCount: 5 },
+    { name: 'documents', maxCount: 10 },
+    { name: 'logo', maxCount: 1 },
+  ])
+exports.uploaduserFile = userUpload.single('file');// Middleware for handling single file upload
 
-// // Middleware for handling single file upload
-// exports.uploadUserFile = userFileUpload.single('file');
 
-exports.getAllUsers = catchAsync(async (req, res, next) => {
-  const { isActive, search, sortBy, sortOrder, page = 1, limit = 20 } = req.query;
-  let whereQuery = {};
-  if (!req.user.role==="admin") {
-    whereQuery = { role: req.user.role };
-  } 
+const buildUserWhereClause = (query) => {
+  const { isActive,search, warehouseId, roleId, startDate, endDate } = query;
 
-  // isActive Filter
+  let whereClause = {};
+
+  if (warehouseId) whereClause.warehouseId = warehouseId;
+  if (roleId) whereClause.roleId = roleId;
+
   if (isActive !== undefined) {
-    whereQuery.isActive = ["true", "1", true, 1].includes(isActive);
+    whereClause.isActive = ["true", "1", true, 1].includes(isActive);
   }
 
-  // Search Filter (name, email, phone)
+  if (startDate && endDate) {
+    whereClause.createdAt = {
+      [Op.between]: [new Date(startDate), new Date(endDate)]
+    };
+  }
+
   if (search) {
     whereQuery[Op.or] = [
       { fullName: { [Op.like]: `%${search}%` } },
       { email: { [Op.like]: `%${search}%` } },
       { phoneNumber: { [Op.like]: `%${search}%` } },
       { address: { [Op.like]: `%${search}%` } },
-      { role: { [Op.like]: `%${search}%` } },
     ];
   }
 
+  return whereClause;
+};
+
+exports.getAllUsers = catchAsync(async (req, res, next) => {
+  const {sortBy,sortOrder, page = 1,limit = 20} = req.query;
+
+  const whereQuery = buildUserWhereClause(req.query);
   const validSortColumns = ["createdAt", "updatedAt", "fullName", "email"];
-  const sortColumn = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
+  const orderColumn = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
   const orderDirection = sortOrder === "asc" ? "ASC" : "DESC";
 
   // Pagination
-  const skip = (page - 1) * limit;
+  const offset = (page - 1) * limit;
 
-  // 4️FETCH USERS (PAGINATED + FILTERED)
   const { rows: users, count: totalFiltered } = await User.findAndCountAll({
     where: whereQuery,
-    offset: skip,
+    include: [
+      { model: Role, as: 'role', attributes: ['id', 'code'] },
+      { model: Warehouse, as: 'warehouse', attributes: ['id', 'name'] }
+    ],
+    offset: Number(offset),
     limit: Number(limit),
-    order: [[sortColumn, orderDirection]],
+    order: [[orderColumn, orderDirection]],
   });
 
   if (users.length === 0) {
     return next(new AppError("No users found", 404));
   }
 
-
-  const formattedUsers = users.map(u => ({
-    ...u.toJSON(),
+const formattedUsers = users.map(u => {
+  const { profileImage,password,passwordResetOTP,changePassword,createdAt,updatedAt,...rest } = u.toJSON();
+           
+  return {
+    ...rest,
     formattedCreatedAt: u.createdAt ? formatDate(u.createdAt) : null,
     formattedUpdatedAt: u.updatedAt ? formatDate(u.updatedAt) : null,
-  }));
+    roleName: u.role?.name,
+    warehouseName: u.warehouse?.name,
+  };
+});
 
-  // // 6️ FAST SQL COUNTERS FOR DASHBOARD
-  // const [
-  //   activeUsers,
-  //   deactiveUsers,
-  //   activeStaffs,
-  //   deactiveStaffs,
-  //   adminUsers,
-  // ] = await Promise.all([
-  //   User.count({ where: { role: "user", isActive: true } }),
-  //   User.count({ where: { role: "user", isActive: false } }),
-  //   User.count({ where: { role: "staff", isActive: true } }),
-  //   User.count({ where: { role: "staff", isActive: false } }),
-  //   User.count({ where: { role: "admin" } }),
-  // ]);
+  // After fetching users
+const roleCounts = {};
+formattedUsers.forEach(u => {
+  const roleName = u.role?.code || 'Unknown';
+  if (!roleCounts[roleName]) roleCounts[roleName] = 0;
+  roleCounts[roleName]++;
+});
 
-  // 7️⃣ SEND RESPONSE
-  res.status(200).json({
+const activeUsers = users.filter(u => u.isActive).length;
+const inactiveUsers = users.filter(u => !u.isActive).length;
+
+res.status(200).json({
     status: 1,
-    length: formattedUsers.length,
-    message: 'Users fetched successfully',
-    // pagination: {
-    //   totalFiltered,
-    //   currentPage: Number(page),
-    //   limit: Number(limit),
-    //   totalPages: Math.ceil(totalFiltered / limit),
-    // },
-    // counts: {
-    //   activeUsers,
-    //   deactiveUsers,
-    //   activeStaffs,
-    //   deactiveStaffs,
-    //   adminUsers,
-    // },
+    message: "Users fetched successfully",
+    length:  totalFiltered,//formattedUsers.length,
+    currentPage:Number(page),
+    limit: Number(limit),
+    activeUsers,
+    inactiveUsers,
+    totalPages:Math.ceil(totalFiltered / limit),
+    roleCounts,
     users: formattedUsers,
   });
 });
 
 exports.getUser = catchAsync(async (req, res, next) => {
+
   console.log("Requested User Role:", req.user.role,req.params);
-  let userId = req.params.userId; // default: self-access
 
-  // Admins can access any user
-  if (req.user.role === "admin") {
-    userId = req.params.userId;
-  }
+  const user = await User.findByPk(req.params.userId, {
+    include: [
+      { model: Role, as: 'role' },
+      { model: Warehouse, as: 'warehouse' }
+    ]
+  });
 
-  // Doctors can access- their own data, users' (patients') data,not other doctors/admins
-  if (req.user.role === "staff") {
-    const targetUserId = req.params.userId;
-    if (targetUserId && targetUserId !== req.user.id) {
-      const targetUser = await User.findByPk(targetUserId);
-      if (!targetUser) {
-        return next(new AppError('User not found', 404));
-      }
 
-      // Doctors can only view users (patients), not other doctors or admins
-      if (targetUser.role !== "user") {
-        return next(new AppError("Access denied: You can only view profiles.", 403));
-      }
+  if (!user)  return next(new AppError('User not foundn', 404));
 
-      userId = targetUserId;
-    }
-  }
+  const { password,passwordResetOTP,passwordResetOTPExpires,...safeUser } = user.toJSON();
 
-  // Normal users can only view their own data (already set above)
-  const user = await User.findByPk(userId);
-
-  if (!user) {
-    return next(new AppError('User not found', 404));
-  }
-
-  const formattedCreatedAt = user.createdAt ? formatDate(user.createdAt) : null;
-  const formattedUpdatedAt = user.updatedAt ? formatDate(user.updatedAt) : null;
-  
   res.status(200).json({
     status: 1,
     message: `Profile fetched successfully!`,
-    data: {
-      ...user.toJSON(),
-      formattedCreatedAt,
-      formattedUpdatedAt
-    },
+    data: safeUser
   });
 });
 
 exports.updateUser= catchAsync(async (req, res, next) => {
-  const targetUserId = req.params.userId;
 
-  // Role-based access control
-  if (req.user.role === 'user' && req.user.id !== targetUserId) {
-    return next(new AppError("Access denied: You can only update your own profile", 403));
-  }
-
-  if (req.user.role === 'doctor') {
-    if (req.user.id !== targetUserId) {
-      const targetUser = await User.findByPk(targetUserId);
-      if (!targetUser || targetUser.role !== 'user') {
-        return next(new AppError("Access denied: Doctors can only update their own or user (patient) profiles", 403));
-      }
-    }
-  }
-
-  const existingUser = await User.findByPk(targetUserId);
-  if (!existingUser) {
-    return next(new AppError("User not found", 404));
-  }
-
-  const originalUserData = JSON.parse(JSON.stringify(existingUser));
+  const user = await User.findByPk(req.params.userId);
+  if (!user)  return next(new AppError("User not found", 404));
   
-  let {profileImage}= await processUploadFilesToSave(req,req.files, req.body, existingUser)
-  if(!profileImage){
-    profileImage=existingUser.profileImage
-  }
+  const originalUserData = JSON.parse(JSON.stringify(user));
+  
+  let {profileImage}= await processUploadFilesToSave(req,req.files, req.body, user)
+  if(!profileImage) profileImage=user.profileImage
   // Process uploads
   
   // Merge update fields
-  const updateData = {
-    ...req.body,
-    profileImage
-  };
+  const updateData = {...req.body, profileImage  };
 
-  // Update user
-  await existingUser.update(updateData);
+  await user.update(updateData);
 
-  // Fetch latest version
-  const updatedUser = await User.findByPk(targetUserId);
-
-  // Format timestamps
-  const formattedCreatedAt = updatedUser.createdAt ? formatDate(updatedUser.createdAt) : null;
-  const formattedUpdatedAt = updatedUser.updatedAt ? formatDate(updatedUser.updatedAt) : null;
+  const { password,passwordResetOTP,passwordResetOTPExpires,...safeUser } = user.toJSON();
 
   // // Log update
   // await logAction({
@@ -228,39 +191,38 @@ exports.updateUser= catchAsync(async (req, res, next) => {
   // });
 
   res.status(200).json({
+    error:false,
     status: 1,
-    message: `${updatedUser.fullName} updated successfully`,
-    updatedUser: {
-      ...updatedUser.toJSON(),
-      formattedCreatedAt,
-      formattedUpdatedAt,
-    },
-   
+    message: `${user.fullName} updated successfully`,
+    updatedUser:safeUser,   
   });
 });
 
 exports.resetPassword = catchAsync(async (req, res, next) => {
-  const userId = req.params.userId;
-  const user = await User.findByPk(userId);
+
+ const user = await User.findByPk(req.params.userId, {
+    include: [
+      { model: Role, as: 'role' },
+      { model: Warehouse, as: 'warehouse' }
+    ]
+  });
   console.log("reseted user", user);
 
-  if (!user) {
-    return next(new AppError('User is not found', 404));
-  }
+  if (!user)  return next(new AppError('User is not found', 404));
 
-  // Generate a new password and update the user
   const randomPassword = user.generateRandomPassword();
-  user.password = await bcrypt.hash(randomPassword, 12);
-  console.log("password", randomPassword)
+ // user.password = await bcrypt.hash(randomPassword, 12);
+ user.password = randomPassword;
+  // console.log("password", randomPassword)
   user.changePassword = true;
   await user.save();
-
+console.log("rested user",user)
   // If the user has no email, send response and return
   if (!user.email) {
     return res.status(200).json({
       status: 1,
       userId: user.id,
-      role: user.role,
+      role: user.role.code,
       resetedPassword: randomPassword,
       message: 'Password reset successfully. The password will be provided by the admin. Please contact support.',
       changePassword: user.changePassword,
@@ -271,10 +233,11 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
     // Send email to user
     const subject = 'Your Password Has Been Reset';
     const email = user.email;
-    const loginLink = process.env.NODE_ENV === "development" ? "http://localhost:8085" : "https://grandinventory.com";
-    const message = `Hi ${user.name},
-
-        Your password has been reset by an administrator. Here are your new login credentials:
+    console.log("reqq user",req.user)
+    const loginLink = process.env.NODE_ENV === "development" ? "http://localhost:8083" : "https://grandinventory.com";
+    const message = `Hi ${user.fullName},
+    
+        Your password has been reset by an ${req.user.fullName} with role ${req.user.roleCode}. Here are your new login credentials:
 
       - phoneNumber: ${user.phoneNumber}
       - Email: ${user.email}
@@ -287,7 +250,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
       If you did not request this change, please contact our support team.
 
       Best regards,
-      Mobile Veternary Services Group Team`;
+      Smart Inventory Managment System Group Team`;
 
     await sendEmail({ email, subject, message });
 
@@ -295,9 +258,9 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
     return res.status(200).json({
       status: 1,
       userId: user.id,
-      role: user.role,
+      role: user.role.code,
       resetedPassword: randomPassword,
-      message: 'Password reset successfully. Check your email for details.',
+      message: `Password for ${user.fullName} reset successfully by ${req.user.fullName} with role ${req.user.roleCode}.Check email-${user.email} for details.`,
       changePassword: user.changePassword,
     });
 
@@ -317,8 +280,8 @@ exports.updateUserStatus = catchAsync(async (req, res, next) => {
   await user.save();
   res.status(200).json({
     status: 1,
-    message: `User ${user.isActive ? 'activated' : 'deactivated'} successfully`,
-    user,
+    message: `${user.fullName} is ${user.isActive ? 'activated' : 'deactivated'} successfully`,
+    // user,
   });
 });
 
@@ -412,47 +375,520 @@ exports.sendEmailMessages = catchAsync(async (req, res, next) => {
     return next(new AppError('Failed to send one or more emails', 500));
   }
 });
+exports.importUsers = catchAsync(async (req, res, next) => {
+  console.log('usersexcelhere');
+  console.log('request File', req.file);
 
-exports.importUsersFromExcel = catchAsync(async (req, res, next) => {
-  if (!req.file) {
-    return next(new AppError('No file uploaded', 400));
-  } 
+  // Check if the file exists and is an Excel file
+  if (!req.file || !req.file.path) {
+    return next(new AppError('File not uploaded or path is invalid.', 400));
+  }
+
+  if (
+    !req.file.mimetype.includes('spreadsheetml') &&
+    !req.file.originalname.endsWith('.xlsx')
+  ) {
+    return next(new AppError('Please upload a valid Excel file (.xlsx)', 400));
+  }
+
   const filePath = req.file.path;
-  const { processExcelFile } = require('../utils/excelUtils');
-  const { validUsers, invalidEntries } = await processExcelFile(filePath);  
-  if (validUsers.length > 0) {
-    await User.bulkCreate(validUsers);
-  } 
+
+  // Validate and transform payment data
+  const validateAndTransformData = async (data) => {
+   // console.log('Validating data:', data); // Log incoming data
+
+    // Required fields for validation
+    const requiredFields = [
+      'businessId',
+      'warehouseId',
+      'roleId',
+      'fullName',
+      'phoneNumber',
+      'email',
+      'password',
+      'isActive',
+      'address',
+    ];
+    console.log("requiredFields",requiredFields)
+
+    const missingFields = requiredFields.filter((field) => !data[field]);
+
+    if (missingFields.length > 0) {
+      return next(new AppError(`Missing required fields: ${missingFields.join(', ')}`,400))};
+
+    const user = {
+      businessId:data.businessId,
+      warehouseId:data.warehouseId,
+      roleId:data.roleId,
+      fullName:data.fullName,
+      phoneNumber: String(data.phoneNumber),
+      email: String(data.email).toLowerCase(),
+      password: String(data.password),
+      isActive: Boolean(data.isActive),
+      address:data.address,
+      profileImage:null
+
+      
+    };
+    return user;
+  };
+
+  // Process the Excel file and import payments
+  const importFromExcel = async () => {
+    const workbook = xlsx.readFile(filePath);
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const jsonData = xlsx.utils.sheet_to_json(worksheet); // Convert the sheet to JSON
+
+    if (!Array.isArray(jsonData) || jsonData.length === 0) {
+      throw new AppError(
+        'Excel file is empty or data is not in the correct format.',
+        400
+      );
+    }
+
+    const importedData = [];
+    const errors = [];
+
+    for (const [index, data] of jsonData.entries()) {
+      try {
+        const userDocument = await validateAndTransformData(data);
+        console.log('Transformed Users:', userDocument); // Log transformed user data
+        const savedUser = await User.create(userDocument); // Save the user to the database
+         importedData.push(savedUser);
+        console.log('Saved Users:', savedUser); // Log saved User
+      } catch (error) {
+        console.log("DATABASE ERROR:", error);
+        errors.push({ row: index + 1, error: error.message, data });
+      }
+    }
+
+    console.log('Imported Data:', importedData); // Log final imported data
+    return { importedData, errors };
+  };
+
+  const { importedData, errors } = await importFromExcel();
+  console.log('Imported Data:', importedData);
+
+  // Cleanup: Remove uploaded file after processing
+  fs.unlinkSync(filePath);
+
+  if (!importedData.length) {
+    return next(
+      new AppError('No valid Users were imported from the file.', 400)
+    );
+  }
 
   res.status(200).json({
     status: 1,
-    message: `${validUsers.length} users imported successfully. ${invalidEntries.length} invalid entries were skipped.`,
-    invalidEntries,
-})
+    message:
+      errors.length > 0
+        ? 'Import completed with some errors'
+        : 'Data imported successfully',
+    successCount: importedData.length,
+    errorCount: errors.length,
+    errors,
+    importedUsers: importedData,
+  });
 });
 
-exports.exportUsersToExcel = catchAsync(async (req, res, next) => { 
+exports.exportUsers = catchAsync(async (req, res, next) => {
+  const {format = "excel",sortBy = "createdAt", sortOrder = "desc", page = 1,limit = 1000} = req.query;
+
+  const whereQuery = buildUserWhereClause(req.query);
+  const validSortColumns = ["createdAt", "updatedAt", "fullName", "email"];
+  const orderColumn = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
+  const orderDirection = sortOrder.toLowerCase() === "asc" ? "ASC" : "DESC";
+
   const users = await User.findAll({
-    attributes: ['id', 'fullName', 'email', 'phoneNumber', 'address', 'role', 'isActive', 'createdAt'],
-    order: [['createdAt', 'ASC']]
+    where: whereQuery,
+    include: [
+      { model: Role, as: "role", attributes: ["id", "name"] },
+      { model: Warehouse, as: "warehouse", attributes: ["id", "name"] }
+    ],
+    order: [[orderColumn, orderDirection]],
+    limit: Number(limit),
+    offset: (page - 1) * limit
   });
-  const filePath = await exportToExcel(users, 'Users');
+
+  if (!users.length)  return next(new AppError("No users found for the given filters.", 404));
+  
+  // --- Prepare data for export ---
+  const formattedUsers = users.map(u => ({
+    id: u.id,
+    fullName: u.fullName,
+    email: u.email,
+    phoneNumber: u.phoneNumber,
+    roleName: u.role?.name || "N/A",
+    warehouseName: u.warehouse?.name || "N/A",
+    isActive: u.isActive ? "Yes" : "No"
+  }));
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Users");
+
+    worksheet.columns = [
+      { header: "ID", key: "id", width: 10 },
+      { header: "Full Name", key: "fullName", width: 25 },
+      { header: "Email", key: "email", width: 30 },
+      { header: "Phone", key: "phoneNumber", width: 20 },
+      { header: "Role", key: "roleName", width: 20 },
+      { header: "Warehouse", key: "warehouseName", width: 25 },
+      { header: "Active", key: "isActive", width: 10 }
+    ];
+
+    formattedUsers.forEach(user => worksheet.addRow(user));
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=users-${Date.now()}.xlsx`
+    );
+
+    await workbook.xlsx.write(res);
+    return res.end();
+  }
+);
+
+exports.getUserDashboardSummary = catchAsync(async (req, res, next) => {
+
+  const { isActive, warehouseId, roleId, startDate, endDate } = req.query;
+
+  let whereClause = {};
+
+  if (warehouseId) whereClause.warehouseId = warehouseId;
+  if (roleId) whereClause.roleId = roleId;
+
+  if (isActive !== undefined) {
+    whereClause.isActive = ["true", "1", true, 1].includes(isActive);
+  }
+
+  if (startDate && endDate) {
+    whereClause.createdAt = {
+      [Op.between]: [new Date(startDate), new Date(endDate)]
+    };
+  }
+  const [
+    totalUsers,
+    activeUsers,
+    inactiveUsers,
+    mustChangePassword,
+    usersPerWarehouseRaw,
+    usersPerRoleRaw
+  ] = await Promise.all([
+    User.count({ where: whereClause }),
+    User.count({ where: { ...whereClause, isActive: true } }),
+    User.count({ where: { ...whereClause, isActive: false } }),
+    User.count({ where: { ...whereClause, changePassword: true } }),
+    // Users per Warehouse
+    User.findAll({
+      attributes: [
+        'warehouseId',
+        [Sequelize.fn('COUNT', Sequelize.col('User.id')), 'totalUsers']
+      ],
+      where: whereClause,
+      include: [{
+        model: Warehouse,
+        as: 'warehouse',
+        attributes: ['id', 'name']
+      }],
+      group: ['warehouseId', 'warehouse.id']
+    }),
+    // Users per Role
+    User.findAll({
+      attributes: [
+        'roleId',
+        [Sequelize.fn('COUNT', Sequelize.col('User.id')), 'totalUsers']
+      ],
+      where: whereClause,
+      include: [{
+        model: Role,
+        as: 'role',
+        attributes: ['id', 'name']
+      }],
+      group: ['roleId', 'role.id']
+    })
+
+  ]);
+
+  // ---------- FORMAT CLEAN RESPONSE ----------
+  const usersPerWarehouse = usersPerWarehouseRaw.map(item => ({
+    warehouseId: item.warehouseId,
+    warehouseName: item.warehouse?.name || "Unknown",
+    totalUsers: Number(item.get('totalUsers'))
+  }));
+
+  const usersPerRole = usersPerRoleRaw.map(item => ({
+    roleId: item.roleId,
+    roleName: item.role?.name || "Unknown",
+    totalUsers: Number(item.get('totalUsers'))
+  }));
+
   res.status(200).json({
     status: 1,
-    message: 'Users exported to Excel successfully',
-    filePath,
+    message: "User dashboard summary fetched successfully",
+    totalUsers,
+    activeUsers,
+    inactiveUsers,
+    mustChangePassword,
+    usersPerWarehouse,
+    usersPerRole
   });
+
 });
 
-exports.exportUsersToPdf = catchAsync(async (req, res, next) => {
-  const users = await User.findAll({
-    attributes: ['id', 'fullName', 'email', 'phoneNumber', 'address', 'role', 'isActive', 'createdAt'], 
-    order: [['createdAt', 'ASC']]
-  });
-  const filePath = await exportToPdf(users, 'Users');
-  res.status(200).json({
-    status: 1,
-    message: 'Users exported to PDF successfully',
-    filePath,
-  });
-});
+// exports.exportUsers = catchAsync(async (req, res, next) => {
+//   const {format = "excel",sortBy = "createdAt", sortOrder = "desc", page = 1,limit = 1000} = req.query;
+
+//   const whereQuery = buildUserWhereClause(req.query);
+//   const validSortColumns = ["createdAt", "updatedAt", "fullName", "email"];
+//   const orderColumn = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
+//   const orderDirection = sortOrder.toLowerCase() === "asc" ? "ASC" : "DESC";
+
+//   const users = await User.findAll({
+//     where: whereQuery,
+//     include: [
+//       { model: Role, as: "role", attributes: ["id", "name"] },
+//       { model: Warehouse, as: "warehouse", attributes: ["id", "name"] }
+//     ],
+//     order: [[orderColumn, orderDirection]],
+//     limit: Number(limit),
+//     offset: (page - 1) * limit
+//   });
+
+//   if (!users.length)  return next(new AppError("No users found for the given filters.", 404));
+  
+//   // --- Prepare data for export ---
+//   const formattedUsers = users.map(u => ({
+//     id: u.id,
+//     fullName: u.fullName,
+//     email: u.email,
+//     phoneNumber: u.phoneNumber,
+//     roleName: u.role?.name || "N/A",
+//     warehouseName: u.warehouse?.name || "N/A",
+//     isActive: u.isActive ? "Yes" : "No"
+//   }));
+
+//   // --- Excel Export ---
+//   if (format.toLowerCase() === "excel") {
+//     const workbook = new ExcelJS.Workbook();
+//     const worksheet = workbook.addWorksheet("Users");
+
+//     worksheet.columns = [
+//       { header: "ID", key: "id", width: 10 },
+//       { header: "Full Name", key: "fullName", width: 25 },
+//       { header: "Email", key: "email", width: 30 },
+//       { header: "Phone", key: "phoneNumber", width: 20 },
+//       { header: "Role", key: "roleName", width: 20 },
+//       { header: "Warehouse", key: "warehouseName", width: 25 },
+//       { header: "Active", key: "isActive", width: 10 }
+//     ];
+
+//     formattedUsers.forEach(user => worksheet.addRow(user));
+
+//     res.setHeader(
+//       "Content-Type",
+//       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+//     );
+//     res.setHeader(
+//       "Content-Disposition",
+//       `attachment; filename=users-${Date.now()}.xlsx`
+//     );
+
+//     await workbook.xlsx.write(res);
+//     return res.end();
+//   }
+
+//   // --- PDF Export ---
+//   if (format.toLowerCase() === "pdf") {
+//     const htmlTemplate = `
+//       <html>
+//         <head>
+//           <style>
+//             body { font-family: Arial, sans-serif; }
+//             table { width: 100%; border-collapse: collapse; }
+//             th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+//             th { background-color: #f4f4f4; }
+//           </style>
+//         </head>
+//         <body>
+//           <h2>User Report</h2>
+//           <table>
+//             <thead>
+//               <tr>
+//                 <th>ID</th>
+//                 <th>Full Name</th>
+//                 <th>Email</th>
+//                 <th>Phone</th>
+//                 <th>Role</th>
+//                 <th>Warehouse</th>
+//                 <th>Active</th>
+//               </tr>
+//             </thead>
+//             <tbody>
+//               {{#each users}}
+//                 <tr>
+//                   <td>{{id}}</td>
+//                   <td>{{fullName}}</td>
+//                   <td>{{email}}</td>
+//                   <td>{{phoneNumber}}</td>
+//                   <td>{{roleName}}</td>
+//                   <td>{{warehouseName}}</td>
+//                   <td>{{isActive}}</td>
+//                 </tr>
+//               {{/each}}
+//             </tbody>
+//           </table>
+//         </body>
+//       </html>
+//     `;
+
+//     const template = Handlebars.compile(htmlTemplate);
+//     const html = template({ users: formattedUsers });
+
+//     const browser = await puppeteer.launch();
+//     const page = await browser.newPage();
+//     await page.setContent(html, { waitUntil: "networkidle0" });
+
+//     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
+//     await browser.close();
+
+//     res.setHeader("Content-Type", "application/pdf");
+//     res.setHeader(
+//       "Content-Disposition",
+//       `attachment; filename=users-${Date.now()}.pdf`
+//     );
+//     return res.send(pdfBuffer);
+//   }
+
+//   return next(new AppError("Invalid export format. Use 'excel' or 'pdf'.", 400));
+// });
+// exports.exportUsers = catchAsync(async (req, res, next) => {
+//   const {format = "excel",sortBy = "createdAt", sortOrder = "desc", page = 1,limit = 1000} = req.query;
+
+//   const whereQuery = buildUserWhereClause(req.query);
+//   const validSortColumns = ["createdAt", "updatedAt", "fullName", "email"];
+//   const orderColumn = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
+//   const orderDirection = sortOrder.toLowerCase() === "asc" ? "ASC" : "DESC";
+
+//   const users = await User.findAll({
+//     where: whereQuery,
+//     include: [
+//       { model: Role, as: "role", attributes: ["id", "name"] },
+//       { model: Warehouse, as: "warehouse", attributes: ["id", "name"] }
+//     ],
+//     order: [[orderColumn, orderDirection]],
+//     limit: Number(limit),
+//     offset: (page - 1) * limit
+//   });
+
+//   if (!users.length)  return next(new AppError("No users found for the given filters.", 404));
+  
+//   // --- Prepare data for export ---
+//   const formattedUsers = users.map(u => ({
+//     id: u.id,
+//     fullName: u.fullName,
+//     email: u.email,
+//     phoneNumber: u.phoneNumber,
+//     roleName: u.role?.name || "N/A",
+//     warehouseName: u.warehouse?.name || "N/A",
+//     isActive: u.isActive ? "Yes" : "No"
+//   }));
+
+//   // --- Excel Export ---
+//   if (format.toLowerCase() === "excel") {
+//     const workbook = new ExcelJS.Workbook();
+//     const worksheet = workbook.addWorksheet("Users");
+
+//     worksheet.columns = [
+//       { header: "ID", key: "id", width: 10 },
+//       { header: "Full Name", key: "fullName", width: 25 },
+//       { header: "Email", key: "email", width: 30 },
+//       { header: "Phone", key: "phoneNumber", width: 20 },
+//       { header: "Role", key: "roleName", width: 20 },
+//       { header: "Warehouse", key: "warehouseName", width: 25 },
+//       { header: "Active", key: "isActive", width: 10 }
+//     ];
+
+//     formattedUsers.forEach(user => worksheet.addRow(user));
+
+//     res.setHeader(
+//       "Content-Type",
+//       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+//     );
+//     res.setHeader(
+//       "Content-Disposition",
+//       `attachment; filename=users-${Date.now()}.xlsx`
+//     );
+
+//     await workbook.xlsx.write(res);
+//     return res.end();
+//   }
+
+//   // --- PDF Export ---
+//   if (format.toLowerCase() === "pdf") {
+//     const htmlTemplate = `
+//       <html>
+//         <head>
+//           <style>
+//             body { font-family: Arial, sans-serif; }
+//             table { width: 100%; border-collapse: collapse; }
+//             th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+//             th { background-color: #f4f4f4; }
+//           </style>
+//         </head>
+//         <body>
+//           <h2>User Report</h2>
+//           <table>
+//             <thead>
+//               <tr>
+//                 <th>ID</th>
+//                 <th>Full Name</th>
+//                 <th>Email</th>
+//                 <th>Phone</th>
+//                 <th>Role</th>
+//                 <th>Warehouse</th>
+//                 <th>Active</th>
+//               </tr>
+//             </thead>
+//             <tbody>
+//               {{#each users}}
+//                 <tr>
+//                   <td>{{id}}</td>
+//                   <td>{{fullName}}</td>
+//                   <td>{{email}}</td>
+//                   <td>{{phoneNumber}}</td>
+//                   <td>{{roleName}}</td>
+//                   <td>{{warehouseName}}</td>
+//                   <td>{{isActive}}</td>
+//                 </tr>
+//               {{/each}}
+//             </tbody>
+//           </table>
+//         </body>
+//       </html>
+//     `;
+
+//     const template = Handlebars.compile(htmlTemplate);
+//     const html = template({ users: formattedUsers });
+
+//     const browser = await puppeteer.launch();
+//     const page = await browser.newPage();
+//     await page.setContent(html, { waitUntil: "networkidle0" });
+
+//     const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
+//     await browser.close();
+
+//     res.setHeader("Content-Type", "application/pdf");
+//     res.setHeader(
+//       "Content-Disposition",
+//       `attachment; filename=users-${Date.now()}.pdf`
+//     );
+//     return res.send(pdfBuffer);
+//   }
+
+//   return next(new AppError("Invalid export format. Use 'excel' or 'pdf'.", 400));
+// });
+

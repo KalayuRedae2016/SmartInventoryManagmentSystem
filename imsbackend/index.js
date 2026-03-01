@@ -41,6 +41,8 @@ const saleReturnRouter=require('./routes/saleReturnRoutes')
 
 // const transactionRouter = require('./routes/transactionRoutes');
 
+ const reportRoutes=require('./routes/reportRoutes');
+
 const app = express(); //start Express app
 
 const listEndpoints = require('express-list-endpoints');
@@ -180,6 +182,8 @@ app.use('/api/ims/sale-returns',saleReturnRouter);
 
 //app.use('/api/ims/stockAdjustments',stockAdjustmentRouter);
 // app.use('/api/ims/transactions', transactionRouter);
+
+app.use('/api/ims/reports', reportRoutes);
 
 // Catch-all route handler for undefined routes
 //  app.all('*', (req, res, next) => {

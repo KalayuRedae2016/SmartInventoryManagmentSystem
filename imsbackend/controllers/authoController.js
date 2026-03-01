@@ -61,6 +61,7 @@ exports.signup = catchAsync(async (req, res, next) => {
 
   const newUser = await User.create({
     businessId: 1, // Default businessId, adjust as needed
+    businessId: req.user.warehouseId,
     roleId:roleId,
     fullName,
     phoneNumber,

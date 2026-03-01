@@ -1,13 +1,15 @@
 const fs = require('fs');
 const fss = require('fs').promises;  // Use fs.promises for async file reading
 const path = require('path');
-//const xlsx = require('xlsx'); //for import user from excel
+const xlsx = require('xlsx'); //for import user from excel
+const fsp = require('fs').promises;
 
+const { sequelize } = require('../models'); // adjust path
 const multer = require('multer');
 const catchAsync = require('./catchAsync');
 const AppError = require('./appError');
+const {buildFilter}=require("../utils/buildFilter")
 
-const fsp = require('fs').promises;
 
 exports.createMulterMiddleware = (destinationFolder,filenamePrefix,allowedTypes = [],maxFileSizeMB = 5) => {
   if (!fs.existsSync(destinationFolder)) {
@@ -156,96 +158,131 @@ exports.mapImportRows = (rows, mapFn) => {
   });
 }
 
-exports.importFromExcel = catchAsync(async (req,Model, transformFn) => {
-    console.log("hereexcel")
-    console.log("request File",req.file)
-  if (!req.file || !req.file.path) {
-    return next(new AppError('File not uploaded or path is invalid.', 400));
-  }
+//exports.importFromExcel = catchAsync(async (req,Model, transformFn) => {
+//     console.log("hereexcel")
+//     console.log("request File",req.file)
+//   if (!req.file || !req.file.path) {
+//     return next(new AppError('File not uploaded or path is invalid.', 400));
+//   }
 
-  if (!req.file.mimetype.includes('spreadsheetml') && !req.file.originalname.endsWith('.xlsx')) {
-    return next(new AppError('Please upload a valid Excel file (.xlsx)', 400));
-  }
+//   if (!req.file.mimetype.includes('spreadsheetml') && !req.file.originalname.endsWith('.xlsx')) {
+//     return next(new AppError('Please upload a valid Excel file (.xlsx)', 400));
+//   }
 
-  const filePath = req.file.path;
-  const workbook = xlsx.readFile(filePath);
-  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-  const jsonData = xlsx.utils.sheet_to_json(worksheet);
-  console.log(jsonData)
-  if (!Array.isArray(jsonData) || jsonData.length === 0) {
-    throw new AppError("Excel file is empty or data is not in the correct format.", 400);
-  }
+//   const filePath = req.file.path;
+//   const workbook = xlsx.readFile(filePath);
+//   const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+//   const jsonData = xlsx.utils.sheet_to_json(worksheet);
+  
+//   console.log(jsonData)
 
-  const importedData = [];
-  const errors = [];
-  for (const [index, data] of jsonData.entries()) {
+//   if (!Array.isArray(jsonData) || jsonData.length === 0) {
+//     throw new AppError("Excel file is empty or data is not in the correct format.", 400);
+//   }
+
+//   const importedData = [];
+//   const errors = [];
+//   for (const [index, data] of jsonData.entries()) {
+//     try {
+//       const document = transformFn ? await transformFn(data) : new Model(data);
+//       console.log("Transformed Data:", document); // Log transformed user data
+//       const savedDocument = await document.save();
+//       importedData.push(savedDocument);
+//     } catch (error) {
+//       errors.push({ row: index + 1, error: error.message, data });
+//       continue; // Ensure processing continues for subsequent rows
+//     }
+//   }
+//   console.log("Returning from importFromExcel:", { importedData, errors });
+// return { importedData, errors };
+// });
+
+exports.importFromExcel = (Model, options = {}) => {
+  const {transformFn = null,injectFields = [],uniqueCheckFields = []} = options;
+
+  return async (req, res, next) => {
+    if (!req.file || !req.file.path) {
+      return next(new AppError("Excel file not uploaded", 400));
+    }
+
+    const transaction = await sequelize.transaction();
+
     try {
-      const document = transformFn ? await transformFn(data) : new Model(data);
-      console.log("Transformed Data:", document); // Log transformed user data
-      const savedDocument = await document.save();
-      importedData.push(savedDocument);
-    } catch (error) {
-      errors.push({ row: index + 1, error: error.message, data });
-      continue; // Ensure processing continues for subsequent rows
-    }
-  }
-  console.log("Returning from importFromExcel:", { importedData, errors });
-return { importedData, errors };
-});
 
-exports.exportToExcel = async (data, sheetName, fileName, res) => {
-  try {
-    // Convert data to plain JavaScript objects, ensuring subdocuments are included
-    const dataObjects = data.map(item => item.toObject({ flattenMaps: true, minimize: false }));
-    // minimize: false ensures empty objects or arrays are not removed.
+      const workbook = xlsx.readFile(req.file.path);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = xlsx.utils.sheet_to_json(worksheet);
 
-    // Convert JSON data to worksheet
-    const worksheet = xlsx.utils.json_to_sheet(dataObjects);
-    const workbook = xlsx.utils.book_new(); // Create a new workbook
-    xlsx.utils.book_append_sheet(workbook, worksheet, sheetName); // Append worksheet to workbook
-    const filePath = path.join(__dirname, '../uploads', fileName); // Define file path
-
-    // Ensure the directory exists
-    const dir = path.dirname(filePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
-    // Write workbook to file
-    xlsx.writeFile(workbook, filePath);
-
-    // Initiate download
-    res.download(filePath, fileName, (err) => {
-      if (err) {
-        console.error('Failed to download file:', err);
-        res.status(500).send('Failed to download file');
-      } else {
-        // console.log('File downloaded successfully');
-        fs.unlinkSync(filePath); // Optionally delete the file after download
+      if (!rows.length) {
+        throw new AppError("Excel file is empty", 400);
       }
-    });
 
-  } catch (err) {
-    console.error('Failed to export data to Excel file:', err);
-    res.status(500).send('Failed to export data to Excel file');
-  }
+      const imported = [];
+      const errors = [];
+
+      for (const [index, row] of rows.entries()) {
+
+        try {
+
+          let data = row;
+
+          // Optional transform per module
+          if (transformFn) {
+            data = await transformFn(row, req);
+          }
+
+          // Inject system fields (like businessId)
+          injectFields.forEach(field => {
+            if (req.user && req.user[field]) {
+              data[field] = req.user[field];
+            }
+          });
+
+          // Optional duplicate check
+          if (uniqueCheckFields.length) {
+            const where = {};
+            uniqueCheckFields.forEach(field => {
+              where[field] = data[field];
+            });
+
+            const exists = await Model.findOne({ where });
+            if (exists) {
+              throw new Error("Duplicate entry detected");
+            }
+          }
+
+          const created = await Model.create(data, { transaction });
+          imported.push(created);
+
+        } catch (err) {
+          errors.push({
+            row: index + 2, // +2 because Excel header
+            message: err.message
+          });
+        }
+      }
+
+      await transaction.commit();
+
+      fs.unlinkSync(req.file.path);
+
+      return res.status(200).json({
+        status: 1,
+        message: "Import completed",
+        importedCount: imported.length,
+        errorCount: errors.length,
+        errors
+      });
+
+    } catch (err) {
+
+      await transaction.rollback();
+      fs.unlinkSync(req.file.path);
+
+      return next(err);
+    }
+  };
 };
-
-exports.exportToPdf = async (data, templatePath, outputPath) => {
-  const Handlebars = require('handlebars');
-  const puppeteer = require('puppeteer');
-  const fs = require('fs').promises; 
-  // Read and compile the Handlebars template
-  const templateContent = await fs.readFile(templatePath, 'utf-8');
-  const template = Handlebars.compile(templateContent);
-  const html = template({ data });
-  // Launch Puppeteer to generate PDF 
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'networkidle0' });
-  await page.pdf({ path: outputPath, format: 'A4' });
-  await browser.close();
-} 
 
 exports.readExcelFile = catchAsync(async (filePath) => {
     const workbook = xlsx.readFile(filePath);
@@ -253,3 +290,47 @@ exports.readExcelFile = catchAsync(async (filePath) => {
     const jsonData = xlsx.utils.sheet_to_json(worksheet);
     return jsonData;
 });
+
+exports.exportToExcel = (Model, include = [], allowedFilters = []) => {
+  return async (req, res, next) => {
+    try {
+
+      // Build dynamic filters
+      const where = buildFilter(req.query, allowedFilters);
+
+      const data = await Model.findAll({
+        where,
+        include
+      });
+
+      // Convert Sequelize objects to plain JSON
+      const formatted = data.map(item => item.toJSON());
+
+      const worksheet = xlsx.utils.json_to_sheet(formatted);
+      const workbook = xlsx.utils.book_new();
+
+      xlsx.utils.book_append_sheet(workbook, worksheet, "Report");
+
+      // Generate buffer instead of writing to disk
+      const buffer = xlsx.write(workbook, {
+        type: "buffer",
+        bookType: "xlsx"
+      });
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=report-${Date.now()}.xlsx`
+      );
+
+      return res.send(buffer);
+
+    } catch (err) {
+      return next(err);
+    }
+  };
+};

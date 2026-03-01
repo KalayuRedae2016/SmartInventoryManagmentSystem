@@ -1,5 +1,6 @@
 'use strict';
 const bcrypt = require('bcryptjs');
+const wharehouse = require('../models/warehouse');
 
 module.exports = {
   async up(queryInterface) {
@@ -19,6 +20,7 @@ module.exports = {
     await queryInterface.bulkInsert('Users', [
       {
         businessId: 1,
+        warehouseId:1,
         roleId: superAdminRoleId,
         fullName: 'System Admin',
         email: 'kalayureda2016@gmail.com',
@@ -30,6 +32,7 @@ module.exports = {
       },
       {
         businessId: 1,
+        warehouseId:1,
         roleId: ownerRoleId,
         fullName: 'Owner',
         email: 'kalayuredae2@gmail.com',
