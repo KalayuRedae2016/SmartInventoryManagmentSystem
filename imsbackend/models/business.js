@@ -34,25 +34,3 @@ module.exports = (sequelize, DataTypes) => {
   return Business;
 };
 
-
-
-// subscriptions
-// -------------
-// id (PK)
-// tenant_id (FK)
-// plan_name
-// start_date
-// end_date
-// status ENUM('active','expired','pending')
-
-
-// subscription_payments
-// ---------------------
-// id (PK)
-// subscription_id (FK)
-// amount
-// payment_method
-// payment_slip_url
-// status ENUM('pending','approved','rejected')
-// reviewed_by
-// reviewed_at

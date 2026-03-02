@@ -11,7 +11,7 @@ const options = {
     contact: {
       name: "Kalayu Redae",
       email: "kalayuredae2@gmail.com",
-      url: "https://grandinventory.com"
+      //url: "https://grandinventory.com"
         }
     },
 

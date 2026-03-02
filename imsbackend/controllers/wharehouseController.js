@@ -1,13 +1,13 @@
-const { Warehouse, Stock } = require('../models');
+const { Warehouse, Stock,User,Role,StockTransaction} = require('../models');
 const { Op } = require('sequelize');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 exports.createWarehouse = catchAsync(async (req, res, next) => {
-  const {businessId,name, code, location,managerName,phone,email,isActive } = req.body;
+  const {name, code, location,managerName,phone,email,isActive } = req.body;
   console.log("warhouse req.body",req.body);
 
-  if (!businessId || !name || !code) {
+  if (!name || !code) {
     return next(new AppError('Business ID, Warehouse name and code are required', 400));
   }
 
@@ -17,7 +17,7 @@ exports.createWarehouse = catchAsync(async (req, res, next) => {
   }
 
   const warehouse = await Warehouse.create({
-    businessId,
+    businessId:req.user.businessId,
     name,
     code,
     location,
@@ -34,14 +34,7 @@ exports.createWarehouse = catchAsync(async (req, res, next) => {
 });
 
 exports.getAllWarehouses = catchAsync(async (req, res) => {
-  const {
-    isActive,
-    search,
-    sortBy = 'createdAt',
-    sortOrder = 'DESC',
-    page = 1,
-    limit = 20,
-  } = req.query;
+  const {isActive,search,sortBy = 'createdAt',sortOrder = 'DESC',page = 1,limit = 20 } = req.query;
 
   const whereQuery = {};
 
@@ -124,7 +117,7 @@ exports.updateWarehouse = catchAsync(async (req, res, next) => {
 exports.toggleWarehouseStatus = catchAsync(async (req, res, next) => {
   const warehouse = await Warehouse.findByPk(req.params.warehouseId);
   if (!warehouse) {
-    return next(new AppError('Warehouse not found', 404));
+    return next(new AppError('Warehouse not foundl', 404));
   }
 
   warehouse.isActive = !warehouse.isActive;
@@ -159,4 +152,39 @@ exports.deleteWarehouseById = catchAsync(async (req, res, next) => {
     status: 1, 
     message: 'Warehouse deleted successfully'
    });
+});
+
+exports.getWarehouseSummaryReport = catchAsync(async (req, res, next) => {
+  console.log("warehousereached")
+  const warehouses = await Warehouse.findAll({
+    include: [
+      { model: User, attributes: ['id'] },
+      { model: Role, attributes: ['id'] },
+      { model: Stock, attributes: ['id'] },
+      { model: StockTransaction, attributes: ['id'] },
+      //...added all the other module
+    ],
+  });
+
+  const summary = warehouses.map(wh => ({
+    warehouseId: wh.id,
+    name: wh.name,
+    code: wh.code,
+    location: wh.location,
+    managerName: wh.managerName,
+    phone: wh.phone,
+    email: wh.email,
+
+    totalUsers: wh.Users.length,
+    totalRoles: wh.Roles.length,
+    totalStockItems: wh.Stocks.length,
+    totalTransactions: wh.StockTransactions.length,
+    isActive: wh.isActive,
+  }));
+
+  res.status(200).json({
+    status: 1,
+    totalWarehouses: warehouses.length,
+    data: summary,
+  });
 });

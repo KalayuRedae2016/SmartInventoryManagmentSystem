@@ -47,3 +47,54 @@ exports.removePermissionFromUser = catchAsync(async (req, res, next) => {
   if (!deleted) return next(new AppError('Permission not found for user', 404));
   res.status(200).json({ status: 1, message: 'Permission removed from user' });
 });
+
+exports.clearUserPermissions = catchAsync(async (req, res, next) => {
+  const { userId } = req.params;
+  await UserPermission.destroy({ where: { userId } });
+
+  res.status(200).json({
+    status: 1,
+    message: 'All permissions removed for this user'
+  });
+});
+
+exports.toggleUserPermission = catchAsync(async (req, res, next) => {
+  const { userId, permissionId } = req.params;
+  const perm = await UserPermission.findOne({ where: { userId, permissionId } });
+  if (!perm) return next(new AppError('Permission not found for this user', 404));
+
+  perm.granted = !perm.granted;
+  await perm.save();
+
+  res.status(200).json({
+    status: 1,
+    message: `Permission ${perm.granted ? 'granted' : 'revoked'} successfully`,
+    data: perm
+  });
+});
+
+exports.getUserPermissionSummary = catchAsync(async (req, res, next) => {
+  const { userId } = req.params;
+
+  const userPermissions = await UserPermission.findAll({
+    where: { userId },
+    include: [{ model: Permission, as: 'permission', attributes: ['id','key','module','description'] }]
+  });
+
+  const granted = userPermissions.filter(p => p.granted).length;
+  const revoked = userPermissions.length - granted;
+
+  const groupedByModule = userPermissions.reduce((acc, p) => {
+    if (!acc[p.permission.module]) acc[p.permission.module] = [];
+    acc[p.permission.module].push(p.permission);
+    return acc;
+  }, {});
+
+  res.status(200).json({
+    status: 1,
+    totalPermissions: userPermissions.length,
+    granted,
+    revoked,
+    byModule: groupedByModule
+  });
+});

@@ -1,35 +1,32 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const{Brand} = require('../models');
-const { Op, where } = require('sequelize');
+const{Brand,Product} = require('../models');
+const { Op,Sequelize } = require('sequelize');
 const validator = require('validator');
 
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
 require('dotenv').config();
 const { formatDate } = require("../utils/dateUtils")
-const {extractFiles}=require("../utils/fileUtils")
+const {extractFiles}=require("../utils/fileUtils");
+const brand = require('../models/brand');
 
 exports.createBrand = catchAsync(async (req, res, next) => {
-  console.log("brand creation request", req.body)
-  console.log("brand creation files", req.files)
-  
+  console.log("brand creation request", req.body,req.files)
+    
   const {  businessId,name, country,description,image,isActive} = req.body;
-  if (!businessId || !name ||!country || !description) {
+  if (!name ||!country || !description) {
     return next(new AppError("required Fields->businessId, name country,or description)", 404))
   }
   
-console.log("Checking for existing brand with name:", businessId,name);
-const existingBrand= await Brand.findOne({ where: { name } });
-if (existingBrand) {
-  return (next(new AppError("brand already in use", 404)))
-}
+const existingBrand = await Brand.findOne({where: { name, businessId }});
+if (existingBrand) return (next(new AppError("brand already in use", 404)))
 
-  const files=extractFiles(req, 'brands');
-  const extractedImage =files.single('image');
+const files=extractFiles(req, 'brands');
+const extractedImage =files.single('image');
 
   const newbrand = await Brand.create({
-    businessId,
+    businessId:req.user.businessId,
     name,
     country,
     description,
@@ -45,7 +42,7 @@ if (existingBrand) {
 });
 
 exports.getAllBrands = catchAsync(async (req, res, next) => {
-  const {isActive,search,sortBy,sortOrder,page = 1,limit = 20} = req.query;
+  const {country,isActive,search,sortBy,sortOrder,page = 1,limit = 20} = req.query;
 
   console.log("Query Params:", req.query.search);
   let whereQuery = {}
@@ -54,10 +51,10 @@ exports.getAllBrands = catchAsync(async (req, res, next) => {
     whereQuery.isActive =isActive === "true" || isActive === "1" ? true : false;
   }
 
+  if(country) whereQuery.country=country
   if (search) {
     whereQuery[Op.or] = [
       { name: { [Op.like]: `%${search}%` } },
-      { country: { [Op.like]: `%${search}%` } },
       { description: { [Op.like]: `%${search}%` } },
     ];
   }
@@ -77,6 +74,9 @@ exports.getAllBrands = catchAsync(async (req, res, next) => {
     order: [[sortColumn, orderDirection]],
   });
 
+  const active = await Brand.count({ where: { isActive: true } });
+  const inactive = await Brand.count({ where: { isActive: false } });
+
   // If no categories found
   if (count === 0) {
     return res.status(200).json({
@@ -86,27 +86,44 @@ exports.getAllBrands = catchAsync(async (req, res, next) => {
       brands: [],
     });
   }
-
-  const formattedBrands = rows.map(b => ({
-    ...b.toJSON(),
-    formattedCreatedAt: b.createdAt ? formatDate(b.createdAt) : null,
-    formattedUpdatedAt: b.updatedAt ? formatDate(b.updatedAt) : null,
-  }));
-
-
   res.status(200).json({
     status: 1,
-    length: formattedBrands.length,
+    length: rows.length,
     total: count,
+    active,
+    inactive,
     message: "Categories fetched successfully",
-    brands: formattedBrands,
+    brands: rows
   });
 });
 
 exports.getBrand = catchAsync(async (req, res, next) => {
   const brandId = parseInt(req.params.brandId, 10); 
-  console.log("Fetching customer with ID:", brandId);
-  const brand = await Brand.findByPk(brandId);
+  const brand = await Brand.findByPk(brandId, {
+      attributes: [
+        'id',
+        'name',
+        'country',
+        'description',
+        'isActive',
+        [
+          Sequelize.literal(`(
+            SELECT COUNT(*)
+            FROM Products
+            WHERE Products.brandId = Brand.id
+          )`),
+          'productCount'
+        ]
+      ],
+      include: [
+        {
+          model: Product,
+          as: 'products',
+          attributes: ['id', 'name', 'sku'],
+          required: false
+        }
+      ]
+    });
 
   if (!brand) {
     res.status(200).json({
@@ -116,60 +133,52 @@ exports.getBrand = catchAsync(async (req, res, next) => {
     });
     //return next(new AppError('Customer not found', 404));
   }
-
-  const formattedCreatedAt = brand.createdAt ? formatDate(brand.createdAt) : null;
-  const formattedUpdatedAt = brand.updatedAt ? formatDate(brand.updatedAt) : null;
   
   res.status(200).json({
     status: 1,
     message: `brand fetched successfully!`,
-    brand: {
-      ...brand.toJSON(),
-      formattedCreatedAt,
-      formattedUpdatedAt
-    },
+    brand:brand
   });
 });
 
 exports.updateBrand = catchAsync(async (req, res, next) => {
-  const brandId = parseInt(req.params.brandId, 10); 
-  const existingBrand = await Brand.findByPk(brandId);
-  if (!existingBrand) {
-    res.status(200).json({
+
+  const brandId = parseInt(req.params.brandId, 10);
+
+  const brand = await Brand.findByPk(brandId);
+
+  if (!brand) {
+    return res.status(200).json({
       status: 0,
       message: `Brand with ID ${brandId} not found`,
+      data: []
     });
-    // return next(new AppError("Customer not found", 404));
   }
 
-  const orgiginalBrandData = JSON.parse(JSON.stringify(existingBrand));
-  
-  // Merge update fields
-  const updateData = {
-    ...req.body,
-    //profileImage
-  };
+  const updateData = { ...req.body.req.files.image };
 
-  // Update user
-  await existingBrand.update(updateData);
-
-  // Fetch latest version
-  const updatedBrand = await Brand.findByPk(brandId);
-
-  // Format timestamps
-  const formattedCreatedAt = updatedBrand.createdAt ? formatDate(updatedBrand.createdAt) : null;
-  const formattedUpdatedAt = updatedBrand.updatedAt ? formatDate(updatedBrand.updatedAt) : null;
-
+  await brand.update(updateData);
 
   res.status(200).json({
     status: 1,
-    message: `${updatedBrand.name} updated successfully`,
-    updatedBrand: {
-      ...updatedBrand.toJSON(),
-      formattedCreatedAt,
-      formattedUpdatedAt,
-    },
-   
+    message: `${brand.name} updated successfully`,
+    data: brand
+  });
+
+});
+
+exports.toggleBrandStatus = catchAsync(async (req, res, next) => {
+  const brand = await Brand.findByPk(req.params.categoryId);
+
+  if (!brand) return next(new AppError("Brand not found", 404));
+
+  brand.isActive = !brand.isActive;
+  await brand.save();
+
+  res.status(200).json({
+    status: 1,
+    message: `Brand ${brand.isActive ? "activated" : "deactivated"} successfully`,
+    isActive: brand.isActive
   });
 });
 
@@ -215,6 +224,67 @@ exports.deleteAllBrands= catchAsync(async (req, res, next) => {
   });
 });
 
+exports.getBrandSummaryReport = catchAsync(async (req, res) => {
+  console.log("Brand Summary report reach")
+  const total = await Brand.count();
+  const active = await Brand.count({ where: { isActive: true } });
+  const inactive = await Brand.count({ where: { isActive: false } });
 
+  console.log("Brand Summary report",total,active,inactive)
+  res.status(200).json({
+    status: 1,
+    totalBrands: total,
+    activeBrands: active,
+    inactiveBrands: inactive
+  });
+});
+
+exports.Brandproductreport = catchAsync(async (req, res, next) => {
+
+  const brandId = parseInt(req.params.brandId, 10);
+
+  const brand = await Brand.findOne({
+    where: { id: brandId },
+    attributes: [
+      'id',
+      'name',
+      'country',
+      'description',
+      'isActive',
+      [
+        Sequelize.literal(`(
+          SELECT COUNT(*)
+          FROM Products
+          WHERE Products.brandId = Brand.id
+        )`),
+        'productCount'
+      ]
+    ],
+    include: [
+      {
+        model: Product,
+        as: 'products',
+        attributes: ['id', 'name', 'sku', 'price'],
+        required: false
+      }
+    ],
+    order: [[{ model: Product, as: 'products' }, 'name', 'ASC']]
+  });
+
+  if (!brand) {
+    return res.status(200).json({
+      status: 0,
+      message: `Brand not found`,
+      data: null
+    });
+  }
+
+  res.status(200).json({
+    status: 1,
+    message: 'Brand summary fetched successfully',
+    data: brand
+  });
+
+});
 
 

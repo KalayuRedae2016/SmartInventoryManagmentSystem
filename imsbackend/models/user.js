@@ -24,7 +24,7 @@ module.exports = (sequelize, DataTypes) => {
   User.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
     businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-    warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
     roleId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     fullName: { type: DataTypes.STRING, allowNull: false },
     phoneNumber: { type: DataTypes.STRING, allowNull: false, unique: true },

@@ -1,8 +1,8 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { Op, where } = require('sequelize');
+const { Op, where,Sequelize } = require('sequelize');
 const validator = require('validator');
-const {Category}=require("../models")
+const {Category,Product}=require("../models")
 
 const catchAsync = require("../utils/catchAsync")
 const AppError = require("../utils/appError")
@@ -12,19 +12,18 @@ const { formatDate } = require("../utils/dateUtils")
 exports.createCategory = catchAsync(async (req, res, next) => {
   console.log("category creation request", req.body)
 
-  const {businessId,name, description,isActive} = req.body;
-  if (!businessId || !name || !description) {
+  const {name, description,isActive} = req.body;
+  if (!name || !description) {
     return next(new AppError("required Fields->businessId, name or description)", 404))
   }
-  
   
 const existingCategory= await Category.findOne({ where: { name } });
 if (existingCategory) {
   return (next(new AppError("Categories already in use", 404)))
 }
 
-  const newCategory = await Category.create({
-    businessId,
+  const category = await Category.create({
+    businessId:req.user.businessId,
     name,
     description,
     isActive: isActive !== undefined ? isActive : true,
@@ -33,7 +32,7 @@ if (existingCategory) {
   res.status(200).json({
     status:1,
     message: 'Category registered successfully.',
-    data: newCategory,
+    data: category,
   });
 
 });
@@ -80,46 +79,58 @@ exports.getAllCategories = catchAsync(async (req, res, next) => {
     });
   }
 
-  const formattedCategories = rows.map(c => ({
-    ...c.toJSON(),
-    formattedCreatedAt: c.createdAt ? formatDate(c.createdAt) : null,
-    formattedUpdatedAt: c.updatedAt ? formatDate(c.updatedAt) : null,
-  }));
-
-
   res.status(200).json({
     status: 1,
-    length: formattedCategories.length,
+    length: rows.length,
     total: count,
     message: "Categories fetched successfully",
-    categories: formattedCategories,
+    categories: rows
   });
 });
 
 exports.getCategoryById = catchAsync(async (req, res, next) => {
-  const category = await Category.findByPk(parseInt(req.params.categoryId, 10));
+
+  const categoryId = parseInt(req.params.categoryId, 10);
+
+  const category = await Category.findByPk(categoryId, {
+    attributes: [
+      'id',
+      'name',
+      'description',
+      'isActive',
+      [
+        Sequelize.literal(`(
+          SELECT COUNT(*)
+          FROM Products
+          WHERE Products.categoryId = Category.id
+        )`),
+        'productCount'
+      ]
+    ],
+    include: [
+      {
+        model: Product,
+        as: 'products',
+        attributes: ['id', 'name', 'sku'],
+        required: false
+      }
+    ]
+  });
 
   if (!category) {
-    res.status(200).json({
+    return res.status(404).json({
       status: 0,
       message: `Category with ID ${categoryId} not found`,
-      category: null,
+      category: null
     });
-    //return next(new AppError('Customer not found', 404));
   }
 
-  const formattedCreatedAt = category.createdAt ? formatDate(category.createdAt) : null;
-  const formattedUpdatedAt = category.updatedAt ? formatDate(category.updatedAt) : null;
-  
   res.status(200).json({
     status: 1,
-    message: `category fetched successfully!`,
-    category: {
-      ...category.toJSON(),
-      formattedCreatedAt,
-      formattedUpdatedAt
-    },
+    message: 'Category fetched successfully!',
+    data: category
   });
+
 });
 
 exports.updateCategoryById = catchAsync(async (req, res, next) => {
@@ -149,6 +160,21 @@ exports.updateCategoryById = catchAsync(async (req, res, next) => {
       formattedUpdatedAt,
     },
    
+  });
+});
+
+exports.toggleCategoryStatus = catchAsync(async (req, res, next) => {
+  const category = await Category.findByPk(req.params.categoryId);
+
+  if (!category) return next(new AppError("Category not found", 404));
+
+  category.isActive = !category.isActive;
+  await category.save();
+
+  res.status(200).json({
+    status: 1,
+    message: `Category ${category.isActive ? "activated" : "deactivated"} successfully`,
+    isActive: category.isActive
   });
 });
 
@@ -193,6 +219,54 @@ exports.deleteAllCategories= catchAsync(async (req, res, next) => {
   });
 });
 
+exports.getCategorySummaryReport = catchAsync(async (req, res) => {
+  console.log("category Summary report reach")
+  const total = await Category.count();
+  const active = await Category.count({ where: { isActive: true } });
+  const inactive = await Category.count({ where: { isActive: false } });
 
+  console.log("category Summary report",total,active,inactive)
+  res.status(200).json({
+    status: 1,
+    totalCategories: total,
+    activeCategories: active,
+    inactiveCategories: inactive
+  });
+});
 
+exports.categoryProductReport = catchAsync(async (req, res) => {
+    const { businessId } = req.user;
+
+    const categories = await Category.findAll({
+      where: { businessId },
+      attributes: [
+        'id',
+        'name',
+        'description',
+        'isActive',
+        [
+          Sequelize.literal(`(
+            SELECT COUNT(*)
+            FROM Products
+            WHERE Products.categoryId = Category.id
+          )`),
+          'productCount'
+        ]
+      ],
+      include: [
+        {
+          model: Product,
+          as: 'products',
+          attributes: ['id', 'name', 'sku'],
+          required: false
+        }
+      ],
+      order: [['name', 'ASC']]
+    });
+
+    res.json({
+      success: true,
+      data: categories
+    });
+});
 

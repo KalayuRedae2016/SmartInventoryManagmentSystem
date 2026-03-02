@@ -7,7 +7,6 @@ const rolePermissions = require('../models/rolePermissions');
 
 const getBusinessId = () => 1;
 
-// Assign permissions to a role
 exports.assignPermissionsToRole = catchAsync(async (req, res, next) => {
   console.log("roleId and Permissionids",req.params,req.body)
 
@@ -38,7 +37,6 @@ exports.assignPermissionsToRole = catchAsync(async (req, res, next) => {
   });
 });
 
-// Get permissions of a role
 exports.getRolePermissions = catchAsync(async (req, res, next) => {
   const { roleId } = req.params;
    const role = await Role.findByPk(roleId);
@@ -60,7 +58,6 @@ exports.getRolePermissions = catchAsync(async (req, res, next) => {
   });
 });
 
-// Remove selected permission from a role
 exports.removePermissionFromRole = catchAsync(async (req, res, next) => {
   const roleId = req.params.roleId;
   const { permissionIds } = req.body;
@@ -86,7 +83,6 @@ exports.removePermissionFromRole = catchAsync(async (req, res, next) => {
   });
 });
 
-// Delete all permissions of a role
 exports.clearRolePermissions = catchAsync(async (req, res, next) => {
   const { roleId } = req.params;
 
