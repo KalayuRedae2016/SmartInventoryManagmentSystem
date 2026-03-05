@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const {Unit} = require('../models');
-const { Op, where } = require('sequelize');
+const {Unit,Product} = require('../models');
+const { Op,Sequelize } = require('sequelize');
 const validator = require('validator');
 
 const catchAsync = require("../utils/catchAsync")
@@ -11,27 +11,26 @@ const { formatDate } = require("../utils/dateUtils")
 
 exports.createUnit = catchAsync(async (req, res, next) => {
   console.log("Unit creation request", req.body)
-  const { businessId,name, symbol,baseUnit,operator,operationValue,description,isActive} = req.body;
+  const {name, symbol,baseUnit,operator,operationValue,description,isActive} = req.body;
 
-  if (!businessId || !name || !symbol || !description||!baseUnit) {
+  if (!name || !symbol || !description||!baseUnit) {
     return next(new AppError("required Fields->businessId,name,symbol,baseUnit or description)", 404))
   }
   
 const existingUnit= await Unit.findOne({ where: { name } });
-if (existingUnit) {
-  // if (req.files) deleteFile(req.files.path);
-  return (next(new AppError("unit already in use", 404)))
-}
+if (existingUnit)   return (next(new AppError("unit already in use", 404)))
 
   const newUnit = await Unit.create({
-    name,
-    symbol,
-    description,
-    isActive: isActive !== undefined ? isActive : true,
-    // documents: documents || null,
-  });
+  businessId:req.user.businessId,
+  name,
+  symbol,
+  baseUnit,
+  operator,
+  operationValue,
+  description,
+  isActive: isActive !== undefined ? isActive : true,
+});
   
-  // Return success response
   res.status(200).json({
     message: 'Unit registered successfully.',
     newUnit: newUnit,
@@ -40,7 +39,7 @@ if (existingUnit) {
 });
 
 exports.getAllUnits = catchAsync(async (req, res, next) => {
-  const {isActive,search,sortBy,sortOrder,page = 1,limit = 20} = req.query;
+  const {symbol,baseUnit,operator,operationValue,isActive,search,sortBy,sortOrder,page = 1,limit = 20} = req.query;
 
   console.log("Query Params:", req.query.search);
   let whereQuery = {}
@@ -49,12 +48,16 @@ exports.getAllUnits = catchAsync(async (req, res, next) => {
     whereQuery.isActive =isActive === "true" || isActive === "1" ? true : false;
   }
 
+  if(symbol) whereQuery.symbol=symbol
+  if(baseUnit) whereQuery.baseUnit=baseUnit
+  if(operator) whereQuery.operator=operator
+  if(operationValue) whereQuery.operationValue=operationValue
+
   if (search) {
     whereQuery[Op.or] = [
       { name: { [Op.like]: `%${search}%` } },
       { symbol: { [Op.like]: `%${search}%` } },
       { baseUnit: { [Op.like]: `%${search}%` } },
-      { operator: { [Op.like]: `%${search}%` } },
       { operator: { [Op.like]: `%${search}%` } },
       { operationValue: { [Op.like]: `%${search}%` } },
       { isActive: { [Op.like]: `%${search}%` } },
@@ -77,7 +80,6 @@ exports.getAllUnits = catchAsync(async (req, res, next) => {
     order: [[sortColumn, orderDirection]],
   });
 
-  // If no categories found
   if (count === 0) {
     return res.status(200).json({
       status: 1,
@@ -87,51 +89,59 @@ exports.getAllUnits = catchAsync(async (req, res, next) => {
     });
   }
 
-  const formattedunits = rows.map(u => ({
-    ...u.toJSON(),
-    formattedCreatedAt: u.createdAt ? formatDate(u.createdAt) : null,
-    formattedUpdatedAt: u.updatedAt ? formatDate(u.updatedAt) : null,
-  }));
-
-
   res.status(200).json({
     status: 1,
-    length: formattedunits.length,
-    total: count,
-    message: "Categories fetched successfully",
-    units: formattedunits,
+    length: count,
+    message: "Units fetched successfully",
+    data:rows
   });
 });
 
 exports.getUnit = catchAsync(async (req, res, next) => {
   console.log("Requested User Role:", req.user.role,req.params);
   const unitId = parseInt(req.params.unitId, 10); 
-  console.log("Fetching customer with ID:", unitId);
-  const unit = await Unit.findByPk(unitId);
-  console.log("Fetched customer:", unit);
+
+  const unit = await Unit.findByPk(unitId, {
+    attributes: [
+      'id',
+      'name',
+      'symbol',
+      'description',
+      'isActive',
+      [
+        Sequelize.literal(`(
+          SELECT COUNT(*)
+          FROM Products
+          WHERE Products.unitId = Unit.id
+        )`),
+        'productCount'
+      ]
+    ],
+    include: [
+      {
+        model: Product,
+        as: 'products',
+        attributes: ['id', 'name', 'sku'],
+        required: false
+      }
+    ]
+  });
 
   if (!unit) {
-    res.status(200).json({
+    return res.status(404).json({
       status: 0,
       message: `Unit with ID ${unitId} not found`,
-      unit: null,
+      unit: null
     });
-    //return next(new AppError('Customer not found', 404));
   }
-
-  const formattedCreatedAt = unit.createdAt ? formatDate(unit.createdAt) : null;
-  const formattedUpdatedAt = unit.updatedAt ? formatDate(unit.updatedAt) : null;
   
-  res.status(200).json({
-    status: 1,
-    message: `unit fetched successfully!`,
-    unit: {
-      ...unit.toJSON(),
-      formattedCreatedAt,
-      formattedUpdatedAt
-    },
+    res.status(200).json({
+      status: 1,
+      message: 'Unit fetched successfully!',
+      data: unit
+    });
+  
   });
-});
 
 exports.updateUnit = catchAsync(async (req, res, next) => {
   const unitId = parseInt(req.params.unitId, 10); 
@@ -175,6 +185,20 @@ exports.updateUnit = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.toggleUnitStatus = catchAsync(async (req, res, next) => {
+  const unit = await Unit.findByPk(req.params.unitId);
+
+  if (!unit) return next(new AppError("Unit not found", 404));
+
+  unit.isActive = !unit.isActive;
+  await unit.save();
+
+  res.status(200).json({
+    status: 1,
+    message: `Unit ${unit.isActive ? "activated" : "deactivated"} successfully`,
+    isActive: unit.isActive
+  });
+});
 exports.deleteUnit= catchAsync(async (req, res, next) => {
   const unitId = parseInt(req.params.unitId, 10);
 
@@ -215,6 +239,67 @@ exports.deleteAllUnits= catchAsync(async (req, res, next) => {
     length: deletedCount,
     message: `${deletedCount} brand deleted`,
   });
+});
+
+exports.getUnitSummaryReport = catchAsync(async (req, res) => {
+  console.log("Unit Summary report reach")
+  const total = await Unit.count();
+  const active = await Unit.count({ where: { isActive: true } });
+  const inactive = await Unit.count({ where: { isActive: false } });
+
+  console.log("Unit Summary report",total,active,inactive)
+  res.status(200).json({
+    status: 1,
+    totalUnits: total,
+    activeUnits: active,
+    inactiveUnits: inactive
+  });
+});
+
+exports.unitProductreport = catchAsync(async (req, res, next) => {
+
+  const unit = await Unit.findAll({
+    where: { businessId:req.user.businessId },
+    attributes: [
+      'id',
+      'name',
+      'symbol',
+      'description',
+      'isActive',
+      [
+        Sequelize.literal(`(
+          SELECT COUNT(*)
+          FROM Products
+          WHERE Products.unitId = Unit.id
+        )`),
+        'productCount'
+      ]
+    ],
+    include: [
+      {
+        model: Product,
+        as: 'products',
+        attributes: ['id', 'name', 'sku', 'price'],
+        required: false
+      }
+    ],
+    order: [[{ model: Product, as: 'products' }, 'name', 'ASC']]
+  });
+
+  if (!unit) {
+    return res.status(200).json({
+      status: 0,
+      message: `Unit not found`,
+      data: null
+    });
+  }
+
+  res.status(200).json({
+    status: 1,
+    message: 'Unit summary fetched successfully',
+    data: unit
+  });
+
 });
 
 

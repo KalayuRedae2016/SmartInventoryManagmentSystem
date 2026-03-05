@@ -5,7 +5,8 @@ module.exports = (sequelize, DataTypes) => {
   class Unit extends Model {
     static associate(models) {
       // A Unit can be assigned to many products
-      Unit.hasMany(models.Product, { foreignKey: 'unitId' });
+      Unit.hasMany(models.Product, { foreignKey: 'unitId',as:'products' });
+      Unit.belongsTo(models.Business, { foreignKey: 'businessId', as: 'tenant' });
     }
   }
 

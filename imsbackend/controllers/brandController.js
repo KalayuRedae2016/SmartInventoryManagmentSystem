@@ -240,11 +240,9 @@ exports.getBrandSummaryReport = catchAsync(async (req, res) => {
 });
 
 exports.Brandproductreport = catchAsync(async (req, res, next) => {
-
-  const brandId = parseInt(req.params.brandId, 10);
-
-  const brand = await Brand.findOne({
-    where: { id: brandId },
+  
+  const brand = await Brand.findAll({
+    where: { businessId: req.user.businessId },
     attributes: [
       'id',
       'name',
@@ -286,5 +284,4 @@ exports.Brandproductreport = catchAsync(async (req, res, next) => {
   });
 
 });
-
 
