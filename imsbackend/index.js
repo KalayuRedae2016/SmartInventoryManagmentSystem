@@ -36,16 +36,8 @@ const purchaseItemRouter = require('./routes/purchaseItemRoutes');
 
 const saleRouter = require('./routes/saleRoutes');
 const saleReturnRouter=require('./routes/saleReturnRoutes')
-<<<<<<< HEAD
-
-//const stocktransferRouter = require('./routes/stockTransferRoutes');
-// const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
-=======
-const stockTransactionRouter = require('./routes/stockTransactionRoutes');
 const stockRouter = require('./routes/stockRoutes');
 const stocktransferRouter = require('./routes/stockTransferRoutes');
-const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
->>>>>>> 3d3e500 (Refactor code structure for improved readability and maintainability)
 
 // const transactionRouter = require('./routes/transactionRoutes');
 
@@ -199,12 +191,8 @@ app.use('/api/ims/purchase-items', purchaseItemRouter);
 
 app.use('/api/ims/sales',saleRouter);
 app.use('/api/ims/sale-returns',saleReturnRouter);
-<<<<<<< HEAD
-=======
 app.use('/api/ims/stocks', stockRouter);
-app.use('/api/ims/stock-transactions', stockTransactionRouter);
 app.use('/api/ims/stock-transfers', stocktransferRouter);
->>>>>>> 3d3e500 (Refactor code structure for improved readability and maintainability)
 
 //app.use('/api/ims/stockAdjustments',stockAdjustmentRouter);
 // app.use('/api/ims/transactions', transactionRouter);
