@@ -239,7 +239,7 @@ module.exports = router;
 
 /**delete
  * @swagger
- * /roles/roleId
+ * /roles/roleId:
  *   delete:
  *     summary: delete Role 
  *     tags: [Roles]

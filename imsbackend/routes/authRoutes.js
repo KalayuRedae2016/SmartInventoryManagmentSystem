@@ -94,7 +94,7 @@ module.exports=router
  *                 example: "123456780"
  *               password:
  *                 type: string
- *                 example: "0943662611"
+ *                 example: "owner@1234"
  *     responses:
  *       200:
  *         description: Login successful, returns JWT token
