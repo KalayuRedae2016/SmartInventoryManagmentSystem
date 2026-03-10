@@ -28,7 +28,7 @@ const auth = useAuthStore()
 const salesStore = useSalesStore()
 
 const canRecord = computed(() => auth.hasPermission('sales.update') || auth.hasPermission('payment.manage'))
-const columns = ['sale_id', 'customer', 'amount', 'status', 'paymentMethod']
+const columns = ['sale_id', 'customer', 'amount', 'paymentMethod']
 
 const rows = computed(() =>
   salesStore.sales.map(s => ({

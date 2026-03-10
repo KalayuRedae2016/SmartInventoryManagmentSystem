@@ -12,6 +12,21 @@ export const useStockTransfersStore = defineStore('stockTransfers', () => {
   const warehouseStore = useWarehouseStore()
   const productStore = useProductsStore()
 
+  function normalizeTransfer(item = {}) {
+    return {
+      id: item.id,
+      businessId: item.businessId ?? item.business_id ?? null,
+      fromWarehouseId: item.fromWarehouseId ?? item.from_warehouse_id ?? null,
+      toWarehouseId: item.toWarehouseId ?? item.to_warehouse_id ?? null,
+      productId: item.productId ?? item.product_id ?? null,
+      userId: item.userId ?? item.user_id ?? null,
+      quantity: Number(item.quantity ?? 0) || 0,
+      note: item.note || '',
+      status: item.status || 'approved',
+      createdAt: item.createdAt || item.created_at || null
+    }
+  }
+
   // Mock Data
   const mockData = [
     {
@@ -45,7 +60,8 @@ export const useStockTransfersStore = defineStore('stockTransfers', () => {
       try {
         const res = await api.get('/stock-transfers')
         const payload = getResponseData(res, [])
-        transfers.value = Array.isArray(payload) ? payload : []
+        const rows = Array.isArray(payload) ? payload : []
+        transfers.value = rows.map(normalizeTransfer)
       } catch {
         transfers.value = [...mockData]
       }
@@ -61,6 +77,24 @@ export const useStockTransfersStore = defineStore('stockTransfers', () => {
     t.id = Date.now()
     t.status = 'pending'
     transfers.value.push(t)
+  }
+
+  async function executeTransfer(t) {
+    if (USE_MOCK || !ENABLE_STOCK_TRANSFER_API) {
+      return { status: 1, data: t }
+    }
+
+    const payload = {
+      fromWarehouseId: Number(t.fromWarehouseId),
+      toWarehouseId: Number(t.toWarehouseId),
+      productId: Number(t.productId),
+      quantity: Number(t.quantity),
+      userId: Number(t.userId || 1),
+      note: t.note || null
+    }
+
+    const res = await api.post('/stock-transfers', payload)
+    return normalizeTransfer(getResponseData(res, payload))
   }
 
   // =========================
@@ -106,7 +140,7 @@ export const useStockTransfersStore = defineStore('stockTransfers', () => {
   // =========================
   function updateTransfer(t) {
     const i = transfers.value.findIndex(x => x.id === t.id)
-    if (i !== -1) transfers.value[i] = t
+    if (i !== -1) transfers.value[i] = { ...transfers.value[i], ...t }
   }
 
   // =========================
@@ -124,6 +158,7 @@ export const useStockTransfersStore = defineStore('stockTransfers', () => {
     updateTransfer,
     deleteTransfer,
     approveTransfer,
-    rejectTransfer
+    rejectTransfer,
+    executeTransfer
   }
 })

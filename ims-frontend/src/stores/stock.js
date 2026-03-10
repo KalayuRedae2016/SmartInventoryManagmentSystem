@@ -55,7 +55,7 @@ export const useStockStore = defineStore('stock', {
         this.balances = mvRows.map(m => ({
           product_id: m.productId ?? m.product_id,
           warehouse_id: m.warehouseId ?? m.warehouse_id ?? 0,
-          quantity: m.newStock ?? m.new_stock ?? m.quantity ?? 0
+          quantity: Number(m.quantity ?? m.newStock ?? m.new_stock ?? 0) || 0
         }))
       } catch {
         this.transactions = []
@@ -85,10 +85,10 @@ export const useStockStore = defineStore('stock', {
     normalizeMovementToStock(row) {
       return {
         id: row.id,
-        productName: row.productName || `Product #${row.productId ?? row.product_id ?? '-'}`,
-        warehouseName: row.warehouseName || '-',
-        quantity: row.newStock ?? row.new_stock ?? 0,
-        updatedAt: (row.createdAt || row.created_at || '').slice(0, 10)
+        productName: row.product?.name || row.productName || `Product #${row.productId ?? row.product_id ?? '-'}`,
+        warehouseName: row.warehouse?.name || row.warehouseName || '-',
+        quantity: Number(row.quantity ?? row.newStock ?? row.new_stock ?? 0) || 0,
+        updatedAt: (row.updatedAt || row.updated_at || row.createdAt || row.created_at || '').slice(0, 10)
       }
     },
 
@@ -103,9 +103,11 @@ export const useStockStore = defineStore('stock', {
     },
 
     getQty(productId, warehouseId) {
+      const normalizedProductId = Number(productId)
+      const normalizedWarehouseId = Number(warehouseId)
       return (
         this.balances.find(
-          s => s.product_id === productId && s.warehouse_id === warehouseId
+          s => Number(s.product_id) === normalizedProductId && Number(s.warehouse_id) === normalizedWarehouseId
         )?.quantity || 0
       )
     },

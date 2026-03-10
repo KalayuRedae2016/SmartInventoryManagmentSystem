@@ -123,6 +123,7 @@ export const useCustomersStore = defineStore('customers', () => {
   async function toggleCustomerStatus(customer) {
     const nextStatus = customer?.status === 'active' ? 'inactive' : 'active'
     await updateCustomer({ ...customer, status: nextStatus })
+    if (!USE_MOCK) await fetchCustomers()
   }
 
   async function deleteCustomer(id) {

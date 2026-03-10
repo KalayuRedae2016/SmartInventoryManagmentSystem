@@ -1,4 +1,4 @@
-const { StockTransfer, Stock, Warehouse, Product, User } = require('../models');
+const { StockTransfer, Stock, StockTransaction, Warehouse, Product, User, sequelize } = require('../models');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
@@ -10,60 +10,102 @@ const getBusinessId = () => 1;
 exports.createStockTransfer = catchAsync(async (req, res, next) => {
   const { fromWarehouseId, toWarehouseId, productId, userId, quantity, note } = req.body;
   const businessId = getBusinessId();
+  const qty = Number(quantity);
+  const fromId = Number(fromWarehouseId);
+  const toId = Number(toWarehouseId);
+  const productIdNum = Number(productId);
+  const resolvedUserId = Number(userId || req.user?.id || 1);
 
-  if (!fromWarehouseId || !toWarehouseId || !productId || !userId || !quantity) {
+  if (!fromId || !toId || !productIdNum || !qty || !resolvedUserId) {
     return next(new AppError('Missing required fields', 400));
   }
 
-  if (fromWarehouseId === toWarehouseId) {
+  if (fromId === toId) {
     return next(new AppError('Source and destination warehouse must be different', 400));
   }
 
-  if (quantity <= 0) {
+  if (qty <= 0) {
     return next(new AppError('Quantity must be positive', 400));
   }
 
-  // Check if source warehouse has enough stock
-  const currentStock = await Stock.sum('quantity', {
-    where: { businessId, warehouseId: fromWarehouseId, productId },
-  }) || 0;
+  const [fromWarehouse, toWarehouse, product, user] = await Promise.all([
+    Warehouse.findByPk(fromId),
+    Warehouse.findByPk(toId),
+    Product.findByPk(productIdNum),
+    User.findByPk(resolvedUserId),
+  ]);
 
-  if (currentStock < quantity) {
-    return next(new AppError('Insufficient stock in source warehouse', 400));
+  if (!fromWarehouse || !toWarehouse) {
+    return next(new AppError('Invalid warehouse selected', 400));
+  }
+  if (!product) {
+    return next(new AppError('Invalid product selected', 400));
+  }
+  if (!user) {
+    return next(new AppError('Invalid user selected', 400));
   }
 
-  // Create StockTransfer record
-  const transfer = await StockTransfer.create({
-    businessId,
-    fromWarehouseId,
-    toWarehouseId,
-    productId,
-    userId,
-    quantity,
-    note,
-  });
+  const transfer = await sequelize.transaction(async (t) => {
+    const sourceStock = await Stock.findOne({
+      where: { businessId, warehouseId: fromId, productId: productIdNum },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
 
-  // Update Stock table
-  // Out from source warehouse
-  await Stock.create({
-    businessId,
-    warehouseId: fromWarehouseId,
-    productId,
-    quantity: -quantity,
-    type: 'TRANSFER',
-    referenceId: transfer.id,
-    note: note || `Transfer to warehouse ${toWarehouseId}`,
-  });
+    const sourceQty = Number(sourceStock?.quantity || 0);
+    if (sourceQty < qty) {
+      throw new AppError('Insufficient stock in source warehouse', 400);
+    }
 
-  // In to destination warehouse
-  await Stock.create({
-    businessId,
-    warehouseId: toWarehouseId,
-    productId,
-    quantity: quantity,
-    type: 'TRANSFER',
-    referenceId: transfer.id,
-    note: note || `Transfer from warehouse ${fromWarehouseId}`,
+    sourceStock.quantity = sourceQty - qty;
+    await sourceStock.save({ transaction: t });
+
+    const [destinationStock] = await Stock.findOrCreate({
+      where: { businessId, warehouseId: toId, productId: productIdNum },
+      defaults: { quantity: 0, stockAlert: 0, description: null },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    destinationStock.quantity = Number(destinationStock.quantity || 0) + qty;
+    await destinationStock.save({ transaction: t });
+
+    const createdTransfer = await StockTransfer.create({
+      businessId,
+      fromWarehouseId: fromId,
+      toWarehouseId: toId,
+      productId: productIdNum,
+      userId: resolvedUserId,
+      quantity: qty,
+      note: note || null,
+    }, { transaction: t });
+
+    await StockTransaction.bulkCreate([
+      {
+        businessId,
+        warehouseId: fromId,
+        productId: productIdNum,
+        type: 'TRANSFER',
+        quantity: -qty,
+        referenceType: 'TRANSFER',
+        referenceId: createdTransfer.id,
+        performedBy: resolvedUserId,
+        note: note || `Transfer OUT to warehouse ${toId}`,
+      },
+      {
+        businessId,
+        warehouseId: toId,
+        productId: productIdNum,
+        type: 'TRANSFER',
+        quantity: qty,
+        referenceType: 'TRANSFER',
+        referenceId: createdTransfer.id,
+        performedBy: resolvedUserId,
+        note: note || `Transfer IN from warehouse ${fromId}`,
+      }
+    ], { transaction: t });
+
+    return createdTransfer;
   });
 
   res.status(201).json({
@@ -91,8 +133,8 @@ exports.getStockTransfers = catchAsync(async (req, res) => {
     include: [
       { model: Warehouse, as: 'fromWarehouse' },
       { model: Warehouse, as: 'toWarehouse' },
-      Product,
-      User,
+      { model: Product, as: 'product' },
+      { model: User, as: 'user' },
     ],
     limit: +limit,
     offset: (page - 1) * limit,
@@ -114,8 +156,8 @@ exports.getStockTransferById = catchAsync(async (req, res, next) => {
     include: [
       { model: Warehouse, as: 'fromWarehouse' },
       { model: Warehouse, as: 'toWarehouse' },
-      Product,
-      User,
+      { model: Product, as: 'product' },
+      { model: User, as: 'user' },
     ],
   });
 
@@ -135,28 +177,77 @@ exports.deleteStockTransfer = catchAsync(async (req, res, next) => {
   const transfer = await StockTransfer.findByPk(req.params.id);
   if (!transfer) return next(new AppError('Stock transfer not found', 404));
 
-  // Revert stock
-  await Stock.create({
-    businessId: transfer.businessId,
-    warehouseId: transfer.fromWarehouseId,
-    productId: transfer.productId,
-    quantity: transfer.quantity,
-    type: 'ADJUST',
-    referenceId: transfer.id,
-    note: 'Revert transfer OUT',
-  });
+  await sequelize.transaction(async (t) => {
+    const fromStock = await Stock.findOne({
+      where: {
+        businessId: transfer.businessId,
+        warehouseId: transfer.fromWarehouseId,
+        productId: transfer.productId,
+      },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
 
-  await Stock.create({
-    businessId: transfer.businessId,
-    warehouseId: transfer.toWarehouseId,
-    productId: transfer.productId,
-    quantity: -transfer.quantity,
-    type: 'ADJUST',
-    referenceId: transfer.id,
-    note: 'Revert transfer IN',
-  });
+    const toStock = await Stock.findOne({
+      where: {
+        businessId: transfer.businessId,
+        warehouseId: transfer.toWarehouseId,
+        productId: transfer.productId,
+      },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
 
-  await transfer.destroy();
+    const transferableBack = Number(transfer.quantity || 0);
+    const currentToQty = Number(toStock?.quantity || 0);
+    if (!toStock || currentToQty < transferableBack) {
+      throw new AppError('Cannot revert transfer: destination warehouse stock is insufficient', 400);
+    }
+
+    toStock.quantity = currentToQty - transferableBack;
+    await toStock.save({ transaction: t });
+
+    if (fromStock) {
+      fromStock.quantity = Number(fromStock.quantity || 0) + transferableBack;
+      await fromStock.save({ transaction: t });
+    } else {
+      await Stock.create({
+        businessId: transfer.businessId,
+        warehouseId: transfer.fromWarehouseId,
+        productId: transfer.productId,
+        quantity: transferableBack,
+        stockAlert: 0,
+        description: 'Created while reverting stock transfer',
+      }, { transaction: t });
+    }
+
+    await StockTransaction.bulkCreate([
+      {
+        businessId: transfer.businessId,
+        warehouseId: transfer.fromWarehouseId,
+        productId: transfer.productId,
+        type: 'ADJUST',
+        quantity: transferableBack,
+        referenceType: 'TRANSFER',
+        referenceId: transfer.id,
+        performedBy: transfer.userId || null,
+        note: 'Revert transfer OUT',
+      },
+      {
+        businessId: transfer.businessId,
+        warehouseId: transfer.toWarehouseId,
+        productId: transfer.productId,
+        type: 'ADJUST',
+        quantity: -transferableBack,
+        referenceType: 'TRANSFER',
+        referenceId: transfer.id,
+        performedBy: transfer.userId || null,
+        note: 'Revert transfer IN',
+      },
+    ], { transaction: t });
+
+    await transfer.destroy({ transaction: t });
+  });
 
   res.status(200).json({
     status: 1,

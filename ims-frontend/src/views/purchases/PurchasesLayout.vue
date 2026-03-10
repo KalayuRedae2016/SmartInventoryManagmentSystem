@@ -5,6 +5,7 @@
       <div class="flex gap-2 flex-1 justify-end">
         <RouterLink to="/purchases" class="tab">Purchases</RouterLink>
         <RouterLink to="/purchases/new" class="tab">New Purchase</RouterLink>
+        <RouterLink to="/purchases/items" class="tab">Purchase Items</RouterLink>
         <RouterLink to="/purchases/returns" class="tab">Purchase Returns</RouterLink>
       </div>
     </div>

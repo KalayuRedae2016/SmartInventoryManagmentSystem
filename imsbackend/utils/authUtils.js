@@ -222,4 +222,49 @@ exports.authenticationJwt = async (req, res, next) => {
   } catch (error) {
     return next(new AppError('Invalid or expired token', 401));
   }
+<<<<<<< HEAD
 };
+=======
+
+  if (!token) return next(new AppError('Not logged in', 401));
+
+  // console.log('Received token:', token);
+  
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+const user = await User.findByPk(decoded.id, {
+  include: {
+    model: Role,
+    as: 'role',
+    include: {
+      model: Permission,
+      as: 'permissionItems',
+      attributes: ['id', 'key']
+    }
+  }
+});
+
+if (!user || !user.role) {
+  return next(new AppError('User no longer exists', 401));
+}
+
+
+const rolePermissions = normalizePermissions(user.role.permissions);
+const itemPermissions = Array.isArray(user.role.permissionItems)
+  ? user.role.permissionItems.map(p => p.key)
+  : [];
+const mergedPermissions = Array.from(new Set([...rolePermissions, ...itemPermissions]));
+
+req.user = {
+  id: user.id,
+  businessId: user.businessId,
+  roleId: user.roleId,
+  roleCode: user.role.code,
+  permissions: mergedPermissions
+};
+
+// console.log("requestedUsers",req.user)
+  next();
+};
+
+>>>>>>> 3d3e500 (Refactor code structure for improved readability and maintainability)

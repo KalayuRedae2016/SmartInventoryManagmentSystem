@@ -95,8 +95,8 @@ export const useWarehouseStore = defineStore('warehouses', () => {
       return
     }
 
+    const maybeBusinessId = Number(data.businessId)
     const payload = {
-      businessId: data.businessId ?? 1,
       name: data.name || '',
       code: data.code || `WH-${Date.now().toString().slice(-6)}`,
       location: data.location || '',
@@ -104,6 +104,9 @@ export const useWarehouseStore = defineStore('warehouses', () => {
       phone: data.phone || '',
       email: data.email || '',
       isActive: resolveIsActive(data)
+    }
+    if (Number.isFinite(maybeBusinessId) && maybeBusinessId > 0) {
+      payload.businessId = maybeBusinessId
     }
 
     const res = await api.post('/warehouses', payload)

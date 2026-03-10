@@ -282,7 +282,7 @@ exports.createPurchaseItem = catchAsync(async (req, res, next) => {
   const { purchaseId, productId, warehouseId, quantity, unitPrice } = req.body;
   const businessId = getBusinessId();
 
-  if (!purchaseId || !productId || !warehouseId || !quantity || !unitPrice) {
+  if (!purchaseId || !productId || !quantity || !unitPrice) {
     return next(new AppError('Missing required fields', 400));
   }
 
@@ -293,6 +293,16 @@ exports.createPurchaseItem = catchAsync(async (req, res, next) => {
   const purchase = await Purchase.findByPk(purchaseId);
   if (!purchase || !purchase.isActive) {
     return next(new AppError('Purchase not found', 404));
+  }
+  const resolvedWarehouseId = Number(purchase.warehouseId);
+
+  if (warehouseId !== undefined && Number(warehouseId) !== resolvedWarehouseId) {
+    return next(new AppError('Purchase item warehouse must match the selected purchase warehouse', 400));
+  }
+
+  const product = await Product.findByPk(productId);
+  if (!product || product.isActive === false) {
+    return next(new AppError('Invalid product selected', 400));
   }
 
   const itemTotal = quantity * unitPrice;
@@ -314,7 +324,7 @@ exports.createPurchaseItem = catchAsync(async (req, res, next) => {
       {
         purchaseId,
         businessId,
-        warehouseId,
+        warehouseId: resolvedWarehouseId,
         productId,
         quantity,
         unitPrice,
@@ -333,7 +343,7 @@ exports.createPurchaseItem = catchAsync(async (req, res, next) => {
 
     // 3️⃣ Update Stock (UPSERT logic)
     const [stock] = await Stock.findOrCreate({
-      where: { businessId, warehouseId, productId },
+      where: { businessId, warehouseId: resolvedWarehouseId, productId },
       defaults: { quantity: 0 },
       transaction: t,
       lock: t.LOCK.UPDATE,
@@ -346,7 +356,7 @@ exports.createPurchaseItem = catchAsync(async (req, res, next) => {
     await StockTransaction.create(
       {
         businessId,
-        warehouseId,
+        warehouseId: resolvedWarehouseId,
         productId,
         type: 'IN',
         quantity,
@@ -372,11 +382,11 @@ exports.createPurchaseItem = catchAsync(async (req, res, next) => {
 });
 
 exports.getPurchaseItems = catchAsync(async (req, res) => {
-  console.log("reched this endpoint")
-  const { purchaseId, page = 1, limit = 10 } = req.query;
+  const { purchaseId, isActive, page = 1, limit = 10 } = req.query;
   const businessId = getBusinessId();
   const where = { businessId };
   if (purchaseId) where.purchaseId = purchaseId;
+  if (isActive !== undefined) where.isActive = ['true', '1', true, 1].includes(isActive);
 
   const items = await PurchaseItem.findAndCountAll({
     where,
@@ -433,8 +443,12 @@ exports.updatePurchaseItem = catchAsync(async (req, res, next) => {
   }
 
   // 5️⃣ Update editable fields
+  if (warehouseId !== undefined && Number(warehouseId) !== Number(purchase.warehouseId)) {
+    return next(new AppError('Purchase item warehouse must match the selected purchase warehouse', 400));
+  }
+
   if (!isLocked) {
-    if (warehouseId !== undefined) item.warehouseId = warehouseId;
+    item.warehouseId = purchase.warehouseId;
     if (productId !== undefined) item.productId = productId;
   } else {
     if (warehouseId || productId) return next(new AppError('Cannot change warehouse or product after stock is created', 400));

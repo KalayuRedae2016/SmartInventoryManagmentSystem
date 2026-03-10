@@ -30,17 +30,30 @@
 
         <div>
           <label class="mb-2 block text-xs font-medium text-gray-600">Permissions</label>
+          <input
+            v-model.trim="permissionSearch"
+            type="text"
+            class="mb-2 w-full rounded border px-3 py-2 text-sm"
+            placeholder="Search permissions..."
+          />
+          <p v-if="permissionsError" class="mb-2 text-xs text-red-600">
+            {{ permissionsError }}
+            <button type="button" class="ml-1 text-brand underline" @click="fetchPermissions">Retry</button>
+          </p>
           <div class="permissions-grid">
-            <label v-for="permission in permissions" :key="permission.id" class="permission-item">
+            <label v-for="permission in filteredPermissions" :key="permission.id" class="permission-item">
               <input
                 type="checkbox"
                 :value="permission.id"
-                :checked="form.permissionIds.includes(permission.id)"
+                :checked="isPermissionSelected(permission.id)"
                 @change="togglePermission(permission.id)"
               />
               <span>{{ permission.key }}</span>
             </label>
           </div>
+          <p v-if="!permissionsLoading && !filteredPermissions.length" class="mt-2 text-xs text-gray-500">
+            No permissions found.
+          </p>
         </div>
 
         <div class="flex items-center gap-2">
@@ -96,14 +109,14 @@
       @click.self="closeDeleteConfirm"
     >
       <div class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
-        <h3 class="text-base font-semibold text-gray-900">Delete Role</h3>
-        <p class="mt-2 text-sm text-gray-600">
+        <h3 class="text-base font-semibold text-red-600">Delete Role</h3>
+        <p class="mt-2 text-sm text-red-600">
           Are you sure you want to delete
           <strong>{{ deleteTarget?.name || 'this role' }}</strong>?
         </p>
         <div class="mt-4 flex justify-end gap-2">
-          <button class="rounded border px-3 py-1.5 text-sm" @click="closeDeleteConfirm">Cancel</button>
-          <button class="rounded bg-red-600 px-3 py-1.5 text-sm text-white" @click="confirmDeleteRole">
+          <button class="rounded border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50" @click="closeDeleteConfirm">Cancel</button>
+          <button class="rounded border border-red-300 bg-red-50 px-3 py-1.5 text-sm text-red-700 hover:bg-red-100" @click="confirmDeleteRole">
             Delete
           </button>
         </div>
@@ -123,6 +136,9 @@ const auth = useAuthStore()
 const columns = ['name', 'code', 'permissions', 'description', 'isActive']
 const roles = ref([])
 const permissions = ref([])
+const permissionsLoading = ref(false)
+const permissionsError = ref('')
+const permissionSearch = ref('')
 const formError = ref('')
 const deleteConfirmVisible = ref(false)
 const deleteTarget = ref(null)
@@ -147,6 +163,15 @@ const rows = computed(() =>
     permissions: buildPermissionsObject(role.permissions)
   }))
 )
+const filteredPermissions = computed(() => {
+  const query = String(permissionSearch.value || '').trim().toLowerCase()
+  if (!query) return permissions.value
+  return permissions.value.filter(permission => {
+    const key = String(permission?.key || '').toLowerCase()
+    const name = String(permission?.name || '').toLowerCase()
+    return key.includes(query) || name.includes(query)
+  })
+})
 
 function toCode(name) {
   return String(name || '')
@@ -200,24 +225,53 @@ function resetForm() {
   form.permissionIds = []
 }
 
+function normalizePermissionId(value) {
+  const id = Number(value)
+  return Number.isFinite(id) ? id : value
+}
+
+function isPermissionSelected(permissionId) {
+  const target = normalizePermissionId(permissionId)
+  return form.permissionIds.some(id => normalizePermissionId(id) === target)
+}
+
 function togglePermission(permissionId) {
-  if (form.permissionIds.includes(permissionId)) {
-    form.permissionIds = form.permissionIds.filter(id => id !== permissionId)
+  const normalizedId = normalizePermissionId(permissionId)
+  if (isPermissionSelected(normalizedId)) {
+    form.permissionIds = form.permissionIds.filter(id => normalizePermissionId(id) !== normalizedId)
     return
   }
-  form.permissionIds = [...form.permissionIds, permissionId]
+  form.permissionIds = [...form.permissionIds, normalizedId]
 }
 
 async function fetchPermissions() {
-  const res = await api.get('/permissions')
-  permissions.value = asList(getResponseData(res, []))
+  permissionsLoading.value = true
+  permissionsError.value = ''
+  try {
+    const res = await api.get('/permissions')
+    permissions.value = asList(getResponseData(res, [])).map(item => ({
+      id: Number.isFinite(Number(item.id)) ? Number(item.id) : String(item.key || item.id || ''),
+      key: item.key,
+      name: item.name
+    }))
+  } catch (error) {
+    permissions.value = []
+    permissionsError.value = error?.response?.data?.message || error?.message || 'Unable to load permissions list.'
+  } finally {
+    permissionsLoading.value = false
+  }
 }
 
 async function fetchRoles() {
-  const res = await api.get('/roles', {
-    params: { businessId: auth.user?.businessId || 1 }
-  })
-  roles.value = asList(getResponseData(res, []))
+  try {
+    const res = await api.get('/roles', {
+      params: { businessId: auth.user?.businessId || 1 }
+    })
+    roles.value = asList(getResponseData(res, []))
+  } catch (error) {
+    roles.value = []
+    formError.value = error?.response?.data?.message || error?.message || 'Unable to load roles list.'
+  }
 }
 
 async function saveRole() {
@@ -230,7 +284,7 @@ async function saveRole() {
     name: form.name,
     description: form.description,
     isActive: form.isActive,
-    permissionIds: form.permissionIds
+    permissionIds: form.permissionIds.map(normalizePermissionId)
   }
 
   try {
@@ -265,7 +319,7 @@ function editRole(role) {
   form.code = role.code || ''
   form.description = role.description || ''
   form.isActive = Boolean(role.isActive)
-  form.permissionIds = Array.isArray(role.permissionIds) ? [...role.permissionIds] : []
+  form.permissionIds = Array.isArray(role.permissionIds) ? role.permissionIds.map(normalizePermissionId) : []
 }
 
 function requestDeleteRole(role) {
@@ -308,7 +362,7 @@ async function toggleRoleStatus(role) {
 }
 
 onMounted(async () => {
-  await Promise.all([fetchPermissions(), fetchRoles()])
+  await Promise.allSettled([fetchPermissions(), fetchRoles()])
 })
 </script>
 

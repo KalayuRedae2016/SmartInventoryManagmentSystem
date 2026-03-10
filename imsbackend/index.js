@@ -32,12 +32,20 @@ const supplierRouter = require('./routes/supplierRoutes');
 
 const purchaseRouter = require('./routes/purchaseRoutes');
 const purchaseReturnRouter=require('./routes/purchaseReturnRoutes')
+const purchaseItemRouter = require('./routes/purchaseItemRoutes');
 
 const saleRouter = require('./routes/saleRoutes');
 const saleReturnRouter=require('./routes/saleReturnRoutes')
+<<<<<<< HEAD
 
 //const stocktransferRouter = require('./routes/stockTransferRoutes');
 // const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
+=======
+const stockTransactionRouter = require('./routes/stockTransactionRoutes');
+const stockRouter = require('./routes/stockRoutes');
+const stocktransferRouter = require('./routes/stockTransferRoutes');
+const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
+>>>>>>> 3d3e500 (Refactor code structure for improved readability and maintainability)
 
 // const transactionRouter = require('./routes/transactionRoutes');
 
@@ -96,11 +104,23 @@ app.use(cors(corsOptions));
 
 // Serving static files
 // app.use(express.static(path.join(__dirname, 'uploads')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(
+  '/uploads',
+  express.static(path.join(__dirname, 'uploads'), {
+    setHeaders: (res) => {
+      // Allow frontend app (different origin/port) to display uploaded images.
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    }
+  })
+);
 
 
 // Security HTTP Headers
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+  })
+);
 app.use(compression());
 
 // Development logging
@@ -175,9 +195,16 @@ app.use('/api/ims/suppliers',supplierRouter);
 
 app.use('/api/ims/purchases',purchaseRouter);
 app.use('/api/ims/purchase-returns',purchaseReturnRouter);
+app.use('/api/ims/purchase-items', purchaseItemRouter);
 
 app.use('/api/ims/sales',saleRouter);
 app.use('/api/ims/sale-returns',saleReturnRouter);
+<<<<<<< HEAD
+=======
+app.use('/api/ims/stocks', stockRouter);
+app.use('/api/ims/stock-transactions', stockTransactionRouter);
+app.use('/api/ims/stock-transfers', stocktransferRouter);
+>>>>>>> 3d3e500 (Refactor code structure for improved readability and maintainability)
 
 //app.use('/api/ims/stockAdjustments',stockAdjustmentRouter);
 // app.use('/api/ims/transactions', transactionRouter);
@@ -190,6 +217,6 @@ app.use('/api/ims/reports', reportRoutes);
 // });
 
 // Global error handling middleware
-// app.use(globalErrorHandler);
+app.use(globalErrorHandler);
 
 module.exports = app;
