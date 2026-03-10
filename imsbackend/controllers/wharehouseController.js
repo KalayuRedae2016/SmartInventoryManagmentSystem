@@ -1,22 +1,14 @@
-<<<<<<< HEAD
-const { Warehouse, Stock,User,Role,StockTransaction} = require('../models');
-=======
-const { Business, Warehouse, Stock } = require('../models');
->>>>>>> 3d3e500 (Refactor code structure for improved readability and maintainability)
+const { Business, Warehouse, Stock, User, Role, StockTransaction } = require('../models');
 const { Op } = require('sequelize');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 exports.createWarehouse = catchAsync(async (req, res, next) => {
-  const {name, code, location,managerName,phone,email,isActive } = req.body;
+  const { businessId, name, code, location, managerName, phone, email, isActive } = req.body;
   console.log("warhouse req.body",req.body);
 
   if (!name || !code) {
-<<<<<<< HEAD
-    return next(new AppError('Business ID, Warehouse name and code are required', 400));
-=======
     return next(new AppError('Warehouse name and code are required', 400));
->>>>>>> 3d3e500 (Refactor code structure for improved readability and maintainability)
   }
 
   let resolvedBusinessId = Number(businessId || req.user?.businessId || 0);
@@ -42,11 +34,7 @@ exports.createWarehouse = catchAsync(async (req, res, next) => {
   }
 
   const warehouse = await Warehouse.create({
-<<<<<<< HEAD
-    businessId:req.user.businessId,
-=======
     businessId: resolvedBusinessId,
->>>>>>> 3d3e500 (Refactor code structure for improved readability and maintainability)
     name,
     code,
     location,

@@ -213,7 +213,6 @@ exports.exportToExcelFile = async ({ data, columns, fileName, res }) => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Sheet1');
 
-<<<<<<< HEAD
   worksheet.columns = columns;
 
   data.forEach(row => worksheet.addRow(row));
@@ -230,11 +229,9 @@ exports.exportToExcelFile = async ({ data, columns, fileName, res }) => {
   await workbook.xlsx.write(res);
   res.end();
 };
-=======
 exports.readExcelFile = catchAsync(async (filePath) => {
     const workbook = xlsx.readFile(filePath);
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const jsonData = xlsx.utils.sheet_to_json(worksheet);
     return jsonData;
 });
->>>>>>> 3d3e500 (Refactor code structure for improved readability and maintainability)

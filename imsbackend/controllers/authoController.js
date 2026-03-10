@@ -49,7 +49,7 @@ exports.uploaduserAttachements=userUpload.fields([
 exports.signup = catchAsync(async (req, res, next) => {
   console.log("registration request", req.body)
   console.log("profileImages", req.files)
-  const { fullName, phoneNumber, roleId,warehouseId,password, email, address} = req.body;
+  const { fullName, phoneNumber, roleId, password, email, address} = req.body;
   if (!fullName ||!roleId|| !phoneNumber || !password) {
     return next(new AppError("missing required Fields(name,phone or password)", 404))
   }
@@ -70,7 +70,6 @@ console.log("requested user",req.user)
 
   const newUser = await User.create({
     businessId: 1, // Default businessId, adjust as needed
-    warehouseId: warehouseId,
     roleId:roleId,
     fullName,
     phoneNumber,
