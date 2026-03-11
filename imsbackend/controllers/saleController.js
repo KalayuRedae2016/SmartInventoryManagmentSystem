@@ -1,6 +1,8 @@
-const {Product, Warehouse,Sale, SaleItem,Customer, User, Stock } = require('../models');
+const {Product, Warehouse,Sale, SaleItem,Customer, User, Stock,StockTransaction } = require('../models');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
+const sequelize = require('../models').sequelize;
+const { Op } = require('sequelize');
 
 const getBusinessId = () => 1;
 
@@ -11,14 +13,71 @@ const calculateSaleStatus = (total, paid) => {
   return 'paid';
 };
 
+const generateInvoiceNumber = () => {
+  return 'INV-' + Date.now();
+};
+
+const buildSaleWhereClause = (user,query) => {
+  const {warehouseId,customerId,minAmount,maxAmount,minPaidAmount,maxPaidAmount,paymentMethod,isActive,startDate,endDate,search,status} = query;
+
+  let whereQuery = { businessId: user.businessId};
+
+  if (isActive !== undefined) whereQuery.isActive = ["true", "1", true, 1].includes(isActive);
+  if(warehouseId) whereQuery.warehouseId=categoryId
+  if(customerId) whereQuery.customerId=customerId
+  
+  // totalAmount price range
+  if (minAmount || maxAmount) {
+    whereQuery.defaultSellingPrice = {};
+    if (minAmount) whereQuery.totalAmount[Op.gte] = Number(minAmount);
+    if (maxAmount) whereQuery.totalAmount[Op.lte] = Number(maxAmount);
+  }
+
+  // padiAmount range
+  if (minPaidAmount || maxPaidAmount) {
+    whereQuery.defaultCostPrice = {};
+    if (minPaidAmount) whereQuery.paidAmount[Op.gte] = Number(minPaidAmount);
+    if (maxPaidAmount) whereQuery.paidAmount[Op.lte] = Number(maxPaidAmount);
+  }
+
+  if (startDate && endDate) whereQuery.createdAt = {[Op.between]: [new Date(startDate), new Date(endDate)]};
+  if(paymentMethod) whereQuery.paymentMethod=paymentMethod
+// Search filter
+  if (search) {
+    whereQuery[Op.or] = [
+      { note: { [Op.like]: `%${search}%` } },
+    ];
+  }
+  if(status) whereQuery.status=status
+
+  return whereQuery;
+};
+
 // Create a new sale
 exports.createSale = catchAsync(async (req, res, next) => {
   const { warehouseId, customerId, invoiceNumber, saleDate, totalAmount,paidAmount,paymentMethod,note } = req.body;
   const businessId = getBusinessId();
   console.log("request bodey",req.body)
 
-  if (!warehouseId || !customerId || !invoiceNumber || !saleDate||!totalAmount||!paidAmount||!paymentMethod) {
-    return next(new AppError('Missing required fields', 400));
+  const warehouse = await Warehouse.findByPk(warehouseId);
+  if (!warehouse) return next(new AppError('Warehouse not found', 404));
+
+  const customer = await Customer.findByPk(customerId);
+  if (!customer) return next(new AppError('Customer not found', 404));
+
+  const total = totalAmount && totalAmount > 0 ? totalAmount : 0;
+
+  let invoiceNum = invoiceNumber;
+  if (!invoiceNum) {
+    invoiceNum = generateInvoiceNumber();
+    console.log("inv",invoiceNum)
+    const exists = await Sale.findOne({ where: { invoiceNumber: invoiceNum } });
+    if (exists)  invoiceNum = `${invoiceNum}-${Date.now()}`;
+  
+  }
+
+  if (paidAmount < 0 || paidAmount > total) {
+    return next(new AppError('Paid amount cannot be negative or exceed total amount', 400));
   }
 
   const sale = await Sale.create({
@@ -26,12 +85,12 @@ exports.createSale = catchAsync(async (req, res, next) => {
     warehouseId,
     customerId,
     invoiceNumber,
-    saleDate,
-    totalAmount,
+    saleDate:saleDate||new Date(),
+    totalAmount:total,
     paidAmount,
     due: totalAmount - paidAmount,
-    paymentMethod,
-    status: calculateSaleStatus(totalAmount, paidAmount),
+    paymentMethod:paymentMethod || 'cash',
+    status: calculateSaleStatus(total, paidAmount),
     note,
     isActive: true,
   });
@@ -45,65 +104,59 @@ exports.createSale = catchAsync(async (req, res, next) => {
 
 // Get all sales
 exports.getSales = catchAsync(async (req, res, next) => {
-  const {page = 1,limit = 10,warehouseId,customerId,status,isActive,search,sortBy = 'createdAt',sortOrder = 'desc'} = req.query;
 
-  const businessId = getBusinessId();
+  let {page = 1,limit = 10, sortBy = "createdAt",sortOrder = "desc" } = req.query;
 
-  const whereQuery = { businessId};
+  page = parseInt(page) || 1;
+  limit = parseInt(limit) || 10;
 
-  // Filters
-  if (warehouseId) whereQuery.warehouseId = warehouseId;
-  if (customerId) whereQuery.customerId = customerId;
-  if (status) whereQuery.status = status;
-  if(isActive) whereQuery.isActive=isActive
+  const whereQuery = buildSaleWhereClause(req.user, req.query);
 
-  // Search (ONLY string/date fields)
-  if (search) {
-    whereQuery[Op.or] = [
-      { invoiceNumber: { [Op.like]: `%${search}%` } },
-      { paymentMethod: { [Op.like]: `%${search}%` } },
-      { note: { [Op.like]: `%${search}%` } },
-    ];
-  }
-
-  // Sorting
-  const validSortColumns = ['createdAt', 'updatedAt', 'saleDate'];
-  const orderColumn = validSortColumns.includes(sortBy) ? sortBy : 'createdAt';
-  const orderDirection = sortOrder === 'asc' ? 'ASC' : 'DESC';
-
-  // Pagination
-  const offset = (page - 1) * limit;
+  // Allowed sorting columns
+  const validSortColumns = ["createdAt", "updatedAt", "saleDate"];
+  const orderColumn = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
+  const orderDirection = sortOrder.toLowerCase() === "asc" ? "ASC" : "DESC";
 
   const { rows, count } = await Sale.findAndCountAll({
     where: whereQuery,
+
     include: [
-      { model: Customer, as: 'customer' },
-      { model: Warehouse, as: 'warehouse' },
+      {model: Customer,as: "customer",attributes: ["id", "name"]},
+      {model: Warehouse,as: "warehouse",attributes: ["id", "name"]},
+      {model: SaleItem,as: "items",include: [{model: Product,as: "product",attributes: ["id", "name", "sku"]}]}
     ],
+
     order: [[orderColumn, orderDirection]],
-    limit: +limit,
-    offset,
+
+    limit,
+    offset: (page - 1) * limit,
+
+    distinct: true
   });
 
   res.status(200).json({
     status: 1,
-    total: count,
-    page: +page,
-    limit: +limit,
-    data: rows,
+    results: rows.length,
+    totalRecords: count,
+    totalPages: Math.ceil(count / limit),
+    currentPage: page,
+    limit,
+    data: rows
   });
+
 });
 
 // Get sale by id
 exports.getSaleById = catchAsync(async (req, res, next) => {
-  const sale = await Sale.findByPk(req.params.id, {
+  const sale = await Sale.findByPk(req.params.saleId, {
     include: [
       { model: Customer, as: 'customer' },
       { model: Warehouse, as: 'warehouse' },
-      { model: SaleItem, as: 'items' }
+     {model: SaleItem,as: "items",include: [{model: Product,as: "product",attributes: ["id", "name", "sku"]}]}
     ],
   });
 
+  
   if (!sale) return next(new AppError('Sale not found', 404));
 
   // Calculate items total from included items
@@ -124,33 +177,42 @@ exports.getSaleById = catchAsync(async (req, res, next) => {
 });
 
 exports.updateSale = catchAsync(async (req, res, next) => {
-  const sale = await Sale.findByPk(req.params.id);
-  if (!sale) return next(new AppError('Sale not found', 404));
-
-  if (sale.status === 'paid') {
-    return next(new AppError('Paid sale cannot be updated', 400));
+   const { warehouseId, customerId, paymentMethod, totalAmount, note } = req.body;
+  const sale = await Sale.findByPk(req.params.saleId);
+  if (!sale || !sale.isActive) {
+    return next(new AppError('Sale not found', 404));
   }
+ 
 
-  const { paidAmount, note, paymentMethod, saleDate } = req.body;
+  const stockUsed = await StockTransaction.count({
+    where: { referenceType: 'SALE', referenceId: sale.id }
+  });
+  const isLocked = stockUsed > 0;
 
-  if (paidAmount !== undefined) {
-    if (paidAmount < sale.paidAmount) {
-      return next(new AppError('Paid amount cannot be reduced', 400));
+  // Always editable
+  if (note !== undefined) sale.note = note;
+  if (paymentMethod !== undefined) sale.paymentMethod = paymentMethod;
+
+  // Editable only if not locked
+  if (!isLocked) {
+    if (warehouseId !== undefined) sale.warehouseId = warehouseId;
+    if (customerId !== undefined) sale.customerId = customerId;
+  } else {
+    if (warehouseId || customerId) {
+      return next(new AppError('Cannot change warehouse or supplier after stock has been created', 400));
     }
-    sale.paidAmount = paidAmount;
   }
 
-  if (note) sale.note = note;
-  if (paymentMethod) sale.paymentMethod = paymentMethod;
-  if (saleDate) sale.saleDate = saleDate;
+  if (totalAmount !== undefined) {
+  const itemsTotal = (await PurchaseItem.sum('total', { where: { saleId: sale.id } })) || 0;
+  if (itemsTotal > totalAmount) {
+    return next(
+      new AppError(`Cannot set totalAmount to ${totalAmount}. Items already sum up to ${itemsTotal}`, 400)
+    );
+  }
+  sale.totalAmount = totalAmount;
+}
 
-  // Recalculate due & status
-  sale.dueAmount = sale.totalAmount - sale.paidAmount;
-
-  sale.status =
-    sale.paidAmount === 0 ? 'pending' :
-    sale.paidAmount < sale.totalAmount ? 'partial' :
-    'paid';
 
   await sale.save();
 
@@ -158,6 +220,62 @@ exports.updateSale = catchAsync(async (req, res, next) => {
     status: 1,
     message: 'Sale updated successfully',
     data: sale
+  });
+});
+
+exports.paySale = catchAsync(async (req, res, next) => {
+  const { amount } = req.body;
+
+  if (!amount || isNaN(amount) || amount <= 0) {
+    return next(new AppError('Invalid payment amount', 400));
+  }
+
+  const sale = await Sale.findByPk(req.params.saleId);
+
+  if (!sale) return next(new AppError('Sale not found', 404));
+
+  const totalPaid = Number(sale.paidAmount) + Number(amount);
+  
+
+  if (totalPaid > Number(sale.totalAmount)) {
+    return next(new AppError(`Payment exceeds total amount,unpaidAmount:${sale.dueAmount}`, 400));
+  }
+
+  sale.paidAmount = totalPaid;
+  sale.dueAmount = Number(sale.totalAmount) - sale.paidAmount;
+  sale.status = calculateSaleStatus(Number(sale.totalAmount), sale.paidAmount);
+
+  await sale.save({ fields: ['paidAmount', 'dueAmount', 'status'] });
+  await sale.reload(); // optional: ensure latest DB values
+
+  res.status(200).json({
+    status: 1,
+    message: 'Payment recorded',
+    data: sale,
+  });
+});
+
+exports.cancelSale = catchAsync(async (req, res, next) => {
+  const { ids } = req.body; // expect array of sale IDs
+  if (!Array.isArray(ids) || ids.length === 0)
+    return next(new AppError('No Sales specified', 400));
+
+  const Sales = await Sale.findAll({
+    where: { id: ids, isActive: true }
+  });
+
+  for (const sale of Sales) {
+    const stockUsed = await StockTransaction.count({
+      where: { referenceType: 'SALE', referenceId: sale.id }
+    });
+    if (stockUsed > 0) continue; // skip locked Sales
+    sale.isActive = false;
+    await sale.save();
+  }
+
+  res.status(200).json({
+    status: 1,
+    message: 'Selected Sales deleted successfully (skipped locked ones)',
   });
 });
 
@@ -269,11 +387,15 @@ exports.deleteSales = catchAsync(async (req, res, next) => {
 });
 
 //Contorllers for sale items (add/update/delete) - only allowed if sale is not paid
-exports.createSaleItem = catchAsync(async (req, res, next) => {
-  const { saleId, productId, warehouseId, quantity, unitPrice } = req.body;
-  const businessId = getBusinessId();
+exports.addSaleItem = catchAsync(async (req, res, next) => {
+  const saleId=req.params.saleId
+  const {productId, warehouseId, quantity, unitPrice } = req.body;
+  const businessId = req.user.businessId
 
-  if (!saleId || !productId || !warehouseId || !quantity || !unitPrice) {
+  const sale = await Sale.findByPk(saleId);
+  if (!sale) return next(new AppError('Sale not found or not pending', 400));
+  
+  if (!productId || !warehouseId || !quantity || !unitPrice) {
     return next(new AppError('Missing required fields', 400));
   }
 
@@ -281,15 +403,8 @@ exports.createSaleItem = catchAsync(async (req, res, next) => {
     return next(new AppError('Quantity and unit price must be positive', 400));
   }
 
-  const sale = await Sale.findByPk(saleId);
-  if (!sale || sale.status !== 'pending') {
-    return next(new AppError('Sale not found or not pending', 400));
-  }
-
   const itemTotal = quantity * unitPrice;
-
-  const currentItemsTotal =
-    (await SaleItem.sum('total', { where: { saleId } })) || 0;
+  const currentItemsTotal =await SaleItem.sum('total', { where: { saleId } }) || 0;
 
   if (currentItemsTotal + itemTotal > sale.totalAmount) {
     return next(new AppError('Sale items exceed sale total amount', 400));

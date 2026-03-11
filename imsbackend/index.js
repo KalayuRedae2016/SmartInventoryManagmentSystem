@@ -46,6 +46,7 @@ const saleReturnRouter=require('./routes/saleReturnRoutes')
 const app = express(); //start Express app
 
 const listEndpoints = require('express-list-endpoints');
+const errorController = require('./controllers/errorController');
 // console.log(listEndpoints(app));
 
 app.get("/", (req, res) => {
@@ -184,12 +185,13 @@ app.use('/api/ims/sale-returns',saleReturnRouter);
 
 app.use('/api/ims/reports', reportRoutes);
 
-// Catch-all route handler for undefined routes
-//  app.all('*', (req, res, next) => {
-//     next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
-// });
 
-// Global error handling middleware
-// app.use(globalErrorHandler);
+// Catch-all route handler for undefined routes
+app.use((req, res, next) => {
+  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+});
+
+//Global error handling middleware
+app.use(globalErrorHandler);
 
 module.exports = app;

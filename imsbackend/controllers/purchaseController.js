@@ -14,32 +14,94 @@ const calculateStatus = (total, paid) => {
   return 'paid';
 };
 
+const generateInvoiceNumber = () => {
+  return 'INV-' + Date.now();
+};
+
+
+const buildPurchaseWhereClause = (user,query) => {
+  const {warehouseId,supplierId,minAmount,maxAmount,minPaidAmount,maxPaidAmount,paymentMethod,isActive,startDate,endDate,search} = query;
+
+  let whereQuery = { businessId: user.businessId};
+
+  if (isActive !== undefined) whereQuery.isActive = ["true", "1", true, 1].includes(isActive);
+  if(warehouseId) whereQuery.warehouseId=categoryId
+  if(supplierId) whereQuery.supplierId=supplierId
+  
+  // totalAmount price range
+  if (minAmount || maxAmount) {
+    whereQuery.defaultSellingPrice = {};
+    if (minAmount) whereQuery.totalAmount[Op.gte] = Number(minAmount);
+    if (maxAmount) whereQuery.totalAmount[Op.lte] = Number(maxAmount);
+  }
+
+  // padiAmount range
+  if (minPaidAmount || maxPaidAmount) {
+    whereQuery.defaultCostPrice = {};
+    if (minPaidAmount) whereQuery.paidAmount[Op.gte] = Number(minPaidAmount);
+    if (maxPaidAmount) whereQuery.paidAmount[Op.lte] = Number(maxPaidAmount);
+  }
+
+  if (startDate && endDate) whereQuery.createdAt = {[Op.between]: [new Date(startDate), new Date(endDate)]};
+  if(paymentMethod) whereQuery.paymentMethod=paymentMethod
+// Search filter
+  if (search) {
+    whereQuery[Op.or] = [
+      { note: { [Op.like]: `%${search}%` } },
+    ];
+  }
+
+  return whereQuery;
+};
+
 exports.createPurchase = catchAsync(async (req, res, next) => {
-  const { warehouseId, supplierId, totalAmount, paidAmount = 0, paymentMethod, note } = req.body;
-  const businessId = getBusinessId();
+  const { warehouseId, supplierId, totalAmount, paidAmount = 0, invoiceNumber, paymentMethod, note } = req.body;
+  const businessId = req.user.businessId;
 
-  if (!warehouseId || !supplierId || !totalAmount) {
-    return next(new AppError('Missing required fields', 400));
+  if (!warehouseId || !supplierId) {
+    return next(new AppError("warehouseId and supplierId are required", 400));
   }
 
-  if (paidAmount > totalAmount) {
-    return next(new AppError('Paid amount cannot exceed total amount', 400));
+  const warehouse = await Warehouse.findByPk(warehouseId);
+  if (!warehouse) return next(new AppError('Warehouse not found', 404));
+
+  const supplier = await Supplier.findByPk(supplierId);
+  if (!supplier) return next(new AppError('Supplier not found', 404));
+
+  const total = totalAmount && totalAmount > 0 ? totalAmount : 0;
+
+  let invoiceNum = invoiceNumber;
+  if (!invoiceNum) {
+    invoiceNum = generateInvoiceNumber();
+    console.log("inv",invoiceNum)
+    const exists = await Purchase.findOne({ where: { invoiceNumber: invoiceNum } });
+    if (exists) {
+      invoiceNum = `${invoiceNum}-${Date.now()}`; // fallback unique
+    }
   }
+
+  if (paidAmount < 0 || paidAmount > total) {
+    return next(new AppError('Paid amount cannot be negative or exceed total amount', 400));
+  }
+
+  console.log(businessId,warehouseId,supplierId,invoiceNum,total,paidAmount)
 
   const purchase = await Purchase.create({
     businessId,
     warehouseId,
     supplierId,
-    totalAmount,
+    invoiceNumber: invoiceNum,
+    totalAmount: total,
     paidAmount,
-    dueAmount: totalAmount - paidAmount,
-    paymentMethod,
-    status: calculateStatus(totalAmount, paidAmount),
+    dueAmount: total - paidAmount,
+    paymentMethod: paymentMethod || 'cash',
+    status: calculateStatus(total, paidAmount),
     note,
-    isActive: true,
+    isActive: true
   });
 
   res.status(201).json({
+    error: false,
     status: 1,
     message: 'Purchase created successfully',
     data: purchase,
@@ -47,18 +109,19 @@ exports.createPurchase = catchAsync(async (req, res, next) => {
 });
 
 exports.getPurchases = catchAsync(async (req, res) => {
-  const { page = 1, limit = 10, status } = req.query;
-  const businessId = getBusinessId();
+  const {page = 1, limit = 10} = req.query;
 
-  const where = { businessId, isActive: true };
-  if (status) where.status = status;
+  const where = buildPurchaseWhereClause(req.user,req.query)
 
   const purchases = await Purchase.findAndCountAll({
     where,
     include: [
-      {model: Supplier, as: 'supplier' },
-      {model: Warehouse, as: 'warehouse' },      
+      {model: Supplier, as: 'supplier',attributes:["id","name"] },
+      {model: Warehouse, as: 'warehouse',attributes:["id","name"]},  
+     { model: PurchaseItem, as: 'items', include: [{ model: Product, as: 'product', attributes: ['id','name','sku'] }] }   
     ],
+
+
     limit: +limit,
     offset: (page - 1) * limit,
     order: [['createdAt', 'DESC']],
@@ -73,20 +136,20 @@ exports.getPurchases = catchAsync(async (req, res) => {
 });
 
 exports.getPurchaseById = catchAsync(async (req, res, next) => {
-  const purchase = await Purchase.findByPk(req.params.id, {
+  const purchase = await Purchase.findByPk(req.params.purchaseId, {
     include: [
-      {model: Supplier, as: 'supplier' },
-      {model: Warehouse, as: 'warehouse' },
-     { model: PurchaseItem, as: 'items' }
+      { model: Supplier, as: 'supplier' },
+      { model: Warehouse, as: 'warehouse' },
+      { model: PurchaseItem, as: 'items', include: [{ model: Product, as: 'product', attributes: ['id','name','sku'] }] }
     ],
   });
 
-  if (!purchase)  return next(new AppError('Purchase not found', 404));
+  if (!purchase) return next(new AppError('Purchase not found', 404));
+  const itemsTotal = (await PurchaseItem.sum('total', { where: { purchaseId: purchase.id } })) || 0;
 
-  // Remaining amount for items
-  const itemsTotal =(await PurchaseItem.sum('total', { where: { purchaseId: purchase.id } })) || 0;
-
-  const remainingAmount = purchase.totalAmount - itemsTotal;
+  const remainingItemAmount = purchase.totalAmount - itemsTotal;
+  const unpaidAmount = purchase.totalAmount - purchase.paidAmount;
+  const isLocked = remainingItemAmount <= 0 && unpaidAmount <= 0;
 
   res.status(200).json({
     status: 1,
@@ -94,21 +157,22 @@ exports.getPurchaseById = catchAsync(async (req, res, next) => {
     data: {
       ...purchase.toJSON(),
       itemsTotal,
-      remainingAmount,
-      isLocked: remainingAmount === 0,
+      remainingItemAmount,
+      unpaidAmount,
+      status: purchase.status,
+      isLocked,
     },
   });
 });
 
 exports.updatePurchase = catchAsync(async (req, res, next) => {
-  const purchase = await Purchase.findByPk(req.params.id);
+   const { warehouseId, supplierId, paymentMethod, totalAmount, note } = req.body;
+  const purchase = await Purchase.findByPk(req.params.purchaseId);
   if (!purchase || !purchase.isActive) {
     return next(new AppError('Purchase not found', 404));
   }
+ 
 
-  const { warehouseId, supplierId, paymentMethod, totalAmount, paidAmount, note } = req.body;
-
-  // Check if stock already exists
   const stockUsed = await StockTransaction.count({
     where: { referenceType: 'PURCHASE', referenceId: purchase.id }
   });
@@ -128,25 +192,17 @@ exports.updatePurchase = catchAsync(async (req, res, next) => {
     }
   }
 
-  // Validate totalAmount against items
   if (totalAmount !== undefined) {
-    const itemsTotal = (await PurchaseItem.sum('total', { where: { purchaseId: purchase.id } })) || 0;
-    if (itemsTotal > totalAmount) {
-      return next(
-        new AppError(`Cannot set totalAmount to ${totalAmount}. Items already sum up to ${itemsTotal}`, 400)
-      );
-    }
-    purchase.totalAmount = totalAmount;
+  const itemsTotal = (await PurchaseItem.sum('total', { where: { purchaseId: purchase.id } })) || 0;
+  if (itemsTotal > totalAmount) {
+    return next(
+      new AppError(`Cannot set totalAmount to ${totalAmount}. Items already sum up to ${itemsTotal}`, 400)
+    );
   }
+  purchase.totalAmount = totalAmount;
+}
 
-  // // Validate paidAmount
-  // if (paidAmount !== undefined) {
-  //   if (paidAmount > purchase.totalAmount) {
-  //     return next(new AppError('paidAmount cannot exceed totalAmount', 400));
-  //   }
-  //   purchase.paidAmount = paidAmount;
-  // }
-  // purchase.dueAmount = purchase.totalAmount - purchase.paidAmount;
+
   await purchase.save();
 
   res.status(200).json({
@@ -158,7 +214,7 @@ exports.updatePurchase = catchAsync(async (req, res, next) => {
 
 exports.payPurchase = catchAsync(async (req, res, next) => {
   const { amount } = req.body;
-  const purchase = await Purchase.findByPk(req.params.id);
+  const purchase = await Purchase.findByPk(req.params.purchaseId);
 
   if (!purchase) return next(new AppError('Purchase not found', 404));
 
@@ -182,30 +238,57 @@ exports.payPurchase = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.deletePurchase = catchAsync(async (req, res, next) => {
-  const purchase = await Purchase.findByPk(req.params.id);
-  if (!purchase || !purchase.isActive)
-    return next(new AppError('Purchase not found', 404));
-
-  // Optional: Check if stock already created
-  const stockUsed = await StockTransaction.count({
-    where: { referenceType: 'PURCHASE', referenceId: purchase.id }
+exports.cancelPurchase = catchAsync(async (req, res, next) => {
+  const purchase = await Purchase.findByPk(req.params.purchaseId, {
+    include: [{ model: PurchaseItem, as: 'items' }]
   });
+  if (!purchase || !purchase.isActive)
+    return next(new AppError('Purchase not found or already canceled', 404));
 
-  if (stockUsed > 0) {
-    return next(new AppError('Cannot delete purchase after stock has been created', 400));
+  const businessId = purchase.businessId;
+
+  for (const item of purchase.items) {
+    const stock = await Stock.findOne({
+      where: { businessId, warehouseId: item.warehouseId, productId: item.productId }
+    });
+    if (stock) {
+      stock.quantity -= item.quantity;
+      if (stock.quantity < 0) stock.quantity = 0; // prevent negative stock
+      await stock.save();
+    }
+
+    // Record stock transaction
+    await StockTransaction.create({
+      businessId,
+      warehouseId: item.warehouseId,
+      productId: item.productId,
+      quantity: item.quantity,
+      type: 'OUT',
+      referenceType: 'PURCHASE',
+      referenceId: purchase.id,
+      performedBy: req.user?.id || null,
+      note: `Purchase canceled (Purchase ID: ${purchase.id})`,
+      valueDate: new Date(),
+    });
   }
 
   purchase.isActive = false;
+  purchase.status = 'cancelled';
   await purchase.save();
 
   res.status(200).json({
     status: 1,
-    message: 'Purchase deleted successfully',
+    message: 'Purchase canceled successfully',
+    data: {
+      id: purchase.id,
+      invoiceNumber: purchase.invoiceNumber,
+      status: purchase.status,
+      isActive: purchase.isActive
+    }
   });
 });
 
-exports.deletePurchases = catchAsync(async (req, res, next) => {
+exports.cancelPurchases = catchAsync(async (req, res, next) => {
   const { ids } = req.body; // expect array of purchase IDs
   if (!Array.isArray(ids) || ids.length === 0)
     return next(new AppError('No purchases specified', 400));
@@ -229,12 +312,12 @@ exports.deletePurchases = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.hardDeletePurchase = catchAsync(async (req, res, next) => {
+exports.deletePurchase = catchAsync(async (req, res, next) => {
   if (process.env.NODE_ENV !== 'development') {
     return next(new AppError('Hard delete allowed only in development', 403));
   }
 
-  const purchase = await Purchase.findByPk(req.params.id);
+  const purchase = await Purchase.findByPk(req.params.purchaseId);
   if (!purchase) return next(new AppError('Purchase not found', 404));
 
   // Delete related items
@@ -252,7 +335,7 @@ exports.hardDeletePurchase = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.hardDeletePurchases = catchAsync(async (req, res, next) => {
+exports.deletePurchases = catchAsync(async (req, res, next) => {
   if (process.env.NODE_ENV !== 'development') {
     return next(new AppError('Hard delete allowed only in development', 403));
   }
@@ -278,11 +361,15 @@ exports.hardDeletePurchases = catchAsync(async (req, res, next) => {
 });
 
 //.....Controller for PurchaseItems.....//.
-exports.createPurchaseItem = catchAsync(async (req, res, next) => {
-  const { purchaseId, productId, warehouseId, quantity, unitPrice } = req.body;
-  const businessId = getBusinessId();
+exports.addPurchaseItem = catchAsync(async (req, res, next) => {
+   const purchaseId = Number(req.params.purchaseId);
+  const {productId, warehouseId, quantity, unitPrice } = req.body;
+  const businessId = req.user.businessId
 
-  if (!purchaseId || !productId || !warehouseId || !quantity || !unitPrice) {
+  const purchase = await Purchase.findByPk(purchaseId);
+  if (!purchase || !purchase.isActive) return next(new AppError('Purchase not found', 404));
+
+  if (!productId || !warehouseId || !quantity || !unitPrice) {
     return next(new AppError('Missing required fields', 400));
   }
 
@@ -290,32 +377,24 @@ exports.createPurchaseItem = catchAsync(async (req, res, next) => {
     return next(new AppError('Quantity and unit price must be positive', 400));
   }
 
-  const purchase = await Purchase.findByPk(purchaseId);
-  if (!purchase || !purchase.isActive) {
-    return next(new AppError('Purchase not found', 404));
-  }
-
+  
   const itemTotal = quantity * unitPrice;
-  const currentItemsTotal =
-    (await PurchaseItem.sum('total', { where: { purchaseId } })) || 0;
+  const currentItemsTotal = await PurchaseItem.sum('total', { where: { purchaseId } })|| 0;
 
   if (currentItemsTotal + itemTotal > purchase.totalAmount) {
-    return next(
-      new AppError('Adding this item exceeds purchase total amount', 400)
-    );
+    return next( new AppError(`Adding item :${itemTotal} to ${currentItemsTotal} exceeds purchase total amount:${purchase.totalAmount}`, 400));
   }
 
-  // 🔐 TRANSACTION START
+  // TRANSACTION START
   const t = await sequelize.transaction();
 
   try {
-    // 1️⃣ Create PurchaseItem
     const item = await PurchaseItem.create(
       {
-        purchaseId,
         businessId,
         warehouseId,
         productId,
+        purchaseId,
         quantity,
         unitPrice,
         total: itemTotal,
@@ -323,15 +402,10 @@ exports.createPurchaseItem = catchAsync(async (req, res, next) => {
       { transaction: t }
     );
 
-    // 2️⃣ Update Purchase financials
     purchase.dueAmount = purchase.totalAmount - purchase.paidAmount;
-    purchase.status = calculateStatus(
-      purchase.totalAmount,
-      purchase.paidAmount
-    );
+    purchase.status = calculateStatus(purchase.totalAmount, purchase.paidAmount);
     await purchase.save({ transaction: t });
 
-    // 3️⃣ Update Stock (UPSERT logic)
     const [stock] = await Stock.findOrCreate({
       where: { businessId, warehouseId, productId },
       defaults: { quantity: 0 },
@@ -400,23 +474,21 @@ exports.getPurchaseItems = catchAsync(async (req, res) => {
 
 exports.updatePurchaseItem = catchAsync(async (req, res, next) => {
   const { quantity, unitPrice, warehouseId, productId } = req.body;
-  const businessId = getBusinessId();
 
-  // 1️⃣ Fetch the item
+  const businessId = req.user.businessId
+  const purchaseId=req.params.purchaseId
+
+   const purchase = await Purchase.findByPk(purchaseId);
+  if (!purchase || !purchase.isActive) return next(new AppError('Purchase not found', 404));
+
   const item = await PurchaseItem.findByPk(req.params.itemId);
   if (!item) return next(new AppError('Purchase item not found', 404));
 
-  // 2️⃣ Fetch the related purchase
-  const purchase = await Purchase.findByPk(item.purchaseId);
-  if (!purchase || !purchase.isActive) return next(new AppError('Purchase not found', 404));
-
-  // 3️⃣ Check if stock already exists for this purchase (locked fields)
   const stockUsed = await StockTransaction.count({
     where: { referenceType: 'PURCHASE', referenceId: purchase.id }
   });
   const isLocked = stockUsed > 0;
 
-  // 4️⃣ Validate new values
   let newQuantity = quantity !== undefined ? quantity : item.quantity;
   let newUnitPrice = unitPrice !== undefined ? unitPrice : item.unitPrice;
   if (newQuantity <= 0) return next(new AppError('Quantity must be positive', 400));
@@ -432,7 +504,6 @@ exports.updatePurchaseItem = catchAsync(async (req, res, next) => {
     return next(new AppError(`Updating this item exceeds purchase total amount (${purchase.totalAmount})`, 400));
   }
 
-  // 5️⃣ Update editable fields
   if (!isLocked) {
     if (warehouseId !== undefined) item.warehouseId = warehouseId;
     if (productId !== undefined) item.productId = productId;
@@ -440,7 +511,6 @@ exports.updatePurchaseItem = catchAsync(async (req, res, next) => {
     if (warehouseId || productId) return next(new AppError('Cannot change warehouse or product after stock is created', 400));
   }
 
-  // 6️⃣ Calculate quantity difference for stock adjustment
   const diffQuantity = newQuantity - item.quantity;
 
   item.quantity = newQuantity;
@@ -448,12 +518,10 @@ exports.updatePurchaseItem = catchAsync(async (req, res, next) => {
   item.total = newTotal;
   await item.save();
 
-  // 7️⃣ Update purchase financials
   purchase.dueAmount = purchase.totalAmount - purchase.paidAmount;
   purchase.status = calculateStatus(purchase.totalAmount, purchase.paidAmount);
   await purchase.save();
 
-  // 8️⃣ Adjust stock and stock transaction if quantity changed
   if (diffQuantity !== 0) {
     let stock = await Stock.findOne({
       where: { businessId, warehouseId: item.warehouseId, productId: item.productId }
@@ -543,7 +611,7 @@ exports.deletePurchaseItem = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.deleteAllPurchases = catchAsync(async (req, res, next) => {
+exports.deleteAllPurchaseItems = catchAsync(async (req, res, next) => {
   // 1️⃣ Fetch all active purchases
   const purchases = await Purchase.findAll({ where: { isActive: true } });
   if (!purchases.length) return next(new AppError('No active purchases found', 404));

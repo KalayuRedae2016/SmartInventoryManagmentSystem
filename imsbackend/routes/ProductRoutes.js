@@ -30,8 +30,9 @@ router.get("/stock-valuation",requirePermission("product:view"), productControll
 router.get("/:productId/purchase-history",requirePermission("product:view"),productController.getProductPurchaseHistory);
 router.get("/:productId/sale-history",requirePermission("product:view"),productController.getProductSaleHistory);
 
-router.post("/import",requirePermission("product:create"),productController.uploadProductFile,productController.importProducts);
-router.get("/export",requirePermission("product:view"),productController.exportProducts);
+router.route("/import").post(requirePermission("product:create"),productController.uploadProductFile,productController.importProducts);
+router.route('/export/to-excel-pdf').get(requirePermission('user:export'),productController.exportProducts)
+// router.route('/report/dashboard').get(requirePermission('report:view'),productController.getProductDashboardSummary)
 
 router.route("/:productId")
   .get(requirePermission("product:view"), productController.getProductById)

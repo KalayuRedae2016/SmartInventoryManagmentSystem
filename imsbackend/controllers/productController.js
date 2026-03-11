@@ -9,6 +9,47 @@ const AppError = require("../utils/appError")
 
 const {extractFiles} = require('../utils/fileUtils');
 require('dotenv').config();
+    
+
+const buildProductWhereClause = (user,query) => {
+  const {serialTracking,categoryId,brandId,unitId,search,minPrice,maxPrice,minCost,maxCost,preferredCostMethod,isActive,startDate,endDate} = query;
+
+  let whereQuery = { businessId: user.businessId};
+  // Active filter
+   if (isActive !== undefined) whereQuery.isActive = ["true", "1", true, 1].includes(isActive);
+  if (serialTracking !== undefined) whereQuery.isActive = ["true", "1", true, 1].includes(isActive);
+  if(categoryId) whereQuery.categoryId=categoryId
+  if(brandId) whereQuery.brandId=brandId
+  if(unitId) whereQuery.unitId=unitId
+
+  // Selling price range
+  if (minPrice || maxPrice) {
+    whereQuery.defaultSellingPrice = {};
+    if (minPrice) whereQuery.defaultSellingPrice[Op.gte] = Number(minPrice);
+    if (maxPrice) whereQuery.defaultSellingPrice[Op.lte] = Number(maxPrice);
+  }
+
+  // Cost price range
+  if (minCost || maxCost) {
+    whereQuery.defaultCostPrice = {};
+    if (minCost) whereQuery.defaultCostPrice[Op.gte] = Number(minCost);
+    if (maxCost) whereQuery.defaultCostPrice[Op.lte] = Number(maxCost);
+  }
+
+  if (startDate && endDate) whereQuery.createdAt = {[Op.between]: [new Date(startDate), new Date(endDate)]};
+  if(preferredCostMethod) whereQuery.preferredCostMethod=preferredCostMethod
+// Search filter
+  if (search) {
+    whereQuery[Op.or] = [
+      { name: { [Op.like]: `%${search}%` } },
+      { sku: { [Op.like]: `%${search}%` } },
+      { partNumber: { [Op.like]: `%${search}%` } },
+      { barcode: { [Op.like]: `%${search}%` } }
+    ];
+  }
+
+  return whereQuery;
+};
 
 
 // Configure multer for payment file uploads
@@ -100,62 +141,12 @@ exports.createProduct = catchAsync(async (req, res, next) => {
 });
 
 exports.getAllProducts = catchAsync(async (req, res, next) => {
-
-  const {
-    isActive,
-    categoryId,
-    brandId,
-    unitId,
-    search,
-    sortBy,
-    sortOrder,
-    page = 1,
-    limit = 20,
-    minPrice,
-    maxPrice,
-    minCost,
-    maxCost
-  } = req.query;
-
+  const { sortBy = "createdAt", sortOrder = "desc", page = 1, limit = 1000 } = req.query;
   const pageNumber = Number(page) || 1;
   const limitNumber = Math.min(Number(limit) || 20, 100);
   const offset = (pageNumber - 1) * limitNumber;
 
-  let whereQuery = {
-    businessId: req.user.businessId
-  };
-
-  // Active filter
-  if (isActive !== undefined)
-    whereQuery.isActive = ["true", "1", true, 1].includes(isActive);
-
-  if (categoryId) whereQuery.categoryId = categoryId;
-  if (brandId) whereQuery.brandId = brandId;
-  if (unitId) whereQuery.unitId = unitId;
-
-  // Search filter
-  if (search) {
-    whereQuery[Op.or] = [
-      { name: { [Op.like]: `%${search}%` } },
-      { sku: { [Op.like]: `%${search}%` } },
-      { partNumber: { [Op.like]: `%${search}%` } },
-      { barcode: { [Op.like]: `%${search}%` } }
-    ];
-  }
-
-  // Selling price range
-  if (minPrice || maxPrice) {
-    whereQuery.defaultSellingPrice = {};
-    if (minPrice) whereQuery.defaultSellingPrice[Op.gte] = Number(minPrice);
-    if (maxPrice) whereQuery.defaultSellingPrice[Op.lte] = Number(maxPrice);
-  }
-
-  // Cost price range
-  if (minCost || maxCost) {
-    whereQuery.defaultCostPrice = {};
-    if (minCost) whereQuery.defaultCostPrice[Op.gte] = Number(minCost);
-    if (maxCost) whereQuery.defaultCostPrice[Op.lte] = Number(maxCost);
-  }
+  const whereQuery = buildProductWhereClause(req.user,req.query);
 
   // Sorting
   const validSortColumns = [
@@ -481,32 +472,47 @@ exports.importProducts = catchAsync(async (req, res, next) => {
   const requiredFields = [
     'businessId', 'name','sku','partNumber','serialTracking','categoryId','brandId','unitId',
     'defaultCostPrice','defaultSellingPrice','lastPurchaseCost', 'minimumStock',
-    'preferredCostMethod','barcode','isActive'
+    // 'preferredCostMethod','barcode','isActive'
   ];
 // console.log("requred fileds",requiredFields)
+
   // Transform each row before saving
   const transformFn = async (row) => ({
     businessId: row.businessId,
     name:row.name,
     sku:row.sku,
     partNumber:row.partNumber,
-    serialTracking:row.serialTracking,
+   serialTracking: row.serialTracking || false,
     categoryId:row.categoryId,
     brandId:row.brandId,
-    unitId:row.brandId,
-    defaultCostPrice:row.defaultCostPrice,
-    defaultSellingPrice:row.defaultSellingPrice,
-    lastPurchaseCost:row.lastPurchaseCost,
-    minimumStock:row.minimumStock,
-    preferredCostMethod:row.preferredCostMethod,
-    barcode:row.barcode,
+    unitId:row.unitId,
+    defaultCostPrice: Number(row.defaultCostPrice) || 0,
+    defaultSellingPrice: Number(row.defaultSellingPrice) || 0,
+    lastPurchaseCost: Number(row.lastPurchaseCost) || 0,
+    minimumStock: Number(row.minimumStock) || 0,
+    preferredCostMethod:row.preferredCostMethod||"AVERAGE",
+    barcode:row.barcode||null,
+    images: null,
     isActive:Boolean(row.isActive),
-    image: null
+});
+
+
+  //const saveFn = async (data) => await Product.create(data);
+  // 
+  
+  const saveFn = async (data) => {
+
+  const existing = await Product.findOne({
+    where: { sku: data.sku }
   });
 
+  if (existing) {
+    throw new Error(`Product with SKU "${data.sku}" already exists`);
+  }
 
-  const saveFn = async (data) => await Product.create(data);
-  
+  return await Product.create(data);
+};
+
 
   const { importedData, errors } = await importFromExcelFile({
     filePath: req.file.path,
@@ -514,6 +520,8 @@ exports.importProducts = catchAsync(async (req, res, next) => {
     transformFn,
     saveFn
   });
+
+  console.log("imported data",importedData)
 
   if (!importedData.length) {
     return next(new AppError('No valid Product were imported from the file.', 400));
@@ -532,33 +540,38 @@ exports.importProducts = catchAsync(async (req, res, next) => {
 exports.exportProducts = catchAsync(async (req, res, next) => {
   const { sortBy = "createdAt", sortOrder = "desc", page = 1, limit = 1000 } = req.query;
 
-  const whereQuery = buildUserWhereClause(req.query);
+  const whereQuery = buildProductWhereClause(req.user,req.query);
 
   const validSortColumns = ["createdAt", "updatedAt", "fullName", "email"];
-  const orderColumn = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
+  const sortColumn = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
   const orderDirection = sortOrder.toLowerCase() === "asc" ? "ASC" : "DESC";
 
-  const products = await Product.findAll({
+  const { rows: products, count } = await Product.findAndCountAll({
     where: whereQuery,
-    order: [[orderColumn, orderDirection]],
+    order: [[sortColumn, orderDirection]],
     limit: Number(limit),
-    offset: (page - 1) * limit
+    offset: (page - 1) * limit,
+    include: [
+      { model: Category, as: "category", attributes: ["id", "name"] },
+      { model: Brand, as: "brand", attributes: ["id", "name"] },
+      { model: Unit, as: "unit", attributes: ["id", "name"] }
+    ]
   });
 
   if (!products.length) {
     return next(new AppError("No products found for the given filters.", 404));
   }
-  
+  // console.log("p",products)
   // Format users for export
   const formattedProducts = products.map(p => ({
     ID: p.id,
     name:p.name,
     sku:p.sku,
     partNumber:p.partNumber,
-    serialTracking:p.serialTracking,
-    Category:p.categoryId,
-    Brand:p.brandId,
-    Unit:p.unitId,
+    serialTracking:p.serialTracking? "Yes" : "No",
+    Category:p.category.name||p.categoryId,
+    Brand:p.brand.name||p.brandId,
+    Unit:p.unit.name||p.unitId,
     defaultCostPrice:p.defaultCostPrice,
     defaultSellingPrice:p.defaultSellingPrice,
     minimumStock:p.minimumStock,

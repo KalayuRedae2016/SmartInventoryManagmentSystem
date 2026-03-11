@@ -4,21 +4,39 @@ const { ValidationError, UniqueConstraintError, DatabaseError } = require('seque
 
 // Sequelize-specific handlers
 const handleSequelizeValidationError = (err) => {
+  // Detect MySQL duplicate entry
+  if (err.parent && err.parent.code === "ER_DUP_ENTRY") {
+
+    const match = err.parent.sqlMessage.match(/Duplicate entry '(.+)' for key '(.+)'/);
+
+    const value = match ? match[1] : "";
+    const field = match ? match[2] : "field";
+
+    return new AppError(
+      `Duplicate value '${value}' for ${field}. Please use another value.`,
+      400
+    );
+  }
+
   const messages = err.errors.map(e => e.message);
-  const message = `Validation error: ${messages.join('. ')}`;
+  const message = `Validation error: ${messages.join(". ")}`;
+
   return new AppError(message, 400);
 };
 
 const handleSequelizeUniqueConstraintError = (err) => {
-  const field = err.errors[0]?.path || 'field';
-  const value = err.errors[0]?.value || '';
-  const message = `Duplicate field value: ${value}. Please use another ${field}!`;
-  return new AppError(message, 400);
-};
+  const field = err.errors[0]?.path;
+  const value = err.errors[0]?.value;
+  return new AppError(`${field} '${value}' already exists`, 400);
 
+};
 const handleSequelizeDatabaseError = (err) => {
-  const message = `Database error: ${err.message}`;
-  return new AppError(message, 500);
+
+  if (err.parent && err.parent.code === "ER_DUP_ENTRY") {
+    return new AppError("Duplicate record already exists.", 400);
+  }
+
+  return new AppError(`Database error: ${err.message}`, 500);
 };
 
 const handleJWTError = () =>
@@ -39,11 +57,11 @@ const sendErrorDev = (err, req, res) => {
 
   return res.status(err.statusCode).json({
     status: err.status,
-    statusCode: err.statusCode,
     message: err.message,
-    errorType: err.errorType,
+    error: err,
     stack: err.stack
   });
+
 };
 
 // Send error response in production

@@ -8,12 +8,12 @@ module.exports = {
       businessId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       warehouseId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
       supplierId: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false },
-
+      invoiceNumber: { type: Sequelize.STRING, allowNull: false, unique: true },
       totalAmount: { type: Sequelize.FLOAT, allowNull: false, defaultValue: 0 },
       paidAmount: { type: Sequelize.FLOAT, allowNull: false, defaultValue: 0 },
       dueAmount: { type: Sequelize.FLOAT, allowNull: false, defaultValue: 0 },
 
-      paymentMethod: { type: Sequelize.ENUM('cash', 'credit'), defaultValue: 'cash' },
+      paymentMethod: { type: Sequelize.ENUM('cash', 'credit','mixed'), defaultValue: 'cash' },
       status: { type: Sequelize.ENUM('pending', 'partial', 'paid'), defaultValue: 'pending' },
 
       note: { type: Sequelize.STRING },

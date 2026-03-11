@@ -20,7 +20,7 @@ module.exports = (sequelize, DataTypes) => {
     totalAmount: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
     paidAmount: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
     dueAmount: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
-    paymentMethod: { type: DataTypes.ENUM('cash', 'credit'), allowNull: false, defaultValue: 'cash' },
+    paymentMethod: { type: DataTypes.ENUM('cash', 'credit','mixed'), allowNull: false, defaultValue: 'cash' },
     status: { type: DataTypes.ENUM('pending', 'partial', 'paid'), defaultValue: 'pending' },
     note: { type: DataTypes.STRING },
     isActive: { type: DataTypes.BOOLEAN, defaultValue: true }

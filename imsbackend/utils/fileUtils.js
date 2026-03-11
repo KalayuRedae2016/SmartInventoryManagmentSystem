@@ -170,6 +170,7 @@ exports.importFromExcelFile = async ({ filePath, requiredFields = [], transformF
   const workbook = xlsx.readFile(filePath);
   const worksheet = workbook.Sheets[workbook.SheetNames[0]];
   const jsonData = xlsx.utils.sheet_to_json(worksheet);
+  // console.log("json data",jsonData)
 
   if (!Array.isArray(jsonData) || jsonData.length === 0) {
     throw new AppError('Excel file is empty or data is not in correct format', 400);
@@ -179,26 +180,31 @@ exports.importFromExcelFile = async ({ filePath, requiredFields = [], transformF
   const errors = [];
 
   for (const [index, row] of jsonData.entries()) {
+    console.log("row",row)
     try {
       // Check for missing required fields
+      console.log("required fields",requiredFields)
       const missingFields = requiredFields.filter(f => !row[f]);
       if (missingFields.length > 0) {
         throw new AppError(`Missing required fields: ${missingFields.join(', ')}`, 400);
       }
 
+      console.log("missing fields",missingFields.length)
       // Transform row if a transform function is provided
       let transformed = transformFn ? await transformFn(row) : row;
 
       // Save using provided save function
       const saved = await saveFn(transformed);
+      
       importedData.push(saved);
     } catch (err) {
       errors.push({ row: index + 2, error: err.message, data: row }); // +2 for Excel header
     }
   }
 
-  // Cleanup: remove file
   fs.unlinkSync(filePath);
+
+  console.log("imported Data file util",importedData)
 
   return { importedData, errors };
 };

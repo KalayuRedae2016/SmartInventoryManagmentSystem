@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { Op } = require('sequelize');
 const catchAsync = require('./catchAsync');
 const { User, Role, Permission,UserPermission,RolePermission } = require('../models');
+const { decode } = require('punycode');
 
 require('dotenv').config();
 
@@ -166,11 +167,16 @@ exports.authenticationJwt = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
     }
     if (!token)  return next(new AppError('Not logged in', 401));
-    
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    //for non access control comment the ffing and use decode.id=1
+    //if (!token)  return next(new AppError('Not logged in', 401));
+    //const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
     // Load user with Role + RolePermissions + UserPermissions
-    const user = await User.findByPk(decoded.id, {
+    const user = await User.findByPk(decoded.id,//1,
+       {
       include: [
         {
           model: Role,

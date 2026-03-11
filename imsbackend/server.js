@@ -16,7 +16,6 @@ dotenv.config({ path: envFile });
 
 connectDB();
 
-
 const initializeServer = async () => {
   try {
     console.log("Initializing server...");

@@ -6,6 +6,7 @@ module.exports = {
       businessId: 1,
       warehouseId: 1,
       supplierId: 1,
+      invoiceNumber:"Inv-101",
       totalAmount: 1000,
       paidAmount: 600,
       dueAmount: 400,
