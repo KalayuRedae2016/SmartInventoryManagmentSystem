@@ -5,6 +5,38 @@ const sequelize = require('../models').sequelize;
 
 const getBusinessId = () => 1;
 
+const calculateStatus = (total, paid) => {
+  if (paid <= 0) return 'pending';
+  if (paid < total) return 'partial';
+  return 'paid';
+};
+
+const generateInvoiceNumber = () => {
+  return 'PR-' + Date.now();
+};
+
+const buildPurchaseReturnWhereClause = (user,query) => {
+    const { warehouseId, supplierId, status, startDate, endDate, search, isActive } = query;
+
+  let whereQuery = { businessId: user.businessId};
+
+  if (isActive !== undefined) whereQuery.isActive = ["true", "1", true, 1].includes(isActive);
+  if(warehouseId) whereQuery.warehouseId=categoryId
+  if(supplierId) whereQuery.supplierId=supplierId
+  if(status) whereQuery.status=status
+  
+
+  if (startDate && endDate) whereQuery.createdAt = {[Op.between]: [new Date(startDate), new Date(endDate)]};
+// Search filter
+  if (search) {
+    whereQuery[Op.or] = [
+      { note: { [Op.like]: `%${search}%` } },
+    ];
+  }
+
+  return whereQuery;
+};
+
 // Helper: calculate remaining returnable amount for a purchase
 const getRemainingReturnAmount = async (purchaseId) => {
   const purchase = await Purchase.findByPk(purchaseId);
@@ -12,8 +44,8 @@ const getRemainingReturnAmount = async (purchaseId) => {
 
   const returnedTotal = await PurchaseReturnItem.sum('total', {
     include: [{
-      model: PurchaseReturn,
-      where: { purchaseId, status: 'completed', isActive: true }
+      model: PurchaseReturn,as:"purchaseReturn",
+      //where: { purchaseId, status: 'completed', isActive: true }
     }]
   }) || 0;
 
@@ -22,22 +54,14 @@ const getRemainingReturnAmount = async (purchaseId) => {
 
 exports.createPurchaseReturn = catchAsync(async (req, res, next) => {
   const { purchaseId, warehouseId, supplierId, totalAmount, reason } = req.body;
-  const businessId = getBusinessId();
-  if (!purchaseId || !warehouseId || !supplierId || !totalAmount || !reason) {
+  const businessId = req.user.businessId
+  if (!purchaseId || !warehouseId || !supplierId || !reason) {
     return next(new AppError('Missing required fields', 400));
   }
 
   const purchase = await Purchase.findByPk(purchaseId);
-  if (!purchase || !purchase.isActive) {
-    return next(new AppError('Purchase not found', 404));
-  }
-
-  // Prevent return exceeding purchase remaining amount
-  const remaining = await getRemainingReturnAmount(purchaseId);
-  if (totalAmount > remaining) {
-    return next(new AppError(`Return amount cannot exceed remaining purchase amount (${remaining})`, 400));
-  }
-
+  if (!purchase || !purchase.isActive)    return next(new AppError('Purchase not found', 404));
+  
   const purchaseReturn = await PurchaseReturn.create({
     purchaseId,
     businessId,
@@ -57,22 +81,22 @@ exports.createPurchaseReturn = catchAsync(async (req, res, next) => {
 });
 
 exports.getPurchaseReturns = catchAsync(async (req, res) => {
-  const { page = 1, limit = 10, status } = req.query;
-  const businessId = getBusinessId();
-
-  const where = { businessId, isActive: true };
-  if (status) where.status = status;
+  const { page = 1, limit = 10} = req.query;
+  
+  const where = buildPurchaseReturnWhereClause(req.user,req.query);
 
   const purchaseReturns = await PurchaseReturn.findAndCountAll({
     where,
-    include: [
-      { model: Purchase, as: 'purchase' },
-      { model: Supplier, as: 'supplier' },
-      { model: Warehouse, as: 'warehouse' },
+    include:[
+      {model:Purchase,as:'purchase'},
+      {model:Supplier,as:'supplier',attributes:['id','name']},
+      {model:Warehouse,as:'warehouse',attributes:['id','name']},
+      {model:PurchaseReturnItem,as:'items',include:[{model:Product,as:'product',attributes:['id','name','sku']}]}
     ],
-    limit: +limit,
-    offset: (page - 1) * limit,
-    order: [['createdAt', 'DESC']],
+
+    limit:+limit,
+    offset:(page-1)*limit,
+    order:[['createdAt','DESC']]
   });
 
   res.status(200).json({
@@ -84,12 +108,12 @@ exports.getPurchaseReturns = catchAsync(async (req, res) => {
 });
 
 exports.getPurchaseReturnById = catchAsync(async (req, res, next) => {
-  const purchaseReturn = await PurchaseReturn.findByPk(req.params.id, {
-    include: [
-      { model: Purchase, as: 'purchase' },
-      { model: Supplier, as: 'supplier' },
-      { model: Warehouse, as: 'warehouse' },
-      //{ model: PurchaseReturnItem, include: [{ model: Product, as: 'product' }] }
+  const purchaseReturn = await PurchaseReturn.findByPk(req.params.purchaseReturnId, {
+    include:[
+      {model:Purchase,as:'purchase'},
+      {model:Supplier,as:'supplier',attributes:['id','name']},
+      {model:Warehouse,as:'warehouse',attributes:['id','name']},
+      {model:PurchaseReturnItem,as:'items',include:[{model:Product,as:'product',attributes:['id','name','sku']}]}
     ],
   });
 
@@ -114,19 +138,11 @@ exports.updatePurchaseReturn = catchAsync(async (req, res, next) => {
     return next(new AppError('Completed returns cannot be modified', 400));
   }
 
-  const { warehouseId, supplierId, totalAmount, reason, status } = req.body;
+  const { warehouseId, supplierId, reason, status } = req.body;
 
   if (warehouseId !== undefined) purchaseReturn.warehouseId = warehouseId;
   if (supplierId !== undefined) purchaseReturn.supplierId = supplierId;
   if (reason !== undefined) purchaseReturn.reason = reason;
-
-  if (totalAmount !== undefined) {
-    const remaining = await getRemainingReturnAmount(purchaseReturn.purchaseId);
-    if (totalAmount > remaining) {
-      return next(new AppError(`Return amount cannot exceed remaining purchase amount (${remaining})`, 400));
-    }
-    purchaseReturn.totalAmount = totalAmount;
-  }
 
   if (status !== undefined) purchaseReturn.status = status;
 
@@ -138,6 +154,57 @@ exports.updatePurchaseReturn = catchAsync(async (req, res, next) => {
     data: purchaseReturn,
   });
 });
+
+// exports.cancelPurchaseReturn = catchAsync(async (req,res,next)=>{
+
+//   const purchaseReturn = await PurchaseReturn.findByPk(req.params.purchaseReturnId,{
+//     include:[{model:PurchaseReturnItem,as:'items'}]
+//   });
+
+//   if(!purchaseReturn || !purchaseReturn.isActive)
+//     return next(new AppError("Purchase return not found",404));
+
+//   const businessId = purchaseReturn.businessId;
+
+//   for(const item of purchaseReturn.items){
+
+//     const stock = await Stock.findOne({
+//       where:{
+//         businessId,
+//         warehouseId:item.warehouseId,
+//         productId:item.productId
+//       }
+//     });
+
+//     if(stock){
+//       stock.quantity += item.quantity;
+//       await stock.save();
+//     }
+
+//     await StockTransaction.create({
+//       businessId,
+//       warehouseId:item.warehouseId,
+//       productId:item.productId,
+//       quantity:item.quantity,
+//       type:'IN',
+//       referenceType:'PURCHASE_RETURN',
+//       referenceId:purchaseReturn.id,
+//       performedBy:req.user?.id || null,
+//       note:`PurchaseReturn canceled (ID:${purchaseReturn.id})`
+//     });
+
+//   }
+
+//   purchaseReturn.status='cancelled';
+//   purchaseReturn.isActive=false;
+//   await purchaseReturn.save();
+
+//   res.status(200).json({
+//     status:1,
+//     message:"Purchase return cancelled successfully"
+//   });
+
+// });
 
 exports.deletePurchaseReturn = catchAsync(async (req, res, next) => {
   const purchaseReturn = await PurchaseReturn.findByPk(req.params.id);
@@ -156,13 +223,13 @@ exports.deletePurchaseReturn = catchAsync(async (req, res, next) => {
   });
 });
 
-// Controller for PurchaseReturnItems
-exports.createPurchaseReturnItem = catchAsync(async (req, res, next) => {
-  const { purchaseReturnId, productId, warehouseId, quantity, unitPrice } = req.body;
-  const businessId = getBusinessId();
+exports.addPurchaseReturnItem = catchAsync(async (req, res, next) => {
+   const purchaseReturnId = req.params.purchaseReturnId;
+  const {productId,warehouseId,quantity,unitPrice} = req.body;
+  const businessId = req.user.businessId;
 
-  if (!purchaseReturnId || !productId || !warehouseId || !quantity || !unitPrice) {
-    return next(new AppError('Missing required fields', 400));
+  if(!productId || !warehouseId || !quantity || !unitPrice){
+    return next(new AppError("Missing required fields",400));
   }
 
   if (quantity <= 0 || unitPrice <= 0) {
@@ -178,18 +245,16 @@ exports.createPurchaseReturnItem = catchAsync(async (req, res, next) => {
     return next(new AppError('Cannot add items to a completed return', 400));
   }
 
+  console.log("purchasereturn",purchaseReturn.purchaseId)
   const itemTotal = quantity * unitPrice;
-
   const remaining = await getRemainingReturnAmount(purchaseReturn.purchaseId);
   if (itemTotal > remaining) {
     return next(new AppError(`Item total (${itemTotal}) exceeds remaining purchase amount (${remaining})`, 400));
   }
 
-  // 🔐 TRANSACTION START
   const t = await sequelize.transaction();
 
   try {
-    // 1️⃣ Create PurchaseReturnItem
     const item = await PurchaseReturnItem.create(
       {
         purchaseReturnId,
@@ -204,7 +269,7 @@ exports.createPurchaseReturnItem = catchAsync(async (req, res, next) => {
     );
 
     // 2️⃣ Update PurchaseReturn totalAmount
-    //purchaseReturn.totalAmount += itemTotal; // optional, if you track running total
+    purchaseReturn.totalAmount += itemTotal; // optional, if you track running total
     await purchaseReturn.save({ transaction: t });
 
     // 3️⃣ Update Stock (UPSERT logic, decrease stock for return)
@@ -247,8 +312,7 @@ exports.createPurchaseReturnItem = catchAsync(async (req, res, next) => {
   }
 });
 
-
-exports.getPurchaseReturnsItem = catchAsync(async (req, res) => {
+exports.getPurchaseReturnsItems = catchAsync(async (req, res) => {
   const { purchaseReturnId, page = 1, limit = 10 } = req.query;
   const businessId = getBusinessId();
 
@@ -271,7 +335,6 @@ exports.getPurchaseReturnsItem = catchAsync(async (req, res) => {
   });
 });
 
-// Update a PurchaseReturnItem
 exports.updatePurchaseReturnItem = catchAsync(async (req, res, next) => {
   const { quantity, unitPrice, warehouseId, productId } = req.body;
   const businessId = getBusinessId();

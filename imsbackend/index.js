@@ -36,8 +36,8 @@ const purchaseReturnRouter=require('./routes/purchaseReturnRoutes')
 const saleRouter = require('./routes/saleRoutes');
 const saleReturnRouter=require('./routes/saleReturnRoutes')
 
-//const stocktransferRouter = require('./routes/stockTransferRoutes');
-// const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
+const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
+const stocktransferRouter = require('./routes/stockTransferRoutes');
 
 // const transactionRouter = require('./routes/transactionRoutes');
 
@@ -46,8 +46,13 @@ const saleReturnRouter=require('./routes/saleReturnRoutes')
 const app = express(); //start Express app
 
 const listEndpoints = require('express-list-endpoints');
-const errorController = require('./controllers/errorController');
 // console.log(listEndpoints(app));
+
+
+const swaggerSetup = require('./swagger');
+swaggerSetup(app);
+
+
 
 app.get("/", (req, res) => {
   res.send(`
@@ -180,11 +185,12 @@ app.use('/api/ims/purchase-returns',purchaseReturnRouter);
 app.use('/api/ims/sales',saleRouter);
 app.use('/api/ims/sale-returns',saleReturnRouter);
 
-//app.use('/api/ims/stockAdjustments',stockAdjustmentRouter);
+app.use('/api/ims/stock-adjustments',stockAdjustmentRouter);
+app.use('/api/ims/stock-transfer',stocktransferRouter);
+
 // app.use('/api/ims/transactions', transactionRouter);
 
 app.use('/api/ims/reports', reportRoutes);
-
 
 // Catch-all route handler for undefined routes
 app.use((req, res, next) => {

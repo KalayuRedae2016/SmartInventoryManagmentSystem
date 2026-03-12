@@ -18,7 +18,8 @@ module.exports = (sequelize, DataTypes) => {
     userId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     quantity: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     adjustmentType: { type: DataTypes.ENUM('IN','OUT'), allowNull: false },
-    note: { type: DataTypes.STRING, allowNull: true }
+    note: { type: DataTypes.STRING, allowNull: true },
+    //add isActive
   }, {
     sequelize,
     modelName: 'StockAdjustment',

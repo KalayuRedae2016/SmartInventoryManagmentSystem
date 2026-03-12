@@ -6,15 +6,13 @@ const app = require("./index");
 
 const { connectDB, sequelize } = require("./config/db");
 
-const swaggerSetup = require('./swagger');
-swaggerSetup(app);
-
 //const { createDefaultAdminUser } = require("./utils/userUtils"); // Import the function
 
 const envFile = process.env.NODE_ENV === "production" ? ".env.production" : ".env.development";
 dotenv.config({ path: envFile });
 
 connectDB();
+
 
 const initializeServer = async () => {
   try {

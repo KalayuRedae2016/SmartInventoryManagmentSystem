@@ -4,8 +4,9 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class PurchaseReturnItem extends Model {
     static associate(models) {
-      PurchaseReturnItem.belongsTo(models.PurchaseReturn, { foreignKey: 'purchaseReturnId' });
-      PurchaseReturnItem.belongsTo(models.Product, { foreignKey: 'productId' });
+      PurchaseReturnItem.belongsTo(models.PurchaseReturn, { foreignKey: 'purchaseReturnId',as:'purchaseReturn' });
+      PurchaseReturnItem.belongsTo(models.Product, { foreignKey: 'productId',as:'product' });
+      PurchaseReturnItem.belongsTo(models.Warehouse, { foreignKey: 'warehouseId', as: 'warehouse' });
     }
   }
 

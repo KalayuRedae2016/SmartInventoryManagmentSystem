@@ -7,6 +7,7 @@ module.exports = (sequelize, DataTypes) => {
       PurchaseReturn.belongsTo(models.Purchase, { foreignKey: 'purchaseId', as: 'purchase' });
       PurchaseReturn.belongsTo(models.Supplier, { foreignKey: 'supplierId', as: 'supplier' });
       PurchaseReturn.belongsTo(models.Warehouse, { foreignKey: 'warehouseId', as: 'warehouse' });
+      PurchaseReturn.hasMany(models.PurchaseReturnItem, {foreignKey: 'purchaseReturnId',as: 'items',onDelete: 'CASCADE'});
     }
   }
 

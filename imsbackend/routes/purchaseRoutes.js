@@ -43,16 +43,16 @@ module.exports=router
 /**
  * @swagger
  * tags:
- *   name: Purchases
- *   description: Purchase management APIs
+ *   name: PurchaseReturns
+ *   description: Purchase return management APIs
  */
 
-/** Create Purchase
+/** Create Purchase Return
  * @swagger
- * /purchases:
+ * /purchase-returns:
  *   post:
- *     summary: Create new purchase
- *     tags: [Purchases]
+ *     summary: Create new purchase return
+ *     tags: [PurchaseReturns]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -60,24 +60,22 @@ module.exports=router
  *       content:
  *         application/json:
  *           example:
+ *             purchaseId: 1
  *             warehouseId: 1
  *             supplierId: 1
- *             totalAmount: 1000
- *             paidAmount: 200
- *             invoiceNumber: "INV-123456"
- *             paymentMethod: "cash"
- *             note: "First purchase"
+ *             totalAmount: 500
+ *             reason: "Damaged products returned to supplier"
  *     responses:
  *       201:
- *         description: Purchase created successfully
+ *         description: Purchase return created successfully
  */
 
-/** Get Purchases
+/** Get Purchase Returns
  * @swagger
- * /purchases:
+ * /purchase-returns:
  *   get:
- *     summary: Get all purchases with filters
- *     tags: [Purchases]
+ *     summary: Get all purchase returns with filters
+ *     tags: [PurchaseReturns]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -93,50 +91,38 @@ module.exports=router
  *         name: status
  *         schema:
  *           type: string
- *       - in: query
- *         name: warehouseId
- *         schema:
- *           type: integer
- *       - in: query
- *         name: supplierId
- *         schema:
- *           type: integer
- *       - in: query
- *         name: isActive
- *         schema:
- *           type: boolean
  *     responses:
  *       200:
- *         description: Purchases fetched successfully
+ *         description: Purchase returns fetched successfully
  */
 
-/** Get Purchase by ID
+/** Get Purchase Return by ID
  * @swagger
- * /purchases/{purchaseId}:
+ * /purchase-returns/{purchaseReturnId}:
  *   get:
- *     summary: Get purchase details by ID
- *     tags: [Purchases]
+ *     summary: Get purchase return details by ID
+ *     tags: [PurchaseReturns]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: purchaseId
+ *         name: purchaseReturnId
  *         required: true
  *         schema:
  *           type: integer
  *     responses:
  *       200:
- *         description: Purchase retrieved successfully
+ *         description: Purchase return retrieved successfully
  *       404:
- *         description: Purchase not found
+ *         description: Purchase return not found
  */
 
-/** Update Purchase
+/** Update Purchase Return
  * @swagger
- * /purchases/{purchaseId}:
+ * /purchase-returns/{purchaseReturnId}:
  *   patch:
- *     summary: Update purchase details
- *     tags: [Purchases]
+ *     summary: Update purchase return details
+ *     tags: [PurchaseReturns]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -146,82 +132,39 @@ module.exports=router
  *           example:
  *             warehouseId: 2
  *             supplierId: 3
- *             totalAmount: 1200
- *             note: "Updated purchase"
- *             paymentMethod: "credit"
+ *             totalAmount: 600
+ *             reason: "Updated return reason"
+ *             status: "completed"
  *     responses:
  *       200:
- *         description: Purchase updated successfully
+ *         description: Purchase return updated successfully
  */
 
-/** Cancel Purchase
+/** Delete Purchase Return
  * @swagger
- * /purchases:
+ * /purchase-returns/{purchaseReturnId}:
  *   delete:
- *     summary: Cancel a purchase (soft delete)
- *     tags: [Purchases]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Purchase canceled successfully
- */
-
-/** Pay Purchase
- * @swagger
- * /purchases/pay/{purchaseId}:
- *   patch:
- *     summary: Make a payment for a purchase
- *     tags: [Purchases]
+ *     summary: Delete a purchase return (soft delete)
+ *     tags: [PurchaseReturns]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: purchaseId
+ *         name: purchaseReturnId
  *         required: true
- *         description: ID of the purchase to make payment for
  *         schema:
  *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           example:
- *             amount: 500
- *           schema:
- *             type: object
- *             properties:
- *               amount:
- *                 type: number
- *                 description: Amount to pay towards the purchase
- *                 example: 500
  *     responses:
  *       200:
- *         description: Payment recorded successfully
- *         content:
- *           application/json:
- *             example:
- *               status: 1
- *               message: Payment recorded
- *               data:
- *                 id: 1
- *                 invoiceNumber: "INV-123456"
- *                 totalAmount: 1000
- *                 paidAmount: 500
- *                 dueAmount: 500
- *                 status: "partial"
- *       400:
- *         description: Payment exceeds total amount
- *       404:
- *         description: Purchase not found
+ *         description: Purchase return deleted successfully
  */
 
-/** Add Purchase Item
+/** Add Purchase Return Item
  * @swagger
- * /purchases/{purchaseId}/items:
+ * /purchase-returns/{purchaseReturnId}/items:
  *   post:
- *     summary: Add item to a purchase
- *     tags: [PurchaseItems]
+ *     summary: Add item to a purchase return
+ *     tags: [PurchaseReturnItems]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -231,24 +174,24 @@ module.exports=router
  *           example:
  *             productId: 1
  *             warehouseId: 1
- *             quantity: 5
+ *             quantity: 3
  *             unitPrice: 200
  *     responses:
  *       201:
- *         description: Purchase item added successfully
+ *         description: Purchase return item added successfully
  */
 
-/** Get Purchase Items
+/** Get Purchase Return Items
  * @swagger
- * /purchases/{purchaseId}/items:
+ * /purchase-returns/{purchaseReturnId}/items:
  *   get:
- *     summary: Get all items for a purchase
- *     tags: [PurchaseItems]
+ *     summary: Get all items for a purchase return
+ *     tags: [PurchaseReturnItems]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: purchaseId
+ *         name: purchaseReturnId
  *         required: true
  *         schema:
  *           type: integer
@@ -262,15 +205,15 @@ module.exports=router
  *           type: integer
  *     responses:
  *       200:
- *         description: Purchase items fetched successfully
+ *         description: Purchase return items fetched successfully
  */
 
-/** Update Purchase Item
+/** Update Purchase Return Item
  * @swagger
- * /purchases/{purchaseId}/items/{itemId}:
+ * /purchase-returns/{purchaseReturnId}/items/{itemId}:
  *   patch:
- *     summary: Update a purchase item
- *     tags: [PurchaseItems]
+ *     summary: Update a purchase return item
+ *     tags: [PurchaseReturnItems]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -278,37 +221,37 @@ module.exports=router
  *       content:
  *         application/json:
  *           example:
- *             quantity: 10
+ *             quantity: 5
  *             unitPrice: 220
  *             warehouseId: 2
- *             productId: 5
+ *             productId: 3
  *     responses:
  *       200:
- *         description: Purchase item updated successfully
+ *         description: Purchase return item updated successfully
  */
 
-/** Delete Purchase Item
+/** Delete Purchase Return Item
  * @swagger
- * /purchases/{purchaseId}/items/{itemId}:
+ * /purchase-returns/{purchaseReturnId}/items/{itemId}:
  *   delete:
- *     summary: Delete a purchase item
- *     tags: [PurchaseItems]
+ *     summary: Delete a purchase return item
+ *     tags: [PurchaseReturnItems]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Purchase item deleted successfully
+ *         description: Purchase return item deleted successfully
  */
 
-/** Delete All Purchase Items
+/** Delete All Purchase Return Items
  * @swagger
- * /purchases/{purchaseId}/items:
+ * /purchase-returns/{purchaseReturnId}/items:
  *   delete:
- *     summary: Delete all items of a purchase (eligible)
- *     tags: [PurchaseItems]
+ *     summary: Delete all items of a purchase return (eligible)
+ *     tags: [PurchaseReturnItems]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: All purchase items deleted successfully
+ *         description: All purchase return items deleted successfully
  */

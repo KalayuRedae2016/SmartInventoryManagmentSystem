@@ -14,10 +14,10 @@ const calculateStatus = (total, paid) => {
   return 'paid';
 };
 
+
 const generateInvoiceNumber = () => {
   return 'INV-' + Date.now();
 };
-
 
 const buildPurchaseWhereClause = (user,query) => {
   const {warehouseId,supplierId,minAmount,maxAmount,minPaidAmount,maxPaidAmount,paymentMethod,isActive,startDate,endDate,search} = query;
