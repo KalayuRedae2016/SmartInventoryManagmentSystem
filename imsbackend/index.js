@@ -177,7 +177,6 @@ app.use('/api/ims/roles',roleRouter);
 app.use('/api/ims/permissions',permissionRouter)
 app.use('/api/ims/role-permissions',rolePermissionRouter)
 
-
 app.use('/api/ims/users',userRouter);
 app.use('/api/ims/user-permissions',userPermissionRouter)
 
@@ -195,8 +194,6 @@ app.use('/api/ims/purchase-returns',purchaseReturnRouter);
 
 app.use('/api/ims/sales',saleRouter);
 app.use('/api/ims/sale-returns',saleReturnRouter);
-app.use('/api/ims/stocks', stockRouter);
-app.use('/api/ims/stock-transfers', stocktransferRouter);
 
 app.use('/api/ims/stock-adjustments',stockAdjustmentRouter);
 app.use('/api/ims/stock-transfer',stocktransferRouter);
