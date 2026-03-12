@@ -32,7 +32,6 @@ const supplierRouter = require('./routes/supplierRoutes');
 
 const purchaseRouter = require('./routes/purchaseRoutes');
 const purchaseReturnRouter=require('./routes/purchaseReturnRoutes')
-const purchaseItemRouter = require('./routes/purchaseItemRoutes');
 
 const saleRouter = require('./routes/saleRoutes');
 const saleReturnRouter=require('./routes/saleReturnRoutes')
@@ -48,7 +47,6 @@ const app = express(); //start Express app
 
 const listEndpoints = require('express-list-endpoints');
 // console.log(listEndpoints(app));
-
 
 const swaggerSetup = require('./swagger');
 swaggerSetup(app);
@@ -194,7 +192,6 @@ app.use('/api/ims/suppliers',supplierRouter);
 
 app.use('/api/ims/purchases',purchaseRouter);
 app.use('/api/ims/purchase-returns',purchaseReturnRouter);
-app.use('/api/ims/purchase-items', purchaseItemRouter);
 
 app.use('/api/ims/sales',saleRouter);
 app.use('/api/ims/sale-returns',saleReturnRouter);
