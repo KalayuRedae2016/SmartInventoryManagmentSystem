@@ -20,8 +20,13 @@ const adjustStock = async (
 exports.createStockTransfer = catchAsync(async (req, res, next) => {
   const { fromWarehouseId, toWarehouseId, productId, userId, quantity, note } = req.body;
   const businessId = getBusinessId();
+  const qty = Number(quantity);
+  const fromId = Number(fromWarehouseId);
+  const toId = Number(toWarehouseId);
+  const productIdNum = Number(productId);
+  const resolvedUserId = Number(userId || req.user?.id || 1);
 
-  if (!fromWarehouseId || !toWarehouseId || !productId || !userId || !quantity) {
+  if (!fromId || !toId || !productIdNum || !qty || !resolvedUserId) {
     return next(new AppError('Missing required fields', 400));
   }
   if (fromWarehouseId === toWarehouseId) return next(new AppError('Source and destination must differ', 400));

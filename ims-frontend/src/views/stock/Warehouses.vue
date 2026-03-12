@@ -39,6 +39,7 @@
       :title="editItem.id ? 'Edit Warehouse' : 'Add Warehouse'"
       :modelValue="editItem"
       type="form"
+      :closeOnSubmit="false"
       @submit="saveWarehouse"
     >
       <template #default="{ formData }">
@@ -51,25 +52,13 @@
             class="w-full border px-2 py-1 rounded bg-gray-100"
             readonly
           />
-          <input v-model.number="formData.businessId" type="number" placeholder="Business ID (INT)" class="w-full border px-2 py-1 rounded" />
           <input v-model="formData.name" placeholder="Name" class="w-full border px-2 py-1 rounded" />
           <input v-model="formData.code" placeholder="Code" class="w-full border px-2 py-1 rounded" />
           <input v-model="formData.location" placeholder="Location" class="w-full border px-2 py-1 rounded" />
           <input v-model="formData.managerName" placeholder="Manager Name" class="w-full border px-2 py-1 rounded" />
           <input v-model="formData.phone" placeholder="Phone" class="w-full border px-2 py-1 rounded" />
           <input v-model="formData.email" placeholder="Email" class="w-full border px-2 py-1 rounded" />
-          <label class="flex items-center gap-2 text-sm text-gray-700">
-            <input v-model="formData.isActive" type="checkbox" />
-            <span>isActive (BOOLEAN)</span>
-          </label>
-          <label class="text-sm text-gray-700 block">
-            createdAt (DATETIME)
-            <input v-model="formData.createdAt" type="datetime-local" class="w-full border px-2 py-1 rounded mt-1" />
-          </label>
-          <label class="text-sm text-gray-700 block">
-            updatedAt (DATETIME)
-            <input v-model="formData.updatedAt" type="datetime-local" class="w-full border px-2 py-1 rounded mt-1" />
-          </label>
+          <p v-if="formError" class="text-sm text-red-600">{{ formError }}</p>
         </div>
       </template>
     </Modal>
@@ -96,9 +85,6 @@
           <div class="detail-row"><span class="detail-label">managerName (STRING)</span><span>{{ viewItem.managerName || '-' }}</span></div>
           <div class="detail-row"><span class="detail-label">phone (STRING)</span><span>{{ viewItem.phone || '-' }}</span></div>
           <div class="detail-row"><span class="detail-label">email (STRING)</span><span>{{ viewItem.email || '-' }}</span></div>
-          <div class="detail-row"><span class="detail-label">isActive (BOOLEAN)</span><span>{{ String(Boolean(viewItem.isActive)) }}</span></div>
-          <div class="detail-row"><span class="detail-label">createdAt (DATETIME)</span><span>{{ formatDateTime(viewItem.createdAt) }}</span></div>
-          <div class="detail-row"><span class="detail-label">updatedAt (DATETIME)</span><span>{{ formatDateTime(viewItem.updatedAt) }}</span></div>
         </div>
         <div class="px-4 py-3 border-t flex justify-end">
           <button class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 transition" @click="closeViewModal">
@@ -124,6 +110,7 @@ const columns = ['id','code','name','location','managerName','phone','status']
 const modalVisible = ref(false)
 const confirmVisible = ref(false)
 const editItem = reactive({})
+const formError = ref('')
 const viewModalVisible = ref(false)
 const viewItem = reactive({})
 let rowToDelete = null
@@ -133,29 +120,23 @@ onMounted(() => {
 })
 
 function openAddModal() {
+  formError.value = ''
   Object.assign(editItem, {
     id: null,
-    businessId: 1,
     code: '',
     name: '',
     location: '',
     managerName: '',
     phone: '',
     email: '',
-    isActive: true,
-    status: 'active',
-    createdAt: toLocalDateTime(new Date()),
-    updatedAt: toLocalDateTime(new Date())
+    status: 'active'
   })
   modalVisible.value = true
 }
 
 function openEditModal(row) {
-  Object.assign(editItem, {
-    ...row,
-    createdAt: toLocalDateTime(row.createdAt),
-    updatedAt: toLocalDateTime(row.updatedAt)
-  })
+  formError.value = ''
+  Object.assign(editItem, { ...row })
   modalVisible.value = true
 }
 
@@ -174,15 +155,22 @@ function closeViewModal() {
 }
 
 async function saveWarehouse(item) {
-  const payload = {
-    ...item,
-    isActive: Boolean(item.isActive),
-    status: Boolean(item.isActive) ? 'active' : 'inactive',
-    createdAt: toIsoIfLocal(item.createdAt),
-    updatedAt: toIsoIfLocal(item.updatedAt)
+  formError.value = ''
+  const payload = { ...item }
+
+  if (!String(payload.name || '').trim()) {
+    formError.value = 'Warehouse name is required.'
+    return
   }
-  if (isValidId(item.id)) await store.updateWarehouse(payload)
-  else await store.addWarehouse(payload)
+
+  try {
+    if (isValidId(item.id)) await store.updateWarehouse(payload)
+    else await store.addWarehouse(payload)
+    await store.fetchWarehouses()
+    modalVisible.value = false
+  } catch (error) {
+    formError.value = error?.response?.data?.message || error?.message || 'Failed to save warehouse.'
+  }
 }
 
 async function deleteWarehouse() {
@@ -194,29 +182,6 @@ async function deleteWarehouse() {
 
 function exportData(format){
   alert(`Exporting ${format}`)
-}
-
-function formatDateTime(value) {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value)
-  return date.toLocaleString()
-}
-
-function toLocalDateTime(value) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  const offset = date.getTimezoneOffset()
-  const local = new Date(date.getTime() - offset * 60 * 1000)
-  return local.toISOString().slice(0, 16)
-}
-
-function toIsoIfLocal(value) {
-  if (!value) return null
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toISOString()
 }
 
 function isValidId(value) {

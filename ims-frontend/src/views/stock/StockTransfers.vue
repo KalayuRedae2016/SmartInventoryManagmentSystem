@@ -106,7 +106,8 @@ onMounted(async () => {
   await Promise.all([
     transferStore.fetchTransfers(),
     warehouseStore.fetchWarehouses(),
-    productStore.fetchProducts()
+    productStore.fetchProducts(),
+    stockStore.fetchStock()
   ])
 })
 
@@ -116,8 +117,8 @@ const warehouses = computed(() => warehouseStore.warehouses)
 const products = computed(() => productStore.products)
 
 // Helpers
-const getProductName = id => products.value.find(p => p.id === id)?.name || '—'
-const getWarehouseName = id => warehouses.value.find(w => w.id === id)?.name || '—'
+const getProductName = id => products.value.find(p => Number(p.id) === Number(id))?.name || '—'
+const getWarehouseName = id => warehouses.value.find(w => Number(w.id) === Number(id))?.name || '—'
 const statusClass = status => ({
   pending: 'badge badge-pending',
   approved: 'badge badge-approved',
@@ -126,30 +127,36 @@ const statusClass = status => ({
 
 // Get available stock for a product in a warehouse
 const getStock = (warehouseId, productId) => {
-  const warehouse = warehouseStore.warehouses.find(w => w.id === warehouseId)
-  return warehouse?.stock?.[productId] || 0
+  return stockStore.getQty(Number(productId), Number(warehouseId))
 }
 
 // Actions
 function submit(form) {
   errorMessage.value = ''
+  const normalizedForm = {
+    ...form,
+    productId: Number(form.productId),
+    fromWarehouseId: Number(form.fromWarehouseId),
+    toWarehouseId: Number(form.toWarehouseId),
+    quantity: Number(form.quantity)
+  }
 
-  if (!form.productId || !form.fromWarehouseId || !form.toWarehouseId) {
+  if (!normalizedForm.productId || !normalizedForm.fromWarehouseId || !normalizedForm.toWarehouseId) {
     errorMessage.value = 'Please select product and warehouses.'
     return
   }
-  if (form.fromWarehouseId === form.toWarehouseId) {
+  if (normalizedForm.fromWarehouseId === normalizedForm.toWarehouseId) {
     errorMessage.value = 'From and To warehouse cannot be the same.'
     return
   }
 
-  if (form.quantity > getStock(form.fromWarehouseId, form.productId)) {
+  if (normalizedForm.quantity > getStock(normalizedForm.fromWarehouseId, normalizedForm.productId)) {
     errorMessage.value = 'Insufficient stock in source warehouse.'
     return
   }
 
   transferStore.addTransfer({
-    ...form,
+    ...normalizedForm,
     status: 'pending',
     createdBy: auth.role,
     createdAt: new Date().toISOString()
@@ -163,8 +170,15 @@ function closeForm() {
   errorMessage.value = ''
 }
 
-function approve(transfer) {
-  transferStore.updateTransfer({ id: transfer.id, status: 'approved' })
+async function approve(transfer) {
+  errorMessage.value = ''
+  try {
+    await transferStore.executeTransfer(transfer)
+    transferStore.updateTransfer({ id: transfer.id, status: 'approved' })
+  } catch (error) {
+    errorMessage.value = error?.response?.data?.message || error?.message || 'Failed to approve transfer'
+    return
+  }
 
   // Adjust stock using warehouse helpers
   warehouseStore.decreaseStock(transfer.fromWarehouseId, transfer.productId, transfer.quantity)
@@ -179,6 +193,24 @@ function approve(transfer) {
     toWarehouse: toName,
     quantity: transfer.quantity
   })
+
+  const fromBalance = stockStore.balances.find(
+    b => Number(b.product_id) === Number(transfer.productId) && Number(b.warehouse_id) === Number(transfer.fromWarehouseId)
+  )
+  if (fromBalance) fromBalance.quantity = Math.max(0, Number(fromBalance.quantity || 0) - Number(transfer.quantity || 0))
+
+  const toBalance = stockStore.balances.find(
+    b => Number(b.product_id) === Number(transfer.productId) && Number(b.warehouse_id) === Number(transfer.toWarehouseId)
+  )
+  if (toBalance) {
+    toBalance.quantity = Number(toBalance.quantity || 0) + Number(transfer.quantity || 0)
+  } else {
+    stockStore.balances.push({
+      product_id: Number(transfer.productId),
+      warehouse_id: Number(transfer.toWarehouseId),
+      quantity: Number(transfer.quantity || 0)
+    })
+  }
 }
 
 function reject(transfer) {

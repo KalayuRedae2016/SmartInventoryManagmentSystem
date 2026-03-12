@@ -213,7 +213,6 @@ exports.authenticationJwt = async (req, res, next) => {
     req.user = {
       id: user.id,
       businessId: user.businessId,
-      warehouseId: user.warehouseId,
       fullName:user.fullName,
       roleId: user.roleId,
       roleCode: user.role.code,

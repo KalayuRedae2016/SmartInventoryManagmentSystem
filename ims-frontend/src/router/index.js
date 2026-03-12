@@ -39,6 +39,7 @@ const PurchasesList = () => import('@/views/purchases/Purchases.vue')
 const PurchaseForm = () => import('@/views/purchases/PurchaseForm.vue')
 const PurchaseDetail = () => import('@/views/purchases/PurchaseDetail.vue')
 const PurchaseReturns = () => import('@/views/purchases/PurchaseReturns.vue')
+const PurchaseItems = () => import('@/views/purchases/PurchaseItems.vue')
 
 // =======================
 // SALES (IMPORTANT)
@@ -127,6 +128,7 @@ const routes = [
           { path: '', component: PurchasesList },
           { path: 'new', component: PurchaseForm, meta: { permission: 'purchases.create' } },
           { path: ':id/edit', component: PurchaseForm, meta: { permission: 'purchases.update' } },
+          { path: 'items', component: PurchaseItems, meta: { permission: 'purchases.view' } },
           { path: 'returns', component: PurchaseReturns },
           { path: ':id', component: PurchaseDetail }
         ]
@@ -197,7 +199,14 @@ router.beforeEach(async (to, from, next) => {
     auth.hasPermission('suppliers.delete')
 
   if (to.meta.public) return next()
-  if (auth.token && !auth.user) auth.logout()
+  if (auth.token && !auth.user) {
+    try {
+      await auth.fetchMe()
+    } catch {
+      auth.logout()
+      return next('/login')
+    }
+  }
   if (!auth.isAuthenticated) return next('/login')
   if (to.path.startsWith('/suppliers') && hasAnySupplierPermission()) return next()
   if (to.meta.permission && !auth.hasPermission(to.meta.permission)) {

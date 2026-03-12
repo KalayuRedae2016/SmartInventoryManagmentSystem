@@ -67,7 +67,7 @@ const form = ref({
   warehouseId: null,
   invoiceNumber: `SO-${Date.now().toString().slice(-6)}`,
   saleDate: new Date().toISOString().slice(0, 10),
-  totalAmount: 0,
+  totalAmount: null,
   paidAmount: 0,
   paymentMethod: 'cash'
 })
@@ -82,7 +82,7 @@ onMounted(async () => {
       warehouseId: Number(existing.warehouseId ?? existing.warehouse_id ?? null),
       invoiceNumber: existing.invoiceNumber || `SO-${Date.now().toString().slice(-6)}`,
       saleDate: String(existing.saleDate || '').slice(0, 10) || new Date().toISOString().slice(0, 10),
-      totalAmount: Number(existing.totalAmount || 0),
+      totalAmount: existing.totalAmount == null || existing.totalAmount === '' ? null : Number(existing.totalAmount),
       paidAmount: Number(existing.paidAmount || 0),
       paymentMethod: existing.paymentMethod || 'cash'
     }

@@ -8,16 +8,15 @@ const AppError = require('../utils/appError');
 const allowedUpdateFields = ['name', 'code', 'description', 'isActive'];
 
 exports.createRole = catchAsync(async (req, res, next) => {
-  const { warehouseId, name, code, description } = req.body;
+  const { name, code, description } = req.body;
 
-  if (!warehouseId || !name || !code) {
-    return next(new AppError('warehouseId, name and code are required', 400));
+  if (!name || !code) {
+    return next(new AppError('name and code are required', 400));
   }
 
   const existingRole = await Role.findOne({
     where: {
       businessId: req.user.businessId,
-      warehouseId,
       code
     }
   });
@@ -28,7 +27,6 @@ exports.createRole = catchAsync(async (req, res, next) => {
 
   const role = await Role.create({
     businessId: req.user.businessId,
-    warehouseId,
     name,
     code,
     description,
@@ -43,13 +41,11 @@ exports.createRole = catchAsync(async (req, res, next) => {
 });
 
 exports.getRoles = catchAsync(async (req, res, next) => {
-  const { warehouseId, search, isActive } = req.query;
+  const { search, isActive } = req.query;
 
   const whereClause = {
     businessId: req.user.businessId
   };
-
-  if (warehouseId) whereClause.warehouseId = warehouseId;
 
   if (search) {
     whereClause[Op.or] = [
@@ -63,12 +59,7 @@ exports.getRoles = catchAsync(async (req, res, next) => {
     whereClause.isActive = isActive === 'true';
   }
 
-  const roles = await Role.findAll({
-    where: whereClause,
-    include: [
-      { model: Warehouse, as: 'warehouse', attributes: ['id', 'name'] }
-    ]
-  });
+  const roles = await Role.findAll({ where: whereClause });
 
   res.status(200).json({
     status: 1,
@@ -84,8 +75,7 @@ exports.getRole = catchAsync(async (req, res, next) => {
       businessId: req.user.businessId
     },
     include: [
-      { model: Permission, as: 'permissions', through: { attributes: [] } },
-      { model: Warehouse, as: 'warehouse' },
+      { model: Permission, as: 'permissions', through: { attributes: [] } }
     ]
   });
 
@@ -205,30 +195,7 @@ exports.getUsersByRole = catchAsync(async (req, res, next) => {
 });
 
 exports.getWarehousesByRole = catchAsync(async (req, res, next) => {
-
-  const role = await Role.findOne({
-    where: {
-      id: req.params.roleId,
-      businessId: req.user.businessId
-    },
-    include: [
-      {
-        model: Warehouse,
-        as: 'warehouse',  
-        attributes: ['id', 'name', 'location']
-      }
-    ]
-  });
-
-  if (!role) {
-    return next(new AppError('Role not found', 404));
-  }
-
-  res.status(200).json({
-    status: 1,
-    role: role.code,
-    warehouse: role.warehouse  
-  });
+  return next(new AppError('Roles are no longer linked to warehouses', 400));
 });
 
 exports.getRoleSummary = catchAsync(async (req, res, next) => {
@@ -237,8 +204,7 @@ exports.getRoleSummary = catchAsync(async (req, res, next) => {
     where: { businessId: req.user.businessId },
     include: [
       { model: User, as: 'users', attributes: ['id'] },
-      { model: Permission, as: 'permissions', through: { attributes: [] } },
-      { model: Warehouse, as: 'warehouse', attributes: ['id', 'name'] }
+      { model: Permission, as: 'permissions', through: { attributes: [] } }
     ]
   });
 
@@ -251,9 +217,7 @@ const inactiveroles = roles.filter(r => !r.isActive).length;
     roleCode: role.code,
     isActive: role.isActive,
     totalUsers: role.users?.length || 0,
-    totalPermissions: role.permissions?.length || 0,
-    warehouseId: role.warehouse?.id || null,
-    warehouseName: role.warehouse?.name || null
+    totalPermissions: role.permissions?.length || 0
   }));
 
   res.status(200).json({

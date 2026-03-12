@@ -392,7 +392,7 @@ exports.addPurchaseItem = catchAsync(async (req, res, next) => {
     const item = await PurchaseItem.create(
       {
         businessId,
-        warehouseId,
+        warehouseId: resolvedWarehouseId,
         productId,
         purchaseId,
         quantity,
@@ -407,7 +407,7 @@ exports.addPurchaseItem = catchAsync(async (req, res, next) => {
     await purchase.save({ transaction: t });
 
     const [stock] = await Stock.findOrCreate({
-      where: { businessId, warehouseId, productId },
+      where: { businessId, warehouseId: resolvedWarehouseId, productId },
       defaults: { quantity: 0 },
       transaction: t,
       lock: t.LOCK.UPDATE,
@@ -420,7 +420,7 @@ exports.addPurchaseItem = catchAsync(async (req, res, next) => {
     await StockTransaction.create(
       {
         businessId,
-        warehouseId,
+        warehouseId: resolvedWarehouseId,
         productId,
         type: 'IN',
         quantity,
@@ -446,11 +446,11 @@ exports.addPurchaseItem = catchAsync(async (req, res, next) => {
 });
 
 exports.getPurchaseItems = catchAsync(async (req, res) => {
-  console.log("reched this endpoint")
-  const { purchaseId, page = 1, limit = 10 } = req.query;
+  const { purchaseId, isActive, page = 1, limit = 10 } = req.query;
   const businessId = getBusinessId();
   const where = { businessId };
   if (purchaseId) where.purchaseId = purchaseId;
+  if (isActive !== undefined) where.isActive = ['true', '1', true, 1].includes(isActive);
 
   const items = await PurchaseItem.findAndCountAll({
     where,
@@ -505,7 +505,7 @@ exports.updatePurchaseItem = catchAsync(async (req, res, next) => {
   }
 
   if (!isLocked) {
-    if (warehouseId !== undefined) item.warehouseId = warehouseId;
+    item.warehouseId = purchase.warehouseId;
     if (productId !== undefined) item.productId = productId;
   } else {
     if (warehouseId || productId) return next(new AppError('Cannot change warehouse or product after stock is created', 400));

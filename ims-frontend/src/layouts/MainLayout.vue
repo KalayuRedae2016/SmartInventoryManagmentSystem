@@ -1,7 +1,7 @@
 <template>
-  <div class="flex min-h-screen bg-gray-50">
+  <div class="layout-shell flex min-h-screen bg-gray-50">
     <!-- ================= Sidebar ================= -->
-    <aside class="w-56 bg-brand text-white flex flex-col">
+    <aside v-show="isSidebarOpen" class="w-56 bg-brand text-white flex flex-col">
       <!-- Logo -->
       <div
         class="p-4 text-2xl font-bold border-b border-white/20 flex items-center justify-center"
@@ -44,10 +44,14 @@
           [P] Products
         </RouterLink>
 
-        <!-- Stock Transactions -->
-        
-
-
+        <RouterLink
+          v-if="can('stock.view')"
+          to="/stock"
+          class="menu-link"
+          :class="{ 'menu-active': $route.path === '/stock' }"
+        >
+          [ST] Stock
+        </RouterLink>
 
         <!-- ================= Purchases ================= -->
         <RouterLink
@@ -164,6 +168,41 @@
 
     </aside>
 
+    <button
+      type="button"
+      class="sidebar-toggle"
+      :class="isSidebarOpen ? 'sidebar-toggle-open' : 'sidebar-toggle-closed'"
+      :aria-label="isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'"
+      @click="toggleSidebar"
+    >
+      <svg
+        v-if="isSidebarOpen"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        class="h-4 w-4"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M12.79 4.23a.75.75 0 0 1-.02 1.06L8.81 9h7.44a.75.75 0 0 1 0 1.5H8.81l3.96 3.71a.75.75 0 1 1-1.04 1.08l-5.25-4.92a.75.75 0 0 1 0-1.08l5.25-4.92a.75.75 0 0 1 1.06.02Z"
+          clip-rule="evenodd"
+        />
+      </svg>
+      <svg
+        v-else
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        class="h-4 w-4"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M7.21 15.77a.75.75 0 0 1 .02-1.06L11.19 11H3.75a.75.75 0 0 1 0-1.5h7.44L7.23 5.79a.75.75 0 1 1 1.04-1.08l5.25 4.92a.75.75 0 0 1 0 1.08l-5.25 4.92a.75.75 0 0 1-1.06-.02Z"
+          clip-rule="evenodd"
+        />
+      </svg>
+    </button>
+
     <!-- ================= Main Content ================= -->
     <main class="flex-1 p-6 overflow-auto">
       <div
@@ -172,7 +211,7 @@
       >
         {{ passwordSuccess }}
       </div>
-      <div class="flex justify-end items-center mb-4">
+      <div class="mb-4 flex items-center justify-end">
         <div class="flex items-center gap-3">
           <div class="relative">
             <button
@@ -181,7 +220,13 @@
               @click="isProfileMenuOpen = !isProfileMenuOpen"
             >
               <div class="user-avatar">
-                <img v-if="userPhotoUrl" :src="userPhotoUrl" alt="" class="user-avatar-img" />
+                <img
+                  v-if="userPhotoUrl && !avatarImageFailed"
+                  :src="userPhotoUrl"
+                  alt=""
+                  class="user-avatar-img"
+                  @error="avatarImageFailed = true"
+                />
                 <span v-else>{{ userInitials }}</span>
               </div>
               <div class="leading-tight text-left">
@@ -333,15 +378,17 @@
 </template>
 
 <script setup>
-import { ref, watchEffect, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watchEffect, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useUsersStore } from '@/stores/users'
+import { API_BASE_URL } from '@/config/env'
 
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 const usersStore = useUsersStore()
+const SIDEBAR_STORAGE_KEY = 'ims_sidebar_open'
 
 const can = auth.can
 const canAnySupplier = computed(
@@ -386,7 +433,49 @@ const userProfile = computed(() => {
   return byRole || null
 })
 
-const userPhotoUrl = computed(() => auth.user?.profileImage || userProfile.value?.photoUrl || '')
+function getApiOrigin() {
+  const raw = String(API_BASE_URL || '').trim()
+  if (!raw) return ''
+  try {
+    return new URL(raw).origin
+  } catch {
+    return ''
+  }
+}
+
+function resolveImageUrl(value) {
+  const raw = String(value || '').trim().replace(/\\/g, '/')
+  if (!raw) return ''
+  const origin = getApiOrigin()
+
+  if (raw.startsWith('data:') || raw.startsWith('blob:')) return raw
+
+  if (/^(https?:)?\/\//i.test(raw)) {
+    if (!origin) return raw
+    const uploadsIndex = raw.indexOf('/uploads/')
+    if (uploadsIndex >= 0) {
+      return `${origin}${raw.slice(uploadsIndex)}`
+    }
+    return raw
+  }
+
+  if (!origin) return raw
+
+  if (raw.startsWith('/uploads/')) return `${origin}${raw}`
+  if (raw.startsWith('uploads/')) return `${origin}/${raw}`
+  if (raw.startsWith('/api/ims/uploads/')) return `${origin}${raw.replace('/api/ims', '')}`
+  if (raw.includes('/uploads/')) return `${origin}${raw.slice(raw.indexOf('/uploads/'))}`
+  return `${origin}/${raw.replace(/^\/+/, '')}`
+}
+
+const userPhotoUrlRaw = computed(() => auth.user?.profileImage || userProfile.value?.photoUrl || '')
+const userPhotoUrl = computed(() => resolveImageUrl(userPhotoUrlRaw.value))
+const avatarImageFailed = ref(false)
+const isSidebarOpen = ref(true)
+
+watch(userPhotoUrl, () => {
+  avatarImageFailed.value = false
+})
 const isProfileModalOpen = ref(false)
 const isPasswordModalOpen = ref(false)
 const isProfileMenuOpen = ref(false)
@@ -415,6 +504,12 @@ const passwordForm = ref({
 let passwordSuccessTimer = null
 
 onMounted(() => {
+  try {
+    const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY)
+    if (stored !== null) isSidebarOpen.value = stored === '1'
+  } catch {
+    isSidebarOpen.value = true
+  }
   usersStore.fetchUsers()
 })
 
@@ -426,6 +521,15 @@ watchEffect(() => {
 function logout() {
   auth.logout()
   router.push('/login')
+}
+
+function toggleSidebar() {
+  isSidebarOpen.value = !isSidebarOpen.value
+  try {
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, isSidebarOpen.value ? '1' : '0')
+  } catch {
+    // Ignore localStorage errors in restrictive browser modes.
+  }
 }
 
 function openProfileModal() {
@@ -588,6 +692,40 @@ onBeforeUnmount(() => {
 <style scoped>
 .bg-brand {
   background-color: rgb(76, 38, 131);
+}
+.layout-shell {
+  position: relative;
+}
+.sidebar-toggle {
+  position: absolute;
+  top: 14px;
+  z-index: 45;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: left 0.18s ease, background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+.sidebar-toggle:hover {
+  background: #f9fafb;
+  color: rgb(76, 38, 131);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+}
+.sidebar-toggle:focus-visible {
+  outline: 2px solid rgba(76, 38, 131, 0.45);
+  outline-offset: 2px;
+}
+.sidebar-toggle-open {
+  left: calc(14rem - 14px);
+}
+.sidebar-toggle-closed {
+  left: 10px;
 }
 
 /* Main menu */

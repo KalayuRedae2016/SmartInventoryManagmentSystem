@@ -15,15 +15,15 @@ const api = axios.create({
   }
 })
 
-let authToken = localStorage.getItem('ims_token') || ''
+// In-memory token only: do not persist between reloads so
+// every new visit requires an explicit login.
+let authToken = ''
 
 export function setAuthToken(token = '') {
   authToken = token || ''
   if (authToken) {
-    localStorage.setItem('ims_token', authToken)
     api.defaults.headers.common.Authorization = `Bearer ${authToken}`
   } else {
-    localStorage.removeItem('ims_token')
     delete api.defaults.headers.common.Authorization
   }
 }
@@ -74,10 +74,6 @@ export function getResponseData(res, fallback = null) {
     }
   }
   return payload ?? fallback
-}
-
-if (authToken) {
-  setAuthToken(authToken)
 }
 
 export default api

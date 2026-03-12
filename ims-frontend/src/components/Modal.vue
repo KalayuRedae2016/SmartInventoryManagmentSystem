@@ -2,7 +2,7 @@
   <div v-if="show" class="fixed inset-0 z-50 bg-black bg-opacity-50 overflow-y-auto p-4">
     <div :class="['bg-white p-6 rounded shadow w-full mx-auto my-4', maxWidth]">
       <!-- Title -->
-      <h2 class="text-lg font-bold mb-4 text-gray-700">{{ title }}</h2>
+      <h2 :class="['text-lg font-bold mb-4', isForm ? 'text-gray-700' : 'text-red-600']">{{ title }}</h2>
 
       <!-- Form / Content -->
       <slot :formData="formData" />
@@ -11,7 +11,12 @@
       <div class="mt-4 flex justify-end space-x-2">
         <button
           @click="close"
-          class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 transition"
+          :class="[
+            'px-4 py-2 rounded transition border',
+            isForm
+              ? 'bg-gray-300 border-gray-300 text-gray-800 hover:bg-gray-400'
+              : 'bg-white border-red-300 text-red-600 hover:bg-red-50'
+          ]"
         >
           Cancel
         </button>
@@ -27,7 +32,7 @@
         <button
           v-else
           @click="confirm"
-          class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+          class="px-4 py-2 rounded border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition"
         >
           Confirm
         </button>

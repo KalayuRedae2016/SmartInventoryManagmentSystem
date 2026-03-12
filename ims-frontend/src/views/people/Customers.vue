@@ -56,6 +56,7 @@
       :title="editingId ? 'Edit Customer' : 'Add Customer'"
       :modelValue="form"
       type="form"
+      :closeOnSubmit="false"
       @submit="saveCustomer"
     >
       <template #default>
@@ -83,6 +84,22 @@
         </div>
       </template>
     </Modal>
+
+    <div v-if="notice.show" class="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
+      <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-red-100 overflow-hidden">
+        <div class="px-5 py-4 bg-gradient-to-r from-red-600 to-orange-500 text-white">
+          <h3 class="text-lg font-semibold">{{ notice.title }}</h3>
+        </div>
+        <div class="px-5 py-5">
+          <p class="text-sm text-gray-700 leading-relaxed">{{ notice.message }}</p>
+        </div>
+        <div class="px-5 py-4 border-t bg-gray-50 flex justify-end">
+          <button class="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition" @click="notice.show = false">
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
 
     <div v-if="viewModalVisible" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div class="bg-white rounded shadow w-full max-w-lg">
@@ -115,6 +132,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import DataTable from '@/components/DataTable.vue'
 import Modal from '@/components/Modal.vue'
 import { useCustomersStore } from '@/stores/customers'
@@ -127,13 +145,18 @@ const canUpdate = computed(() => auth.hasPermission('customers.update'))
 const canDelete = computed(() => auth.hasPermission('customers.delete'))
 
 const store = useCustomersStore()
-const customers = store.customers
+const { customers } = storeToRefs(store)
 
 const modalVisible = ref(false)
 const editingId = ref(null)
 const viewModalVisible = ref(false)
 const viewCustomer = reactive({})
 const profilePreviewUrl = ref('')
+const notice = reactive({
+  show: false,
+  title: '',
+  message: ''
+})
 const form = reactive({
   code: '',
   name: '',
@@ -203,12 +226,12 @@ function onProfileImageSelected(event) {
 
 async function saveCustomer() {
   if (!canCreate.value && !canUpdate.value) {
-    alert('You do not have permission to save customers.')
+    showNotice('Permission Denied', 'You do not have permission to save customers.')
     return
   }
   try {
     if (!String(form.name || '').trim()) {
-      alert('Customer name is required.')
+      showNotice('Validation Error', 'Customer name is required.')
       return
     }
 
@@ -227,6 +250,7 @@ async function saveCustomer() {
         profileImage: form.profileImage,
         status: form.status || 'active'
       })
+      modalVisible.value = false
       return
     }
 
@@ -243,13 +267,14 @@ async function saveCustomer() {
       profileImage: form.profileImage,
       status: form.status || 'active'
     })
+    modalVisible.value = false
   } catch (error) {
     const status = error?.response?.status
     if (status === 409) {
-      alert('Customer with same name/code already exists. Use a different name.')
+      showNotice('Duplicate Customer', 'Customer with same name/code already exists. Use a different name.')
       return
     }
-    alert(error?.response?.data?.message || error?.message || 'Unable to save customer')
+    showNotice('Save Failed', error?.response?.data?.message || error?.message || 'Unable to save customer')
   }
 }
 
@@ -280,6 +305,12 @@ async function toggleCustomerStatus(customer) {
 
 function exportData(format) {
   alert(`Exporting ${format}. Implement export logic.`)
+}
+
+function showNotice(title, message) {
+  notice.title = title
+  notice.message = message
+  notice.show = true
 }
 </script>
 

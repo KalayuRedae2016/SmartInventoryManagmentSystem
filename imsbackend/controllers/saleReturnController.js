@@ -13,7 +13,7 @@ const calculateStatus = (total, paid) => {
 };
 
 exports.createSaleReturn = catchAsync(async (req, res, next) => {
-  const {warehouseId,saleId,customerId,paidAmount = 0,paymentMethod,note,returnDate} = req.body;
+  const {warehouseId,saleId,customerId,paidAmount = 0,paymentMethod,returnDate} = req.body;
 
   const businessId = getBusinessId();
 
@@ -34,7 +34,6 @@ exports.createSaleReturn = catchAsync(async (req, res, next) => {
     dueAmount: 0 - paidAmount,
     paymentMethod,
     status: calculateStatus(0, paidAmount),
-    note,
     returnDate: returnDate || new Date()
   });
 

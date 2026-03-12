@@ -6,13 +6,11 @@ module.exports = (sequelize, DataTypes) => {
       Role.hasMany(models.User, { foreignKey: 'roleId', as: 'users' });
       Role.belongsToMany(models.Permission, { through: models.RolePermission, foreignKey: 'roleId', as: 'permissions' });
       Role.belongsTo(models.Business, { foreignKey: 'businessId', as: 'tenant' });
-      Role.belongsTo(models.Warehouse, { foreignKey: 'warehouseId', as: 'warehouse' });
     }
   }
   Role.init({
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
     businessId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-    warehouseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
     name: { type: DataTypes.STRING, allowNull: false },
     code: { type: DataTypes.STRING, allowNull: false },
     description: { type: DataTypes.STRING },

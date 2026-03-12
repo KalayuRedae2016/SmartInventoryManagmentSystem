@@ -6,7 +6,6 @@
       <input v-model="form.category" :disabled="isView" class="border rounded px-3 py-2" placeholder="Category" />
       <input v-model="form.unit" :disabled="isView" class="border rounded px-3 py-2" placeholder="Unit" />
       <input v-model="form.price" type="number" :disabled="isView" class="border rounded px-3 py-2" placeholder="Price" />
-      <input v-model="form.quantity" type="number" :disabled="isView" class="border rounded px-3 py-2" placeholder="Quantity" />
       <input v-model="form.location" :disabled="isView" class="border rounded px-3 py-2" placeholder="Location" />
     </div>
 

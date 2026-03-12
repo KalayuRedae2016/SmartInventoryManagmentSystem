@@ -29,7 +29,9 @@ exports.createMulterMiddleware = (destinationFolder,filenamePrefix,allowedTypes 
       const name = path
         .basename(file.originalname, ext)
         .replace(/\s+/g, '-')
-        .toLowerCase();
+        .replace(/[^a-zA-Z0-9-_]/g, '')
+        .toLowerCase()
+        .slice(0, 80) || 'file';
 
       const uniqueName = `${filenamePrefix}-${name}-${Date.now()}${ext}`;
       cb(null, uniqueName);
@@ -61,13 +63,15 @@ exports.createMulterMiddleware = (destinationFolder,filenamePrefix,allowedTypes 
 
 exports.extractFiles = (req, folder = '') => {
   const files = req.files || {};
+  const normalizedFolder = String(folder || '').replace(/^\/+|\/+$/g, '');
+  const folderPrefix = normalizedFolder ? `${normalizedFolder}/` : '';
 
-  const getSingle = (field) =>files[field]?.[0]? `/uploads/${folder}/${files[field][0].filename}`: null;
+  const getSingle = (field) =>files[field]?.[0]? `/uploads/${folderPrefix}${files[field][0].filename}`: null;
 
   const getMultiple = (field) =>(files[field] || []).map(file => ({
       fileName: file.filename,
       fileType: file.mimetype,
-      path: `/uploads/${folder}/${file.filename}`
+      path: `/uploads/${folderPrefix}${file.filename}`
     }));
 
   return {
@@ -77,7 +81,9 @@ exports.extractFiles = (req, folder = '') => {
 };
 
 exports.processUploadFilesToSave = async (req,files = {},body = {},existingModel = null,folder = '') => {
-  const baseUrl = `${req.protocol}://${req.get('host')}/uploads/${folder}/`;
+  const normalizedFolder = String(folder || '').replace(/^\/+|\/+$/g, '');
+  const uploadsBase = normalizedFolder ? `uploads/${normalizedFolder}` : 'uploads';
+  const baseUrl = `${req.protocol}://${req.get('host')}/${uploadsBase}/`;
 
   /* ---------- PROFILE IMAGE (SINGLE) ---------- */
   let profileImage = existingModel?.profileImage || null;
@@ -229,3 +235,9 @@ exports.exportToExcelFile = async ({ data, columns, fileName, res }) => {
   await workbook.xlsx.write(res);
   res.end();
 };
+exports.readExcelFile = catchAsync(async (filePath) => {
+    const workbook = xlsx.readFile(filePath);
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const jsonData = xlsx.utils.sheet_to_json(worksheet);
+    return jsonData;
+});

@@ -107,25 +107,9 @@
             </option>
           </select>
 
-          <label class="flex items-center gap-2 text-sm text-gray-700">
-            <input v-model="formData.serialTracking" type="checkbox" />
-            <span>Serial Tracking (BOOLEAN)</span>
-          </label>
-
           <input type="number" v-model.number="formData.minimumStock" placeholder="Minimum Stock (INT)" class="w-full border px-2 py-1 rounded" />
-          <select v-model="formData.preferredCostMethod" class="w-full border px-2 py-1 rounded">
-            <option value="FIFO">FIFO</option>
-            <option value="LIFO">LIFO</option>
-            <option value="AVERAGE">AVERAGE</option>
-          </select>
-
           <input type="number" step="0.01" v-model.number="formData.defaultCostPrice" placeholder="Default Cost Price (FLOAT)" class="w-full border px-2 py-1 rounded" />
           <input type="number" step="0.01" v-model.number="formData.defaultSellingPrice" placeholder="Default Selling Price (FLOAT)" class="w-full border px-2 py-1 rounded" />
-
-          <label class="flex items-center gap-2 text-sm text-gray-700">
-            <input v-model="formData.isActive" type="checkbox" />
-            <span>isActive (BOOLEAN)</span>
-          </label>
 
           <input type="file" multiple accept="image/*" class="w-full border px-2 py-1 rounded" @change="onProductImagesSelected($event, formData)" />
           <div v-if="Array.isArray(formData.imagePreviews) && formData.imagePreviews.length" class="flex flex-wrap gap-2">
@@ -209,7 +193,7 @@ onMounted(() => {
   brandsStore.fetchBrands()
 })
 
-const columns = ['id', 'name', 'sku', 'category', 'unit', 'cost_price', 'selling_price', 'min_stock', 'quantity', 'status']
+const columns = ['id', 'name', 'sku', 'category', 'unit', 'cost_price', 'selling_price', 'min_stock', 'status']
 
 // Filters (multi-field)
 const filters = ref([
@@ -268,10 +252,10 @@ function openAddModal() {
     brandId: null,
     unitId: null,
     serialTracking: false,
-    minimumStock: 0,
+    minimumStock: null,
     preferredCostMethod: 'AVERAGE',
-    defaultCostPrice: 0,
-    defaultSellingPrice: 0,
+    defaultCostPrice: null,
+    defaultSellingPrice: null,
     images: [],
     imagesFiles: [],
     imagePreviews: [],
@@ -287,10 +271,10 @@ function openEditModal(row) {
     partNumber: row.partNumber || '',
     barcode: row.barcode || '',
     serialTracking: Boolean(row.serialTracking),
-    minimumStock: row.minimumStock ?? row.min_stock ?? 0,
+    minimumStock: row.minimumStock ?? row.min_stock ?? null,
     preferredCostMethod: row.preferredCostMethod || 'AVERAGE',
-    defaultCostPrice: row.defaultCostPrice ?? row.cost_price ?? 0,
-    defaultSellingPrice: row.defaultSellingPrice ?? row.selling_price ?? 0,
+    defaultCostPrice: row.defaultCostPrice ?? row.cost_price ?? null,
+    defaultSellingPrice: row.defaultSellingPrice ?? row.selling_price ?? null,
     imagesFiles: [],
     imagePreviews: Array.isArray(row.images) ? row.images : [],
     isActive: typeof row.isActive === 'boolean' ? row.isActive : row.status !== 'inactive'

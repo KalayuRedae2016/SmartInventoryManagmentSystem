@@ -126,6 +126,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import Datatable from '@/components/Datatable.vue'
 import Modal from '@/components/Modal.vue'
 import { useSuppliersStore } from '@/stores/suppliers'
@@ -138,7 +139,7 @@ const canUpdate = computed(() => auth.hasPermission('suppliers.update'))
 const canDelete = computed(() => auth.hasPermission('suppliers.delete'))
 
 const suppliersStore = useSuppliersStore()
-const suppliers = suppliersStore.suppliers
+const { suppliers } = storeToRefs(suppliersStore)
 
 const columns = ['name', 'email', 'phone', 'address', 'status']
 

@@ -26,8 +26,7 @@ function readJsonStorage(key, fallback) {
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  // Do not trust cached user for auth decisions; require backend validation on app start.
-  const user = ref(null)
+  const user = ref(readJsonStorage(USER_STORAGE_KEY, null))
   const permissions = ref(normalizePermissions(readJsonStorage(PERMISSIONS_STORAGE_KEY, [])))
   const token = ref(getAuthToken() || null)
 
@@ -234,8 +233,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function initAuth() {
-    // Require fresh login on each app load (no silent auto-login).
-    if (token.value) logout()
+    // Always start logged out on a fresh page load so that
+    // the user is explicitly prompted to log in.
+    logout()
   }
 
   return {

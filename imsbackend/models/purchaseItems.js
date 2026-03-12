@@ -18,7 +18,8 @@ module.exports = (sequelize, DataTypes) => {
       productId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
       quantity: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
       unitPrice: { type: DataTypes.FLOAT, allowNull: false },
-      total:{type:DataTypes.INTEGER,allowNull:true}
+      total:{type:DataTypes.FLOAT,allowNull:true},
+      isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true }
     },
     {
       sequelize,

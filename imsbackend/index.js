@@ -32,6 +32,7 @@ const supplierRouter = require('./routes/supplierRoutes');
 
 const purchaseRouter = require('./routes/purchaseRoutes');
 const purchaseReturnRouter=require('./routes/purchaseReturnRoutes')
+const purchaseItemRouter = require('./routes/purchaseItemRoutes');
 
 const saleRouter = require('./routes/saleRoutes');
 const saleReturnRouter=require('./routes/saleReturnRoutes')
@@ -102,11 +103,23 @@ app.use(cors(corsOptions));
 
 // Serving static files
 // app.use(express.static(path.join(__dirname, 'uploads')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(
+  '/uploads',
+  express.static(path.join(__dirname, 'uploads'), {
+    setHeaders: (res) => {
+      // Allow frontend app (different origin/port) to display uploaded images.
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    }
+  })
+);
 
 
 // Security HTTP Headers
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+  })
+);
 app.use(compression());
 
 // Development logging
@@ -181,9 +194,12 @@ app.use('/api/ims/suppliers',supplierRouter);
 
 app.use('/api/ims/purchases',purchaseRouter);
 app.use('/api/ims/purchase-returns',purchaseReturnRouter);
+app.use('/api/ims/purchase-items', purchaseItemRouter);
 
 app.use('/api/ims/sales',saleRouter);
 app.use('/api/ims/sale-returns',saleReturnRouter);
+app.use('/api/ims/stocks', stockRouter);
+app.use('/api/ims/stock-transfers', stocktransferRouter);
 
 app.use('/api/ims/stock-adjustments',stockAdjustmentRouter);
 app.use('/api/ims/stock-transfer',stocktransferRouter);

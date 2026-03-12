@@ -17,8 +17,7 @@ export const useProductsStore = defineStore('products', () => {
       cost_price: 700,
       selling_price: 950,
       min_stock: 5,
-      status: 'active',
-      quantity: 12
+      status: 'active'
     },
     {
       id: 'a1b2c3d4-5678-4e9a-8b3c-2d1e0f9a8b02',
@@ -29,8 +28,7 @@ export const useProductsStore = defineStore('products', () => {
       cost_price: 8,
       selling_price: 15,
       min_stock: 10,
-      status: 'active',
-      quantity: 40
+      status: 'active'
     }
   ]
 
@@ -65,7 +63,6 @@ export const useProductsStore = defineStore('products', () => {
       images: Array.isArray(item.images) ? item.images : [],
       isActive: Boolean(isActive),
       status: Boolean(isActive) ? 'active' : 'inactive',
-      quantity: item.quantity ?? 0,
       category: item.category?.name || item.category || '',
       unit: item.unit?.name || item.unit || '',
       brand: item.brand?.name || item.brand || '',

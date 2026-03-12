@@ -1,23 +1,40 @@
-const { Warehouse, Stock,User,Role,StockTransaction} = require('../models');
+const { Business, Warehouse, Stock, User, Role, StockTransaction } = require('../models');
 const { Op } = require('sequelize');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 exports.createWarehouse = catchAsync(async (req, res, next) => {
-  const {name, code, location,managerName,phone,email,isActive } = req.body;
+  const { businessId, name, code, location, managerName, phone, email, isActive } = req.body;
   console.log("warhouse req.body",req.body);
 
   if (!name || !code) {
-    return next(new AppError('Business ID, Warehouse name and code are required', 400));
+    return next(new AppError('Warehouse name and code are required', 400));
   }
 
-  const exists = await Warehouse.findOne({ where: { code } });
+  let resolvedBusinessId = Number(businessId || req.user?.businessId || 0);
+  if (!resolvedBusinessId) {
+    const fallbackBusiness = await Business.findOne({
+      where: { isActive: true },
+      order: [['id', 'ASC']]
+    });
+    if (!fallbackBusiness) {
+      return next(new AppError('No active business found. Create a business first.', 400));
+    }
+    resolvedBusinessId = Number(fallbackBusiness.id);
+  } else {
+    const business = await Business.findByPk(resolvedBusinessId);
+    if (!business) {
+      return next(new AppError('Invalid businessId. Select an existing business.', 400));
+    }
+  }
+
+  const exists = await Warehouse.findOne({ where: { businessId: resolvedBusinessId, code } });
   if (exists) {
     return next(new AppError('Warehouse code already exists', 409));
   }
 
   const warehouse = await Warehouse.create({
-    businessId:req.user.businessId,
+    businessId: resolvedBusinessId,
     name,
     code,
     location,
