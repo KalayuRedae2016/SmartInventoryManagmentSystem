@@ -52,7 +52,6 @@ const swaggerSetup = require('./swagger');
 swaggerSetup(app);
 
 
-
 app.get("/", (req, res) => {
   res.send(`
     <div style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
@@ -81,23 +80,15 @@ app.set('views', path.join(__dirname, 'views'));
 // Implement CORS
 // Postman usually sets null as the origin unless specified otherwise. 
 // This may cause your server to reject requests if null is not included in the origin list.
-let corsOptions;
-if (process.env.NODE_ENV === 'production') {
-  corsOptions = {
-    origin: ['http://grandinventory.com','https://grandinventory.com',null], // Allowed origin for production
-    credentials: true, // Enable credentials like cookies
-    methods: ['GET', 'POST', 'PUT', 'PATCH','DELETE','OPTIONS'], // Add allowed methods
-  };
-} else {
-  corsOptions = {
-    origin: '*', // Allow all origins for development
-    credentials: false, // Enable credentials like cookies
-    methods: ['GET', 'POST', 'PUT', 'PATCH','DELETE','OPTIONS'], // Add allowed methods
-  };
-}
 
-// Apply CORS middleware
+
+
+const corsOptions = process.env.NODE_ENV === "production"
+  ? { origin: ["http://localhost:5173","https://grandinventory.com"], methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"], credentials: true }
+  : { origin: ["*"], methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"] };
 app.use(cors(corsOptions));
+app.options(/.*/, cors());//allow preflight requests 
+
 
 // Serving static files
 // app.use(express.static(path.join(__dirname, 'uploads')));
