@@ -181,7 +181,7 @@ const filteredRows = computed(() => {
   font-size: 0.92rem;
 }
 .table-wrap {
-  overflow-x: hidden;
+  overflow-x: auto;
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;

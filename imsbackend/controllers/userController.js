@@ -234,7 +234,7 @@ console.log("rested user",user)
     const subject = 'Your Password Has Been Reset';
     const email = user.email;
     console.log("reqq user",req.user)
-    const loginLink = process.env.NODE_ENV === "development" ? "http://localhost:8083" : "https://grandinventory.com";
+    const loginLink = process.env.NODE_ENV === "development" ? "https://grandinventory.com" : "https://grandinventory.com";
     const message = `Hi ${user.fullName},
     
         Your password has been reset by an ${req.user.fullName} with role ${req.user.roleCode}. Here are your new login credentials:

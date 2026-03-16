@@ -1,27 +1,29 @@
 <template>
-  <div>
-    <h1 class="text-2xl font-bold mb-4 text-brand">Stock Transactions</h1>
+  <div class="space-y-4">
+    <h1 class="text-2xl font-bold text-brand">Stock Transactions</h1>
 
-    <table class="w-full bg-white shadow rounded">
-      <thead class="bg-gray-200">
-        <tr>
-          <th class="p-2">Date</th>
-          <th class="p-2">Product</th>
-          <th class="p-2">Type</th>
-          <th class="p-2">Qty</th>
-          <th class="p-2">Note</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="t in stock.transactions" :key="t.id">
-          <td class="p-2">{{ t.date }}</td>
-          <td class="p-2">{{ t.product }}</td>
-          <td class="p-2 font-bold">{{ t.type }}</td>
-          <td class="p-2">{{ t.quantity }}</td>
-          <td class="p-2">{{ t.note }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="bg-white shadow rounded overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="px-2 py-2 text-xs md:text-sm">Date</th>
+            <th class="px-2 py-2 text-xs md:text-sm">Product</th>
+            <th class="px-2 py-2 text-xs md:text-sm">Type</th>
+            <th class="px-2 py-2 text-xs md:text-sm">Qty</th>
+            <th class="px-2 py-2 text-xs md:text-sm">Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="t in stock.transactions" :key="t.id">
+            <td class="px-2 py-2 text-xs md:text-sm">{{ t.date }}</td>
+            <td class="px-2 py-2 text-xs md:text-sm">{{ t.product }}</td>
+            <td class="px-2 py-2 font-bold text-xs md:text-sm">{{ t.type }}</td>
+            <td class="px-2 py-2 text-xs md:text-sm">{{ t.quantity }}</td>
+            <td class="px-2 py-2 text-xs md:text-sm">{{ t.note }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 

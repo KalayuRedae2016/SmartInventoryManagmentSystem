@@ -1,6 +1,6 @@
 # 📦 Inventory Management System (IMS) API Documentation
 
-**Local_Base URL:** `http://localhost:8083/api/ims` 
+**Local_Base URL:** `https://grandinventory.com/api/ims` 
 **Remote_Base URL:** `https://grandinventory.com/api/ims`  
 **Authentication:** Baerer (Bearer Token)  
 **RBAC Middleware:** `requirePermission('module.action')`, `requirePermissionOrSelf('module.action')`  

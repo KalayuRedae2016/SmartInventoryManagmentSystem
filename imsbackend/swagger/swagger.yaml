@@ -6,7 +6,7 @@ info:
   description: API for managing roles and permissions
 
 servers:
-  - url: http://localhost:8083/api/ims
+  - url: https://grandinventory.com/api/ims
 
 paths:
   /roles:
