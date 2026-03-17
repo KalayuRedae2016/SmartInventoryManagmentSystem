@@ -41,10 +41,7 @@ const stocktransferRouter = require('./routes/stockTransferRoutes');
 const stockRouter = require('./routes/stockRoutes');
 const stockTransactionRouter = require('./routes/stockTransactionRoutes');
 
-const stockRouter=require("./routes/stockRoutes")
-const transactionRouter = require('./routes/stockTransactionRoutes');
-
- const reportRoutes=require('./routes/reportRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 const app = express(); //start Express app
 
@@ -206,14 +203,12 @@ app.use('/api/ims/purchases',purchaseRouter);
 app.use('/api/ims/purchase-returns',purchaseReturnRouter);
 
 app.use('/api/ims/sales',saleRouter);
-app.use('/api/ims/sale-returns',saleReturnRouter);
+app.use('/api/ims/sale-returns', saleReturnRouter);
 
-app.use('/api/ims/stocks',stockRouter);
-app.use('/api/ims/stock-adjustments',stockAdjustmentRouter);
-app.use('/api/ims/stock-transfers',stocktransferRouter);
-
-app.use('/api/ims/stocks',stockRouter);
-app.use('/api/ims/stock-transactions', transactionRouter);
+app.use('/api/ims/stocks', stockRouter);
+app.use('/api/ims/stock-adjustments', stockAdjustmentRouter);
+app.use('/api/ims/stock-transfers', stocktransferRouter);
+app.use('/api/ims/stock-transactions', stockTransactionRouter);
 
 app.use('/api/ims/reports', reportRoutes);
 

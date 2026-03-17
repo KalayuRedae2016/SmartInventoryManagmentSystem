@@ -41,22 +41,32 @@ export const useStockStore = defineStore('stock', {
       }
 
       try {
-        const [txRes, mvRes] = await Promise.all([
+        const [txResResult, stocksResResult] = await Promise.allSettled([
           api.get('/stock-transactions'),
           api.get('/stocks')
         ])
 
-        const txRows = this.asList(getResponseData(txRes, []))
-        const mvRows = this.asList(getResponseData(mvRes, []))
+        if (txResResult.status === 'fulfilled') {
+          const txRows = this.asList(getResponseData(txResResult.value, []))
+          this.transactions = txRows.map(this.normalizeTransaction)
+          this.dailyMovements = this.buildDailyMovements(txRows)
+        } else {
+          this.transactions = []
+          this.dailyMovements = []
+        }
 
-        this.transactions = txRows.map(this.normalizeTransaction)
-        this.dailyMovements = this.buildDailyMovements(txRows)
-        this.stocks = mvRows.map(this.normalizeMovementToStock)
-        this.balances = mvRows.map(m => ({
-          product_id: m.productId ?? m.product_id,
-          warehouse_id: m.warehouseId ?? m.warehouse_id ?? 0,
-          quantity: Number(m.quantity ?? m.newStock ?? m.new_stock ?? 0) || 0
-        }))
+        if (stocksResResult.status === 'fulfilled') {
+          const mvRows = this.asList(getResponseData(stocksResResult.value, []))
+          this.stocks = mvRows.map(this.normalizeMovementToStock)
+          this.balances = mvRows.map(m => ({
+            product_id: m.productId ?? m.product_id,
+            warehouse_id: m.warehouseId ?? m.warehouse_id ?? 0,
+            quantity: Number(m.quantity ?? m.newStock ?? m.new_stock ?? 0) || 0
+          }))
+        } else {
+          this.stocks = []
+          this.balances = []
+        }
       } catch {
         this.transactions = []
         this.dailyMovements = []

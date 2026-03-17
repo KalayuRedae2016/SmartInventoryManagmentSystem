@@ -186,9 +186,11 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import Datatable from '@/components/Datatable.vue'
 import Modal from '@/components/Modal.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useUsersStore } from '@/stores/users'
 import api, { getResponseData } from '@/services/api'
 
 const auth = useAuthStore()
+const usersStore = useUsersStore()
 const canAdd = computed(() => auth.hasPermission('user:create'))
 const canEdit = computed(() => auth.hasPermission('user:update'))
 const canDelete = computed(() => auth.hasPermission('user:delete'))
@@ -232,25 +234,29 @@ async function fetchPermissions() {
   permissions.value = Array.isArray(payload) ? payload : []
 }
 
+function mapUsers(list) {
+  return list.map(item => ({
+    id: item.id,
+    name: item.fullName || item.name || '-',
+    email: item.email || '-',
+    phone: item.phoneNumber || item.phone || '-',
+    roleId: item.roleId || 0,
+    role: item.role?.name || item.roleName || '-',
+    profileImage: item.profileImage || '',
+    permissionAdds: Array.isArray(item.permissionAdds) ? item.permissionAdds : [],
+    permissionRemoves: Array.isArray(item.permissionRemoves) ? item.permissionRemoves : [],
+    status: item.isActive ? 'active' : 'inactive'
+  }))
+}
+
 async function fetchUsers() {
   try {
-    const res = await api.get('/users')
-    const payload = res?.data?.users || getResponseData(res, [])
-    const list = Array.isArray(payload) ? payload : []
-    users.value = list.map(item => ({
-      id: item.id,
-      name: item.fullName || item.name || '-',
-      email: item.email || '-',
-      phone: item.phoneNumber || item.phone || '-',
-      roleId: item.roleId || 0,
-      role: item.role?.name || item.roleName || '-',
-      profileImage: item.profileImage || '',
-      permissionAdds: Array.isArray(item.permissionAdds) ? item.permissionAdds : [],
-      permissionRemoves: Array.isArray(item.permissionRemoves) ? item.permissionRemoves : [],
-      status: item.isActive ? 'active' : 'inactive'
-    }))
+    await usersStore.fetchUsers()
+    const source = Array.isArray(usersStore.users) ? usersStore.users : []
+    users.value = mapUsers(source)
   } catch {
-    users.value = []
+    const source = Array.isArray(usersStore.users) ? usersStore.users : []
+    users.value = mapUsers(source)
   }
 }
 
