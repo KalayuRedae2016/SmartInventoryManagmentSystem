@@ -808,17 +808,3 @@ Endpoints:
     report:export
     report:pdf
     report:excel
-
-
-
-
-## Purchase Registration Flow (Required)
-1. Create a `Purchase` first using `POST /purchases`.
-   General/header fields belong here: `warehouseId`, `supplierId`, `invoiceNumber`, `totalAmount`, `paidAmount`, `paymentMethod`, `note`.
-2. Then create one or many `PurchaseItem` rows using `POST /purchase-items` (or `POST /purchases/items`).
-   Item/detail fields belong here: `productId`, `quantity`, `unitPrice`, `total` (amount per line).
-3. Keep this sequence. Do not create purchase items before the parent purchase exists.
-
-Stock meaning in this API:
-- `Stock.quantity` = quantity on hand for one specific product (`productId`) in one specific warehouse (`warehouseId`) under one business (`businessId`).
-- This is not a document total; it is per-product count.

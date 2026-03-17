@@ -40,7 +40,7 @@ const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
 const stocktransferRouter = require('./routes/stockTransferRoutes');
 
 const stockRouter=require("./routes/stockRoutes")
-// const transactionRouter = require('./routes/transactionRoutes');
+const transactionRouter = require('./routes/stockTransactionRoutes');
 
  const reportRoutes=require('./routes/reportRoutes');
 
@@ -190,7 +190,7 @@ app.use('/api/ims/stock-adjustments',stockAdjustmentRouter);
 app.use('/api/ims/stock-transfers',stocktransferRouter);
 
 app.use('/api/ims/stocks',stockRouter);
-// app.use('/api/ims/transactions', transactionRouter);
+app.use('/api/ims/stock-transactions', transactionRouter);
 
 app.use('/api/ims/reports', reportRoutes);
 
