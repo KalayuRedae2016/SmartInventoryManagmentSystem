@@ -7,23 +7,41 @@ const getBusinessId = () => 1;
 
 function includeModels() {
   return [
-    { model: Product, as: 'product' },
-    { model: Warehouse, as: 'warehouse' },
+    { model: Product, as: 'product' ,attributes:['id',"name"]},
+    { model: Warehouse, as: 'warehouse',attributes:["id","name"] },
   ];
 }
 
-exports.getStocks = catchAsync(async (req, res) => {
-  const {
-    warehouseId,
-    productId,
-    search,
-    sortBy = 'createdAt',
-    sortOrder = 'DESC',
-    page = 1,
-    limit = 20
-  } = req.query;
+exports.createStock = catchAsync(async (req, res, next) => {
+  const { businessId, warehouseId, productId, quantity, stockAlert, description } = req.body;
+  const resolvedBusinessId = Number(businessId || getBusinessId());
 
-  const businessId = getBusinessId();
+  if (!warehouseId || !productId || quantity === undefined) {
+    return next(new AppError('warehouseId, productId and quantity are required', 400));
+  }
+
+  const stock = await Stock.create({
+    businessId: resolvedBusinessId,
+    warehouseId: Number(warehouseId),
+    productId: Number(productId),
+    quantity: Number(quantity),
+    stockAlert: Number(stockAlert || 0),
+    description: description || null,
+  });
+
+  const created = await Stock.findByPk(stock.id, { include: includeModels() });
+
+  res.status(201).json({
+    status: 1,
+    message: 'Stock created successfully',
+    data: created,
+  });
+});
+
+exports.getStocks = catchAsync(async (req, res) => {
+  const {warehouseId,productId,search,sortBy = 'createdAt',sortOrder = 'DESC', page = 1,limit = 20 } = req.query;
+
+  const businessId = req.user.businessId;
   const where = { businessId };
 
   if (warehouseId) where.warehouseId = Number(warehouseId);
@@ -58,34 +76,8 @@ exports.getStocks = catchAsync(async (req, res) => {
   });
 });
 
-exports.createStock = catchAsync(async (req, res, next) => {
-  const { businessId, warehouseId, productId, quantity, stockAlert, description } = req.body;
-  const resolvedBusinessId = Number(businessId || getBusinessId());
-
-  if (!warehouseId || !productId || quantity === undefined) {
-    return next(new AppError('warehouseId, productId and quantity are required', 400));
-  }
-
-  const stock = await Stock.create({
-    businessId: resolvedBusinessId,
-    warehouseId: Number(warehouseId),
-    productId: Number(productId),
-    quantity: Number(quantity),
-    stockAlert: Number(stockAlert || 0),
-    description: description || null,
-  });
-
-  const created = await Stock.findByPk(stock.id, { include: includeModels() });
-
-  res.status(201).json({
-    status: 1,
-    message: 'Stock created successfully',
-    data: created,
-  });
-});
-
 exports.getStockById = catchAsync(async (req, res, next) => {
-  const stock = await Stock.findByPk(req.params.id, { include: includeModels() });
+  const stock = await Stock.findByPk(req.params.stockId, { include: includeModels() });
   if (!stock) return next(new AppError('Stock not found', 404));
 
   res.status(200).json({
@@ -95,7 +87,7 @@ exports.getStockById = catchAsync(async (req, res, next) => {
 });
 
 exports.updateStock = catchAsync(async (req, res, next) => {
-  const stock = await Stock.findByPk(req.params.id);
+  const stock = await Stock.findByPk(req.params.stockId);
   if (!stock) return next(new AppError('Stock not found', 404));
 
   const { warehouseId, productId, quantity, stockAlert, description } = req.body;
@@ -118,7 +110,7 @@ exports.updateStock = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteStock = catchAsync(async (req, res, next) => {
-  const stock = await Stock.findByPk(req.params.id);
+  const stock = await Stock.findByPk(req.params.stockId);
   if (!stock) return next(new AppError('Stock not found', 404));
 
   await stock.destroy();
@@ -126,31 +118,6 @@ exports.deleteStock = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 1,
     message: 'Stock deleted successfully',
-  });
-});
-
-exports.adjustStock = catchAsync(async (req, res, next) => {
-  const stock = await Stock.findByPk(req.params.id);
-  if (!stock) return next(new AppError('Stock not found', 404));
-
-  const delta = Number(req.body.delta ?? req.body.quantity ?? 0);
-  if (!Number.isFinite(delta) || delta === 0) {
-    return next(new AppError('A non-zero delta/quantity is required for adjustment', 400));
-  }
-
-  stock.quantity = Number(stock.quantity || 0) + delta;
-  if (req.body.note) {
-    stock.description = req.body.note;
-  }
-
-  await stock.save();
-
-  const updated = await Stock.findByPk(stock.id, { include: includeModels() });
-
-  res.status(200).json({
-    status: 1,
-    message: 'Stock adjusted successfully',
-    data: updated,
   });
 });
 

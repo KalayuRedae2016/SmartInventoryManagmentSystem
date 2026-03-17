@@ -41,7 +41,8 @@ const stocktransferRouter = require('./routes/stockTransferRoutes');
 const stockRouter = require('./routes/stockRoutes');
 const stockTransactionRouter = require('./routes/stockTransactionRoutes');
 
-// const transactionRouter = require('./routes/transactionRoutes');
+const stockRouter=require("./routes/stockRoutes")
+const transactionRouter = require('./routes/stockTransactionRoutes');
 
  const reportRoutes=require('./routes/reportRoutes');
 
@@ -102,7 +103,6 @@ app.set('views', path.join(__dirname, 'views'));
 // Implement CORS
 // Postman usually sets null as the origin unless specified otherwise. 
 // This may cause your server to reject requests if null is not included in the origin list.
-
 
 
 const corsOptions = process.env.NODE_ENV === "production"
@@ -210,16 +210,16 @@ app.use('/api/ims/sale-returns',saleReturnRouter);
 
 app.use('/api/ims/stocks',stockRouter);
 app.use('/api/ims/stock-adjustments',stockAdjustmentRouter);
-app.use('/api/ims/stock-transfer',stocktransferRouter);
-app.use('/api/ims/stock-transactions',stockTransactionRouter);
+app.use('/api/ims/stock-transfers',stocktransferRouter);
 
-// app.use('/api/ims/transactions', transactionRouter);
+app.use('/api/ims/stocks',stockRouter);
+app.use('/api/ims/stock-transactions', transactionRouter);
 
 app.use('/api/ims/reports', reportRoutes);
 
 // Catch-all route handler for undefined routes
 app.use((req, res, next) => {
-  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+  next(new AppError(`Can't find ${req.originalUrl} on this server!,use valid routing path`, 404));
 });
 
 //Global error handling middleware
