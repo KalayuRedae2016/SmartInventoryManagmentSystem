@@ -39,6 +39,7 @@ const saleReturnRouter=require('./routes/saleReturnRoutes')
 const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
 const stocktransferRouter = require('./routes/stockTransferRoutes');
 
+const stockRouter=require("./routes/stockRoutes")
 // const transactionRouter = require('./routes/transactionRoutes');
 
  const reportRoutes=require('./routes/reportRoutes');
@@ -80,7 +81,6 @@ app.set('views', path.join(__dirname, 'views'));
 // Implement CORS
 // Postman usually sets null as the origin unless specified otherwise. 
 // This may cause your server to reject requests if null is not included in the origin list.
-
 
 
 const corsOptions = process.env.NODE_ENV === "production"
@@ -187,8 +187,9 @@ app.use('/api/ims/sales',saleRouter);
 app.use('/api/ims/sale-returns',saleReturnRouter);
 
 app.use('/api/ims/stock-adjustments',stockAdjustmentRouter);
-app.use('/api/ims/stock-transfer',stocktransferRouter);
+app.use('/api/ims/stock-transfers',stocktransferRouter);
 
+app.use('/api/ims/stocks',stockRouter);
 // app.use('/api/ims/transactions', transactionRouter);
 
 app.use('/api/ims/reports', reportRoutes);

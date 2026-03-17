@@ -3,8 +3,9 @@ const { StockTransfer, Stock, Warehouse, Product, User, sequelize} = require('..
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
-const adjustStock = async (
-  { businessId, warehouseId, productId, quantity, type, referenceId, note }, transaction) => {
+const adjustStock = async ({ 
+  businessId, warehouseId, productId, quantity, type, referenceId, note }, transaction) => {
+  console.log("Adjusted Stock",quantity)
   await Stock.create({
     businessId,
     warehouseId,
@@ -14,12 +15,46 @@ const adjustStock = async (
     referenceId,
     note,
   }, { transaction });
+
+  const currentStock = await Stock.sum('quantity', {
+    where: { businessId, warehouseId, productId },
+  }) || 0;
+console.log('addjusted stockqu',currentStock)
 };
 
+const buildQuery = (user,query) => {
+  const {productId,fromWarehouseId,toWarehouseId,userId,minQuantity,maxQuantity,search,startDate,endDate,} = query;
+
+  let whereQuery = { businessId: user.businessId};
+
+  if(fromWarehouseId) whereQuery.fromWarehouseId=fromWarehouseId
+  if(toWarehouseId) whereQuery.toWarehouseId=toWarehouseId
+  if(productId) whereQuery.productId=productId
+  if(userId) whereQuery.userId=userId
+
+  if(minQuantity||maxQuantity){
+    whereQuery.quantity={}
+    if (minQuantity) whereQuery.paidAmount[Op.gte] = Number(minQuantity);
+    if (maxQuantity) whereQuery.paidAmount[Op.lte] = Number(maxQuantity);
+  }
+
+  if (startDate && endDate) whereQuery.createdAt = {[Op.between]: [new Date(startDate), new Date(endDate)]};
+
+  if (search) {
+    whereQuery[Op.or] = [
+      { note: { [Op.like]: `%${search}%` } },
+    ];
+  }
+
+  return whereQuery;
+};
 
 exports.createStockTransfer = catchAsync(async (req, res, next) => {
-  const { fromWarehouseId, toWarehouseId, productId, userId, quantity, note } = req.body;
-  const businessId = getBusinessId();
+  const { fromWarehouseId, toWarehouseId, productId,quantity, note } = req.body;
+
+  const businessId=req.user.businessId
+  const userId=req.body.userId||req.user.id
+
   const qty = Number(quantity);
   const fromId = Number(fromWarehouseId);
   const toId = Number(toWarehouseId);
@@ -35,6 +70,8 @@ exports.createStockTransfer = catchAsync(async (req, res, next) => {
   const currentStock = await Stock.sum('quantity', {
     where: { businessId, warehouseId: fromWarehouseId, productId },
   }) || 0;
+
+  console.log("currentStock",currentStock)
 
   if (currentStock < quantity) return next(new AppError('Insufficient stock in source warehouse', 400));
 
@@ -86,22 +123,16 @@ exports.createStockTransfer = catchAsync(async (req, res, next) => {
 });
 
 exports.getStockTransfers = catchAsync(async (req, res) => {
-  const { page = 1, limit = 10, fromWarehouseId, toWarehouseId, productId, userId } = req.query;
-  const businessId = getBusinessId();
+  const {page = 1, limit = 10}= req.query;
 
-  const where = { businessId };
-  if (fromWarehouseId) where.fromWarehouseId = fromWarehouseId;
-  if (toWarehouseId) where.toWarehouseId = toWarehouseId;
-  if (productId) where.productId = productId;
-  if (userId) where.userId = userId;
-
+  const where=buildQuery(req.user,req.query)
   const transfers = await StockTransfer.findAndCountAll({
     where,
     include: [
       { model: Warehouse, as: 'fromWarehouse', attributes: ['id', 'name'] },
       { model: Warehouse, as: 'toWarehouse', attributes: ['id', 'name'] },
-      { model: Product, attributes: ['id', 'name'] },
-      { model: User, attributes: ['id', 'username'] },
+      { model: Product, as:"product",attributes: ['id', 'name'] },
+      { model: User, as:"user",attributes: ['id', 'fullName'] },
     ],
     limit: +limit,
     offset: (page - 1) * limit,
@@ -120,8 +151,8 @@ exports.getStockTransferById = catchAsync(async (req, res, next) => {
     include: [
       { model: Warehouse, as: 'fromWarehouse', attributes: ['id', 'name'] },
       { model: Warehouse, as: 'toWarehouse', attributes: ['id', 'name'] },
-      { model: Product, attributes: ['id', 'name'] },
-      { model: User, attributes: ['id', 'username'] },
+      { model: Product, as:"product",attributes: ['id', 'name'] },
+      { model: User, as:"user", attributes: ['id', 'fullName'] },
     ],
   });
 

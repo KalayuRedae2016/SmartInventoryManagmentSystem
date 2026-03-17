@@ -14,7 +14,7 @@ const buildWhereClause = (user,query) => {
 
   if (isActive !== undefined) whereQuery.isActive = ["true", "1", true, 1].includes(isActive);
 
-  if(warehouseId) whereQuery.warehouseId=categoryId
+  if(warehouseId) whereQuery.warehouseId=warehouseId
   if(productId) whereQuery.productId=productId
   if(userId) whereQuery.userId=userId
 
@@ -40,6 +40,7 @@ const buildWhereClause = (user,query) => {
 exports.createStockAdjustment = catchAsync(async (req, res, next) => {
   const { warehouseId, productId, quantity, adjustmentType, note } = req.body;
   const businessId = req.user.businessId;
+  const userId=req.user.id
 
   if (!warehouseId || !productId || !quantity || !adjustmentType) {
     return next(new AppError('warehouseId, productId, quantity, and adjustmentType are required', 400));
@@ -56,6 +57,7 @@ exports.createStockAdjustment = catchAsync(async (req, res, next) => {
     const stockAdjustment = await StockAdjustment.create({
       businessId,
       warehouseId,
+      userId,
       productId,
       quantity,
       adjustmentType,
