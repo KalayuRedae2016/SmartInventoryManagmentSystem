@@ -207,6 +207,13 @@ router.beforeEach(async (to, from, next) => {
       return next('/login')
     }
   }
+
+  // Owner / SuperAdmin: full access bypass
+  const roleCode = auth.user?.role?.code || auth.user?.role?.name
+  if (roleCode && ['OWNER', 'SUPERADMIN', 'owner', 'superAdmin'].includes(String(roleCode))) {
+    return next()
+  }
+
   if (!auth.isAuthenticated) return next('/login')
   if (to.path.startsWith('/suppliers') && hasAnySupplierPermission()) return next()
   if (to.meta.permission && !auth.hasPermission(to.meta.permission)) {
