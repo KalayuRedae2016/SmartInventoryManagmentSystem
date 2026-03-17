@@ -41,9 +41,9 @@ exports.uploaduserAttachements=userUpload.fields([
 exports.uploaduserFile = userUpload.single('file');// Middleware for handling single file upload
 
 const buildUserWhereClause = (query) => {
-  const { isActive,search, warehouseId, roleId, startDate, endDate } = query;
+  const { isActive, search, warehouseId, roleId, startDate, endDate } = query;
 
-  let whereClause = {};
+  const whereClause = {};
 
   if (warehouseId) whereClause.warehouseId = warehouseId;
   if (roleId) whereClause.roleId = roleId;
@@ -59,7 +59,7 @@ const buildUserWhereClause = (query) => {
   }
 
   if (search) {
-    whereQuery[Op.or] = [
+    whereClause[Op.or] = [
       { fullName: { [Op.like]: `%${search}%` } },
       { email: { [Op.like]: `%${search}%` } },
       { phoneNumber: { [Op.like]: `%${search}%` } },

@@ -92,7 +92,7 @@
 
         <!-- Users -->
         <RouterLink
-          v-if="can('users.view')"
+          v-if="can('user:view')"
           to="/users"
           class="menu-link"
           :class="{ 'menu-active': $route.path === '/users' }"

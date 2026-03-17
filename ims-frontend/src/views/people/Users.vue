@@ -189,9 +189,9 @@ import { useAuthStore } from '@/stores/auth'
 import api, { getResponseData } from '@/services/api'
 
 const auth = useAuthStore()
-const canAdd = computed(() => auth.hasPermission('users.create'))
-const canEdit = computed(() => auth.hasPermission('users.update'))
-const canDelete = computed(() => auth.hasPermission('users.delete'))
+const canAdd = computed(() => auth.hasPermission('user:create'))
+const canEdit = computed(() => auth.hasPermission('user:update'))
+const canDelete = computed(() => auth.hasPermission('user:delete'))
 
 const columns = ['name', 'email', 'phone', 'role', 'status']
 const users = ref([])

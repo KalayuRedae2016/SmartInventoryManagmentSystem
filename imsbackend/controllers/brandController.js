@@ -12,33 +12,39 @@ const {extractFiles}=require("../utils/fileUtils");
 const brand = require('../models/brand');
 
 exports.createBrand = catchAsync(async (req, res, next) => {
-  console.log("brand creation request", req.body,req.files)
-    
-  const {  businessId,name, country,description,image,isActive} = req.body;
-  if (!name ||!country || !description) {
-    return next(new AppError("required Fields->businessId, name country,or description)", 404))
-  }
-  
-const existingBrand = await Brand.findOne({where: { name, businessId }});
-if (existingBrand) return (next(new AppError("brand already in use", 404)))
+  console.log("brand creation request", req.body, req.files);
 
-const files=extractFiles(req, 'brands');
-const extractedImage =files.single('image');
+  const { name, country, description, isActive } = req.body;
+
+  // Frontend only requires name + description; country is optional.
+  if (!name || !description) {
+    return next(new AppError("Name and description are required", 400));
+  }
+
+  const businessId = req.user.businessId;
+
+  const existingBrand = await Brand.findOne({ where: { name, businessId } });
+  if (existingBrand) {
+    return next(new AppError("Brand already in use", 400));
+  }
+
+  const files = extractFiles(req, 'brands');
+  const extractedImage = files.single('image');
 
   const newbrand = await Brand.create({
-    businessId:req.user.businessId,
+    businessId,
     name,
-    country,
+    country: country || '',
     description,
-    image:extractedImage,
-    isActive: isActive !== undefined ? isActive : true,
-  });
-  
-  res.status(200).json({
-    message: 'Brand registered successfully.',
-    data: newbrand,
+    image: extractedImage,
+    isActive: isActive !== undefined ? isActive : true
   });
 
+  res.status(200).json({
+    status: 1,
+    message: 'Brand registered successfully.',
+    brand: newbrand
+  });
 });
 
 exports.getAllBrands = catchAsync(async (req, res, next) => {
@@ -92,7 +98,7 @@ exports.getAllBrands = catchAsync(async (req, res, next) => {
     total: count,
     active,
     inactive,
-    message: "Categories fetched successfully",
+    message: "Brands fetched successfully",
     brands: rows
   });
 });
@@ -142,7 +148,6 @@ exports.getBrand = catchAsync(async (req, res, next) => {
 });
 
 exports.updateBrand = catchAsync(async (req, res, next) => {
-
   const brandId = parseInt(req.params.brandId, 10);
 
   const brand = await Brand.findByPk(brandId);
@@ -155,16 +160,22 @@ exports.updateBrand = catchAsync(async (req, res, next) => {
     });
   }
 
-  const updateData = { ...req.body.req.files.image };
+  const updateData = { ...req.body };
+
+  // Optionally handle updated image files
+  const files = extractFiles(req, 'brands');
+  const extractedImage = files.single('image');
+  if (extractedImage) {
+    updateData.image = extractedImage;
+  }
 
   await brand.update(updateData);
 
   res.status(200).json({
     status: 1,
     message: `${brand.name} updated successfully`,
-    data: brand
+    brand
   });
-
 });
 
 exports.toggleBrandStatus = catchAsync(async (req, res, next) => {
