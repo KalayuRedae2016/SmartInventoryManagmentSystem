@@ -175,27 +175,28 @@ function formatDate(value) {
     <div class="card">
       <h3 class="text-lg font-semibold mb-3">Return Requests</h3>
 
-      <table class="w-full border-collapse border">
-        <thead class="bg-gray-100">
-          <tr>
-            <th class="th">ID</th>
-            <th class="th">Sale ID</th>
-            <th class="th">Warehouse ID</th>
-            <th class="th">Customer ID</th>
-            <th class="th">Payment</th>
-            <th class="th">Return Date</th>
-            <th class="th">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in returns" :key="item.id">
-            <td class="td">{{ item.id }}</td>
-            <td class="td">{{ item.saleId || '-' }}</td>
-            <td class="td">{{ item.warehouseId || '-' }}</td>
-            <td class="td">{{ item.customerId || '-' }}</td>
-            <td class="td">{{ item.paymentMethod || '-' }}</td>
-            <td class="td">{{ formatDate(item.returnDate) }}</td>
-            <td class="td">
+      <div class="overflow-x-auto">
+        <table class="min-w-full border-collapse border text-sm">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="th text-xs md:text-sm">ID</th>
+              <th class="th text-xs md:text-sm">Sale ID</th>
+              <th class="th text-xs md:text-sm">Warehouse ID</th>
+              <th class="th text-xs md:text-sm">Customer ID</th>
+              <th class="th text-xs md:text-sm">Payment</th>
+              <th class="th text-xs md:text-sm">Return Date</th>
+              <th class="th text-xs md:text-sm">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in returns" :key="item.id">
+              <td class="td text-xs md:text-sm">{{ item.id }}</td>
+              <td class="td text-xs md:text-sm">{{ item.saleId || '-' }}</td>
+              <td class="td text-xs md:text-sm">{{ item.warehouseId || '-' }}</td>
+              <td class="td text-xs md:text-sm">{{ item.customerId || '-' }}</td>
+              <td class="td text-xs md:text-sm">{{ item.paymentMethod || '-' }}</td>
+              <td class="td text-xs md:text-sm">{{ formatDate(item.returnDate) }}</td>
+              <td class="td text-xs md:text-sm">
               <div class="inline-flex items-center gap-2">
                 <button v-if="canView" class="icon-btn icon-view" title="View" @click="openViewModal(item)">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -208,13 +209,14 @@ function formatDate(value) {
                   </svg>
                 </button>
               </div>
-            </td>
-          </tr>
-          <tr v-if="!returns.length">
-            <td class="td text-center text-gray-500" colspan="7">No returns found</td>
-          </tr>
-        </tbody>
-      </table>
+              </td>
+            </tr>
+            <tr v-if="!returns.length">
+              <td class="td text-center text-gray-500" colspan="7">No returns found</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <p v-if="loading" class="text-sm text-gray-500 mt-2">Loading...</p>
     </div>
 

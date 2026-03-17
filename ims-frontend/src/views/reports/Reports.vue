@@ -837,7 +837,7 @@ onMounted(async () => {
 }
 
 .table-wrap {
-  overflow-x: hidden;
+  overflow-x: auto;
 }
 
 .report-table {

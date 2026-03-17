@@ -1,33 +1,35 @@
 <template>
-  <div>
-    <h1 class="text-2xl font-bold mb-4">Inventory</h1>
+  <div class="space-y-4">
+    <h1 class="text-2xl font-bold">Inventory</h1>
 
-    <table class="w-full border-collapse border">
-      <thead class="bg-gray-200">
-        <tr>
-          <th class="border px-4 py-2 text-left">Product Name</th>
-          <th class="border px-4 py-2 text-left">SKU</th>
-          <th class="border px-4 py-2 text-left">Category</th>
-          <th class="border px-4 py-2 text-left">Quantity</th>
-          <th class="border px-4 py-2 text-left">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="item in inventory" :key="item.id">
-          <td class="border px-4 py-2">{{ item.name }}</td>
-          <td class="border px-4 py-2">{{ item.sku }}</td>
-          <td class="border px-4 py-2">{{ item.category }}</td>
-          <td class="border px-4 py-2">{{ item.quantity }}</td>
-          <td class="border px-4 py-2">
-            <span
-              :class="item.quantity <= item.lowStockThreshold ? 'text-red-600 font-bold' : 'text-green-600'"
-            >
-              {{ item.quantity <= item.lowStockThreshold ? 'Low Stock' : 'In Stock' }}
-            </span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="bg-white rounded shadow overflow-x-auto">
+      <table class="min-w-full border-collapse border text-sm">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="border px-2 py-2 text-left text-xs md:text-sm md:px-4">Product Name</th>
+            <th class="border px-2 py-2 text-left text-xs md:text-sm md:px-4">SKU</th>
+            <th class="border px-2 py-2 text-left text-xs md:text-sm md:px-4">Category</th>
+            <th class="border px-2 py-2 text-left text-xs md:text-sm md:px-4">Quantity</th>
+            <th class="border px-2 py-2 text-left text-xs md:text-sm md:px-4">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in inventory" :key="item.id">
+            <td class="border px-2 py-2 text-xs md:text-sm md:px-4">{{ item.name }}</td>
+            <td class="border px-2 py-2 text-xs md:text-sm md:px-4">{{ item.sku }}</td>
+            <td class="border px-2 py-2 text-xs md:text-sm md:px-4">{{ item.category }}</td>
+            <td class="border px-2 py-2 text-xs md:text-sm md:px-4">{{ item.quantity }}</td>
+            <td class="border px-2 py-2 text-xs md:text-sm md:px-4">
+              <span
+                :class="item.quantity <= item.lowStockThreshold ? 'text-red-600 font-bold' : 'text-green-600'"
+              >
+                {{ item.quantity <= item.lowStockThreshold ? 'Low Stock' : 'In Stock' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
@@ -44,13 +46,4 @@ const inventory = ref([
 </script>
 
 <style scoped>
-table th, table td {
-  border: 1px solid #ddd;
-  padding: 8px;
-}
-
-table th {
-  background-color: #f3f3f3;
-  font-weight: bold;
-}
 </style>

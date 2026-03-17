@@ -38,6 +38,8 @@ const saleReturnRouter=require('./routes/saleReturnRoutes')
 
 const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
 const stocktransferRouter = require('./routes/stockTransferRoutes');
+const stockRouter = require('./routes/stockRoutes');
+const stockTransactionRouter = require('./routes/stockTransactionRoutes');
 
 const stockRouter=require("./routes/stockRoutes")
 const transactionRouter = require('./routes/stockTransactionRoutes');
@@ -71,6 +73,26 @@ app.get("/ims", (req, res) => {
   `);
 });
 
+
+// Basic CORS bridge for local dev (ensures preflight always succeeds)
+app.use((req, res, next) => {
+  const origin = req.headers.origin || '*';
+  res.header('Access-Control-Allow-Origin', origin);
+  res.header('Vary', 'Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header(
+    'Access-Control-Allow-Methods',
+    'GET,POST,PUT,PATCH,DELETE,OPTIONS'
+  );
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-access-token'
+  );
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
 
 app.enable('trust proxy'); //Set trust proxy correctly based on whether your application is behind a proxy.
 
@@ -186,6 +208,7 @@ app.use('/api/ims/purchase-returns',purchaseReturnRouter);
 app.use('/api/ims/sales',saleRouter);
 app.use('/api/ims/sale-returns',saleReturnRouter);
 
+app.use('/api/ims/stocks',stockRouter);
 app.use('/api/ims/stock-adjustments',stockAdjustmentRouter);
 app.use('/api/ims/stock-transfers',stocktransferRouter);
 

@@ -10,32 +10,39 @@ require('dotenv').config();
 const { formatDate } = require("../utils/dateUtils")
 
 exports.createUnit = catchAsync(async (req, res, next) => {
-  console.log("Unit creation request", req.body)
-  const {name, symbol,baseUnit,operator,operationValue,description,isActive} = req.body;
+  console.log("Unit creation request", req.body);
+  const { name, symbol, baseUnit, operator, operationValue, description, isActive } = req.body;
 
-  if (!name || !symbol || !description||!baseUnit) {
-    return next(new AppError("required Fields->businessId,name,symbol,baseUnit or description)", 404))
+  // Frontend form only asks for name + description; make others optional with sensible defaults.
+  if (!name || !description) {
+    return next(new AppError("Name and description are required", 400));
   }
-  
-const existingUnit= await Unit.findOne({ where: { name } });
-if (existingUnit)   return (next(new AppError("unit already in use", 404)))
+
+  const existingUnit = await Unit.findOne({ where: { name } });
+  if (existingUnit) {
+    return next(new AppError("Unit already in use", 400));
+  }
+
+  const businessId = req.user.businessId;
+  const resolvedSymbol = symbol || name;
+  const resolvedBaseUnit = baseUnit || name;
 
   const newUnit = await Unit.create({
-  businessId:req.user.businessId,
-  name,
-  symbol,
-  baseUnit,
-  operator,
-  operationValue,
-  description,
-  isActive: isActive !== undefined ? isActive : true,
-});
-  
-  res.status(200).json({
-    message: 'Unit registered successfully.',
-    newUnit: newUnit,
+    businessId,
+    name,
+    symbol: resolvedSymbol,
+    baseUnit: resolvedBaseUnit,
+    operator: operator || '*',
+    operationValue: operationValue || '1',
+    description,
+    isActive: isActive !== undefined ? isActive : true
   });
 
+  res.status(200).json({
+    status: 1,
+    message: 'Unit registered successfully.',
+    newUnit
+  });
 });
 
 exports.getAllUnits = catchAsync(async (req, res, next) => {
@@ -93,7 +100,7 @@ exports.getAllUnits = catchAsync(async (req, res, next) => {
     status: 1,
     length: count,
     message: "Units fetched successfully",
-    data:rows
+    units: rows
   });
 });
 

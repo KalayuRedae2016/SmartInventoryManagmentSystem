@@ -166,7 +166,7 @@ const routes = [
 
       // ---------- People ----------
       { path: 'roles', component: SystemRoles, meta: { permission: 'role:view' } },
-      { path: 'users', component: Users, meta: { permission: 'users.view' } },
+      { path: 'users', component: Users, meta: { permission: 'user:view' } },
       { path: 'customers', component: Customers, meta: { permission: 'customers.view' } },
       { path: 'suppliers', component: Suppliers, meta: { permission: 'suppliers.view' } },
 

@@ -1,5 +1,5 @@
 module.exports={
-    localURL:'http://localhost:8083',
+    localURL:'https://grandinventory.com',
     remoteUrl:'https://ims.com',
     subject:'Welcome to Inventory managment systems!',
     prefixCode:"ims"

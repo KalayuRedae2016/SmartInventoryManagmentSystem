@@ -1,34 +1,41 @@
 <template>
-  <div>
-    <div class="flex items-center justify-between mb-4">
+  <div class="space-y-4">
+    <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-brand">Sale Invoices</h1>
       <RouterLink v-if="canCreate" to="/sales/invoice/new" class="btn-primary">+ New Invoice</RouterLink>
     </div>
-    <table class="w-full border-collapse border">
-      <thead class="bg-gray-200">
-        <tr>
-          <th class="border px-4 py-2">Invoice #</th>
-          <th class="border px-4 py-2">Sale Date</th>
-          <th class="border px-4 py-2">Customer</th>
-          <th class="border px-4 py-2">Warehouse ID</th>
-          <th class="border px-4 py-2">Total</th>
-          <th class="border px-4 py-2">Paid</th>
-          <th class="border px-4 py-2">Payment</th>
-          <th class="border px-4 py-2">Status</th>
-          <th class="border px-4 py-2">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="invoice in invoices" :key="invoice.id">
-          <td class="border px-4 py-2">{{ invoice.invoiceNumber || invoice.id }}</td>
-          <td class="border px-4 py-2">{{ formatDate(invoice.saleDate) }}</td>
-          <td class="border px-4 py-2">{{ invoice.customer }}</td>
-          <td class="border px-4 py-2">{{ invoice.warehouseId || '-' }}</td>
-          <td class="border px-4 py-2">{{ invoice.totalAmount }}</td>
-          <td class="border px-4 py-2">{{ invoice.paidAmount }}</td>
-          <td class="border px-4 py-2">{{ invoice.paymentMethod || '-' }}</td>
-          <td class="border px-4 py-2">{{ invoice.status }}</td>
-          <td class="border px-4 py-2">
+    <div class="bg-white rounded shadow overflow-x-auto">
+      <table class="min-w-full border-collapse border text-sm">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="border px-2 py-2 text-xs md:text-sm md:px-4">Invoice #</th>
+            <th class="border px-2 py-2 text-xs md:text-sm md:px-4">Sale Date</th>
+            <th class="border px-2 py-2 text-xs md:text-sm md:px-4">Customer</th>
+            <th class="border px-2 py-2 text-xs md:text-sm md:px-4">Warehouse ID</th>
+            <th class="border px-2 py-2 text-xs md:text-sm md:px-4">Total</th>
+            <th class="border px-2 py-2 text-xs md:text-sm md:px-4">Paid</th>
+            <th class="border px-2 py-2 text-xs md:text-sm md:px-4">Payment</th>
+            <th class="border px-2 py-2 text-xs md:text-sm md:px-4">Status</th>
+            <th class="border px-2 py-2 text-xs md:text-sm md:px-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="invoice in invoices" :key="invoice.id">
+            <td class="border px-2 py-2 text-xs md:text-sm md:px-4">
+              {{ invoice.invoiceNumber || invoice.id }}
+            </td>
+            <td class="border px-2 py-2 text-xs md:text-sm md:px-4">
+              {{ formatDate(invoice.saleDate) }}
+            </td>
+            <td class="border px-2 py-2 text-xs md:text-sm md:px-4">{{ invoice.customer }}</td>
+            <td class="border px-2 py-2 text-xs md:text-sm md:px-4">{{ invoice.warehouseId || '-' }}</td>
+            <td class="border px-2 py-2 text-xs md:text-sm md:px-4">{{ invoice.totalAmount }}</td>
+            <td class="border px-2 py-2 text-xs md:text-sm md:px-4">{{ invoice.paidAmount }}</td>
+            <td class="border px-2 py-2 text-xs md:text-sm md:px-4">
+              {{ invoice.paymentMethod || '-' }}
+            </td>
+            <td class="border px-2 py-2 text-xs md:text-sm md:px-4">{{ invoice.status }}</td>
+            <td class="border px-2 py-2 text-xs md:text-sm md:px-4">
             <div class="inline-flex items-center gap-2">
               <RouterLink v-if="canView" :to="`/sales/invoice/${invoice.id}`" class="icon-btn icon-view" title="View">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -46,10 +53,11 @@
                 </svg>
               </button>
             </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <Modal
       v-model:show="confirmVisible"

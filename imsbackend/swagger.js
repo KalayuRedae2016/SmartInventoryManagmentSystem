@@ -17,7 +17,7 @@ const options = {
 
     servers: [
       {
-        url: 'http://localhost:8083/api/ims',
+        url: 'https://grandinventory.com/api/ims',
         description: 'Local Server'
       },
       {

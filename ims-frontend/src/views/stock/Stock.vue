@@ -13,24 +13,26 @@
     <!-- Stock Table -->
     <div class="bg-white p-4 rounded shadow">
       <h2 class="text-xl font-bold mb-2">Current Stock</h2>
-      <table class="w-full border-collapse border">
-        <thead class="bg-gray-200">
-          <tr>
-            <th class="border px-4 py-2">Product</th>
-            <th class="border px-4 py-2">Warehouse</th>
-            <th class="border px-4 py-2">Quantity</th>
-            <th class="border px-4 py-2">Last Updated</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in stockList" :key="item.id">
-            <td class="border px-4 py-2">{{ item.productName }}</td>
-            <td class="border px-4 py-2">{{ item.warehouseName }}</td>
-            <td class="border px-4 py-2">{{ item.quantity }}</td>
-            <td class="border px-4 py-2">{{ item.updatedAt }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="overflow-x-auto">
+        <table class="min-w-full border-collapse border text-sm">
+          <thead class="bg-gray-200">
+            <tr>
+              <th class="border px-2 py-2 text-xs md:text-sm md:px-4">Product</th>
+              <th class="border px-2 py-2 text-xs md:text-sm md:px-4">Warehouse</th>
+              <th class="border px-2 py-2 text-xs md:text-sm md:px-4">Quantity</th>
+              <th class="border px-2 py-2 text-xs md:text-sm md:px-4">Last Updated</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in stockList" :key="item.id">
+              <td class="border px-2 py-2 text-xs md:text-sm md:px-4">{{ item.productName }}</td>
+              <td class="border px-2 py-2 text-xs md:text-sm md:px-4">{{ item.warehouseName }}</td>
+              <td class="border px-2 py-2 text-xs md:text-sm md:px-4">{{ item.quantity }}</td>
+              <td class="border px-2 py-2 text-xs md:text-sm md:px-4">{{ item.updatedAt }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
   </div>

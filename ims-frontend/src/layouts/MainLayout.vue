@@ -1,7 +1,10 @@
 <template>
-  <div class="layout-shell flex min-h-screen bg-gray-50">
+  <div class="layout-shell flex min-h-screen bg-gray-50 flex-col md:flex-row">
     <!-- ================= Sidebar ================= -->
-    <aside v-show="isSidebarOpen" class="w-56 bg-brand text-white flex flex-col">
+    <aside
+      v-show="isSidebarOpen"
+      class="bg-brand text-white flex flex-col w-full md:w-56 md:min-h-screen"
+    >
       <!-- Logo -->
       <div
         class="p-4 text-2xl font-bold border-b border-white/20 flex items-center justify-center"
@@ -10,7 +13,9 @@
       </div>
 
       <!-- Navigation -->
-      <nav class="flex-1 overflow-y-auto p-3 space-y-1">
+      <nav
+        class="flex-1 p-3 overflow-x-auto md:overflow-y-auto flex flex-row-reverse gap-2 md:flex-col md:space-y-1 md:gap-1"
+      >
         <!-- ================= Dashboard ================= -->
         <RouterLink
           v-if="can('dashboard.view')"
@@ -115,7 +120,7 @@
 
         <!-- ================= Users ================= -->
         <RouterLink
-          v-if="can('users.view')"
+          v-if="can('user:view')"
           to="/users"
           class="menu-link"
           :class="{ 'menu-active': $route.path === '/users' }"
@@ -170,7 +175,7 @@
 
     <button
       type="button"
-      class="sidebar-toggle"
+      class="sidebar-toggle hidden md:inline-flex"
       :class="isSidebarOpen ? 'sidebar-toggle-open' : 'sidebar-toggle-closed'"
       :aria-label="isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'"
       @click="toggleSidebar"
@@ -204,7 +209,7 @@
     </button>
 
     <!-- ================= Main Content ================= -->
-    <main class="flex-1 p-6 overflow-auto">
+    <main class="flex-1 w-full p-4 md:p-6 overflow-auto">
       <div
         v-if="passwordSuccess"
         class="fixed right-6 top-6 z-[60] rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 shadow"
@@ -730,7 +735,9 @@ onBeforeUnmount(() => {
 
 /* Main menu */
 .menu-link {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
   padding: 8px 12px;
   border-radius: 6px;
   font-weight: 500;

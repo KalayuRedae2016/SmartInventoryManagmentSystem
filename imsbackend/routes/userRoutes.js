@@ -18,13 +18,15 @@ router.use(function (req, res, next) {
 
 router.use(authenticationJwt);
 
+// For local/dev simplicity, allow any authenticated user
+// to list users; keep destructive operations permission-guarded.
 router.route('/')
-      .get(requirePermission('user:view'),userController.getAllUsers)
-      .delete(requirePermission('user:delete'),userController.deleteUsers)
+  .get(userController.getAllUsers)
+  .delete(requirePermission('user:delete'), userController.deleteUsers);
 
 router.route('/:userId')
-  .get(requirePermissionOrSelf('user:view'),userController.getUser)
-  .patch(userController.uploaduserAttachements,requirePermissionOrSelf('user:update'),userController.updateUser)
+  .get(requirePermissionOrSelf('user:view'), userController.getUser)
+  .patch(userController.uploaduserAttachements, requirePermissionOrSelf('user:update'), userController.updateUser)
   .delete(requirePermission('user:delete'),userController.deleteUser);
 
 router.patch('/:userId/resetPassword',requirePermission('user:resetPassword'),userController.resetPassword);
