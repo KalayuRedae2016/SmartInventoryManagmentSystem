@@ -196,7 +196,7 @@ app.use('/api/ims/reports', reportRoutes);
 
 // Catch-all route handler for undefined routes
 app.use((req, res, next) => {
-  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+  next(new AppError(`Can't find ${req.originalUrl} on this server!,use valid routing path`, 404));
 });
 
 //Global error handling middleware
