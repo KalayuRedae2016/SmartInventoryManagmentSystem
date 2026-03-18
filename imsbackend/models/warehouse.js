@@ -7,6 +7,7 @@ module.exports = (sequelize, DataTypes) => {
       Warehouse.belongsTo(models.Business, {foreignKey: 'businessId'});
       Warehouse.hasMany(models.Stock, {foreignKey: 'warehouseId'});
       Warehouse.hasMany(models.StockTransaction, {foreignKey: 'warehouseId'});  
+      Warehouse.hasMany(models.User, { foreignKey: 'warehouseId' });
     }
   }
 

@@ -206,7 +206,7 @@ app.use('/api/ims/stock-transfers',stocktransferRouter);
 app.use('/api/ims/stocks',stockRouter);
 app.use('/api/ims/stock-transactions', transactionRouter);
 
-app.use('/api/ims/reports', reportRoutes);
+app.use('/api/ims/report', reportRoutes);
 
 // Catch-all route handler for undefined routes
 app.use((req, res, next) => {

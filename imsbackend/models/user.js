@@ -48,7 +48,8 @@ module.exports = (sequelize, DataTypes) => {
 
   User.associate = (models) => {
     User.belongsTo(models.Role, { foreignKey: 'roleId', as: 'role' });
-    User.belongsTo(models.Business, { foreignKey: 'businessId', as: 'tenant' });
+    User.belongsTo(models.Business, { foreignKey: 'businessId', as: 'business' });
+    User.belongsTo(models.Warehouse, { foreignKey: 'warehouseId', as: 'warehouse' });
     User.belongsToMany(models.Permission, {through: models.UserPermission,foreignKey: 'userId', as: 'permissions'});
   };
 
