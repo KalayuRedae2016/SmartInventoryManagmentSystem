@@ -94,3 +94,393 @@ router.get('/warehouse/value', warehouseReport.getWarehouseStockValue);
 router.get('/warehouse/transfers', warehouseReport.getWarehouseTransfers);
 
 module.exports = router;
+
+/**
+ * @swagger
+ * tags:
+ *   - name: Reports
+ *     description: Complete reporting module (Sales, Purchase, Stock, Financial, etc.)
+ */
+
+/**
+ * @swagger
+ * /report/sales/summary:
+ *   get:
+ *     summary: Sales summary report
+ *     tags: [Reports]
+ */
+ 
+/**
+ * @swagger
+ * /report/sales/detailed:
+ *   get:
+ *     summary: Detailed sales report
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/sales/by-product:
+ *   get:
+ *     summary: Sales grouped by product
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/sales/by-customer:
+ *   get:
+ *     summary: Sales grouped by customer
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/sales/by-status:
+ *   get:
+ *     summary: Sales grouped by status
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/sales/top-products:
+ *   get:
+ *     summary: Top selling products
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/sales/top-customers:
+ *   get:
+ *     summary: Top customers
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/sales/returns:
+ *   get:
+ *     summary: Sales return report
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/sales/payment-methods:
+ *   get:
+ *     summary: Sales by payment method
+ *     tags: [Reports]
+ */
+
+
+
+
+/**
+ * @swagger
+ * /report/purchase/summary:
+ *   get:
+ *     summary: Purchase summary
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/purchase/detailed:
+ *   get:
+ *     summary: Detailed purchase report
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/purchase/by-product:
+ *   get:
+ *     summary: Purchase by product
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/purchase/by-supplier:
+ *   get:
+ *     summary: Purchase by supplier
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/purchase/by-status:
+ *   get:
+ *     summary: Purchase by status
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/purchase/top-suppliers:
+ *   get:
+ *     summary: Top suppliers
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/purchase/returns:
+ *   get:
+ *     summary: Purchase returns
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/purchase/payment-method:
+ *   get:
+ *     summary: Purchase by payment method
+ *     tags: [Reports]
+ */
+
+
+
+
+/**
+ * @swagger
+ * /report/stock/current:
+ *   get:
+ *     summary: Current stock report
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/stock/low:
+ *   get:
+ *     summary: Low stock report
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/stock/dead:
+ *   get:
+ *     summary: Dead stock report
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/stock/fast-moving:
+ *   get:
+ *     summary: Fast moving stock
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/stock/slow-moving:
+ *   get:
+ *     summary: Slow moving stock
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/stock/valuation:
+ *   get:
+ *     summary: Stock valuation report
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/stock/transfer-summary:
+ *   get:
+ *     summary: Stock transfer summary
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/stock/adjustment-summary:
+ *   get:
+ *     summary: Stock adjustment summary
+ *     tags: [Reports]
+ */
+
+
+
+
+/**
+ * @swagger
+ * /report/customer/purchase-history:
+ *   get:
+ *     summary: Customer purchase history
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/customer/payment:
+ *   get:
+ *     summary: Customer payment report
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/customer/due:
+ *   get:
+ *     summary: Customer due report
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/customer/top:
+ *   get:
+ *     summary: Top customers
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/customer/returns:
+ *   get:
+ *     summary: Customer returns
+ *     tags: [Reports]
+ */
+
+
+
+
+/**
+ * @swagger
+ * /report/supplier/purchase-history:
+ *   get:
+ *     summary: Supplier purchase history
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/supplier/payment:
+ *   get:
+ *     summary: Supplier payment report
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/supplier/due:
+ *   get:
+ *     summary: Supplier due report
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/supplier/returns:
+ *   get:
+ *     summary: Supplier returns
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/supplier/top:
+ *   get:
+ *     summary: Top suppliers
+ *     tags: [Reports]
+ */
+
+
+
+
+/**
+ * @swagger
+ * /report/user/summary:
+ *   get:
+ *     summary: User summary report
+ *     tags: [Reports]
+ */
+
+
+
+
+/**
+ * @swagger
+ * /report/product:
+ *   get:
+ *     summary: Product report (multi-type)
+ *     description: |
+ *       Types:
+ *       - stock
+ *       - low
+ *       - out
+ *       - sales
+ *       - purchase
+ *       - top
+ *       - slow
+ *       - profit
+ *       - inactive
+ *     tags: [Reports]
+ */
+
+
+
+
+/**
+ * @swagger
+ * /report/financial:
+ *   get:
+ *     summary: Financial reports (profit, revenue, expense, collection)
+ *     tags: [Reports]
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [profit, revenue, expense, collection]
+ *       - in: query
+ *         name: groupBy
+ *         schema:
+ *           type: string
+ *           enum: [day, month]
+ */
+
+
+
+
+/**
+ * @swagger
+ * /report/warehouse/summary:
+ *   get:
+ *     summary: Warehouse summary
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/warehouse/detail:
+ *   get:
+ *     summary: Warehouse detail
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/warehouse/value:
+ *   get:
+ *     summary: Warehouse stock value
+ *     tags: [Reports]
+ */
+
+/**
+ * @swagger
+ * /report/warehouse/transfers:
+ *   get:
+ *     summary: Warehouse transfers
+ *     tags: [Reports]
+ */
