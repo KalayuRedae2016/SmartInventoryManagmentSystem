@@ -5,24 +5,20 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Smart Inventory Managment System API',
+      title: 'Smart Inventory Management System API',
       version: '1.0.0',
-    description: `API documentation for Smart Inventory Management System  📞 Phone: 0943662611`,    
-    contact: {
-      name: "Kalayu Redae",
-      email: "kalayuredae2@gmail.com",
-      //url: "https://grandinventory.com"
-        }
+      description: `API documentation for Smart Inventory Management System 📞 Phone: 0943662611`,
+      contact: {
+        name: "Kalayu Redae",
+        email: "kalayuredae2@gmail.com",
+      },
     },
 
+    // Use relative URL so it works on shared hosting
     servers: [
       {
-        url: 'http://localhost:8083/api/ims',
-        description: 'Local Server'
-      },
-      {
-        url: 'https://grandinventory.com/api/ims',
-        description: 'Remote Server',
+        url: '/api/ims',
+        description: 'Live API Server (Relative Path)',
       },
     ],
 
@@ -43,12 +39,14 @@ const options = {
     ],
   },
 
-  apis: ['./routes/**/*.js'], // all route files
+  // All route files containing Swagger annotations
+  apis: ['./routes/**/*.js'],
 };
 
 const swaggerSpec = swaggerJSDoc(options);
 
 module.exports = (app) => {
+  // Make sure this comes **after your routes** are mounted
   app.use(
     '/api-docs',
     swaggerUi.serve,
