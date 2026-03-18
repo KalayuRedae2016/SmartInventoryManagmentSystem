@@ -7,6 +7,14 @@ const Warehouse = db.Warehouse;
 const Product = db.Product;
 const Stock = db.Stock;
 
+
+// # 8️⃣ Warehouse Reports
+// From **Warehouse + Stock**
+
+// 1. Stock by Warehouse
+// 2. Warehouse Stock Value
+// 3. Warehouse Transfer Report
+
 // Warehouse Summary
 exports.getWarehouseSummary = catchAsync(async (req, res) => {
   const { startDate, endDate } = req.query;

@@ -1,78 +1,81 @@
+const catchAsync = require('../utils/catchAsync');
+const { Op, Sequelize } = require('sequelize');
+const { User, Sale, Purchase, StockAdjustment, StockTransfer } = require('../models');
 
-const catchAsync = require('../../utils/catchAsync');
-const {User,Sale,Purchase,StockAdjustment,StockTransfer}=require('../../models');
-
-// Basic Reports,Total users
-// Active vs Inactive users
-//Users by role,Users created by date range
-//Users per business (if multi-business)
-//Activity Reports,User login history,
-// Last login report,User sales performance
-//User purchase activity,Users with no activity
-
-// User Summary
-// exports.getUserSummary = catchAsync(async (req, res) => {
-//   const users = await User.findAll({
-//     include: [
-//       { model: Sale, required: false },
-//       { model: Purchase, required: false },
-//       { model: StockAdjustment, required: false },
-//       { model: StockTransfer, required: false }
-//     ]
-//   });
-
-//   console.log("users",users)
-
-//   const summary = users.map(u => ({
-//     userId: u.id,
-//     fullName: u.fullName,
-//     totalSales: u.Sales.length,
-//     totalPurchases: u.Purchases.length,
-//     totalAdjustments: u.StockAdjustments.length,
-//     totalTransfers: u.StockTransfers.length,
-//     roleId: u.roleId,
-//     isActive: u.isActive
-//   }));
-
-//   res.status(200).json({ status: 1, data: summary });
-// });
-
-// controllers/reports/user.report.controller.js
-
-exports.getUserSummary = catchAsync(async (req, res) => {
-    const totalUsers = await User.countDocuments()
-
-    const activeUsers = await User.count({ isActive: true })
-    const inactiveUsers = await User.count({ isActive: false })
-
-    const usersByRole = await User.aggregate([
-      {
-        $group: {
-          _id: '$role',
-          count: { $sum: 1 }
-        }
+const buildDateFilter = (startDate, endDate) => {
+  if (startDate && endDate) {
+    return {
+      createdAt: {
+        [Op.between]: [new Date(startDate), new Date(endDate)]
       }
-    ])
+    };
+  }
+  return {};// No filter → return empty (get all users)
+};
+// BASIC SUMMARY
+exports.getUserSummary = catchAsync(async (req, res) => {
+  const { startDate, endDate } = req.query;
 
-    res.json({
-      totalUsers,
-      activeUsers,
-      inactiveUsers,
-      usersByRole
-    })
-  })
+  const totalUsers = await User.count();
 
-// User Detailed Report
+  const activeUsers = await User.count({ where: { isActive: true } });
+  const inactiveUsers = await User.count({ where: { isActive: false } });
+
+  console.log("acti",activeUsers)
+  // Users by role
+  const usersByRole = await User.findAll({
+    attributes: [
+      'roleId','fullName',
+      [Sequelize.fn('COUNT', Sequelize.col('id')), 'count']
+    ],
+    group: ['roleId']
+  });
+
+  // Users by date
+  const usersByDate = await User.count({
+    where: {
+      createdAt: buildDateFilter(startDate, endDate)
+    }
+  });
+
+  res.json({
+    status: 1,
+    totalUsers,
+    activeUsers,
+    inactiveUsers,
+    usersByRole,
+    usersByDate
+    
+  });
+});
+
+// USER DETAIL
 exports.getUserDetail = catchAsync(async (req, res) => {
   const { userId, startDate, endDate } = req.query;
 
   const users = await User.findAll({
     where: userId ? { id: userId } : {},
     include: [
-      { model: Sale, required: false, where: { saleDate: getDateFilter(startDate, endDate) } },
-      { model: Purchase, required: false, where: { createdAt: getDateFilter(startDate, endDate) } },
-      { model: StockAdjustment, required: false, where: { createdAt: getDateFilter(startDate, endDate) } },
-      { model: StockTransfer, required: false, where: { createdAt: getDateFilter(startDate, endDate) } }
+      {
+        model: Sale,as:"sales",
+        required: false,
+        where: { saleDate: buildDateFilter(startDate, endDate) }
+      },
+      {
+        model: Purchase,as:"purchases",
+        required: false,
+        where: { createdAt: buildDateFilter(startDate, endDate) }
+      },
+      {
+        model: StockAdjustment,as:"user",
+        required: false,
+        where: { createdAt: buildDateFilter(startDate, endDate) }
+      },
+      {
+        model: StockTransfer,as:"user",
+        required: false,
+        where: { createdAt: buildDateFilter(startDate, endDate) }
+      }
     ]
   });
 
@@ -81,20 +84,72 @@ exports.getUserDetail = catchAsync(async (req, res) => {
     fullName: u.fullName,
     roleId: u.roleId,
     isActive: u.isActive,
-    sales: u.Sales.map(s => ({ id: s.id, totalAmount: s.totalAmount, saleDate: s.saleDate })),
-    purchases: u.Purchases.map(p => ({ id: p.id, totalAmount: p.totalAmount, date: p.createdAt })),
-    adjustments: u.StockAdjustments.map(a => ({ id: a.id, type: a.adjustmentType, quantity: a.quantity })),
-    transfers: u.StockTransfers.map(t => ({ id: t.id, quantity: t.quantity, from: t.fromWarehouseId, to: t.toWarehouseId }))
+
+    totalSales: u.Sales.length,
+    totalSalesAmount: u.Sales.reduce((sum, s) => sum + s.totalAmount, 0),
+
+    totalPurchases: u.Purchases.length,
+    totalPurchaseAmount: u.Purchases.reduce((sum, p) => sum + p.totalAmount, 0),
+
+    totalAdjustments: u.StockAdjustments.length,
+    totalTransfers: u.StockTransfers.length
   }));
 
-  res.status(200).json({ status: 1, data: details });
+  res.json({ status: 1, data: details });
 });
 
-exports.userActivity=catchAsync(async(req,res)=>{
-  console.log('f')
-})
+// USER ACTIVITY 
+exports.userActivity = catchAsync(async (req, res) => {
+  const { startDate, endDate } = req.query;
 
-exports.loginReport=catchAsync(async(req,res)=>{
-  console.log('f')
-})
+  const users = await User.findAll({
+    include: [
+      {
+        model: Sale,
+        required: false,
+        where: { saleDate: buildDateFilter(startDate, endDate) }
+      },
+      {
+        model: Purchase,
+        required: false,
+        where: { createdAt: getDateFilter(startDate, endDate) }
+      }
+    ]
+  });
 
+  const activity = users.map(u => ({
+    userId: u.id,
+    name: u.fullName,
+    salesCount: u.Sales.length,
+    purchaseCount: u.Purchases.length,
+    totalActivity: u.Sales.length + u.Purchases.length
+  }));
+
+  res.json({ status: 1, data: activity });
+});
+
+// USERS WITH NO ACTIVITY 
+exports.inactiveUsers = catchAsync(async (req, res) => {
+  const users = await User.findAll({
+    include: [
+      { model: Sale, required: false },
+      { model: Purchase, required: false }
+    ]
+  });
+
+  const result = users.filter(
+    u => u.Sales.length === 0 && u.Purchases.length === 0
+  );
+
+  res.json({ status: 1, data: result });
+});
+
+// // ================= LOGIN REPORT =================
+// // (only if you have lastLogin field)
+// exports.loginReport = catchAsync(async (req, res) => {
+//   const users = await User.findAll({
+//     attributes: ['id', 'fullName', 'lastLogin']
+//   });
+
+//   res.json({ status: 1, data: users });
+// });

@@ -9,6 +9,18 @@ const SaleReturn = db.SaleReturn;
 const StockAdjustment = db.StockAdjustment;
 const Expense = db.Expense; // assuming you have an Expense model
 
+
+// # 7️⃣ Financial Reports
+// From **Sales + Purchases**
+// 1. **Profit & Loss**
+//    * total sales
+//    * total purchase
+//    * profit
+// 2. **Revenue Report**
+// 3. **Expense Report**
+// 4. **Payment Collection Report**
+
+
 // Profit & Loss Report
 exports.getProfitLossReport = catchAsync(async (req, res) => {
   const { startDate, endDate } = req.query;

@@ -1,95 +1,172 @@
-const { db } = require('../models');
+'use strict';
+const { Op } = require('sequelize');
 const catchAsync = require('../utils/catchAsync');
-const { getDateFilter } = require('../utils/reportHelpers');
 
-const Supplier = db.Supplier;
-const Purchase = db.Purchase;
-const PurchaseReturn = db.PurchaseReturn;
-const PurchaseReturnItem = db.PurchaseReturnItem;
+const {Supplier,Purchase,PurchaseItem,PurchaseReturn,PurchaseReturnItem} = require('../models');
 
-// Supplier Summary
-exports.getSupplierSummary = catchAsync(async (req, res) => {
-  const { startDate, endDate, top = 10 } = req.query;
+const buildDateFilter = (startDate, endDate) => {
+  if (startDate && endDate) {
+    return {
+      [Op.between]: [new Date(startDate), new Date(endDate)]
+    };
+  }
+};
 
-  const suppliers = await Supplier.findAll({
+exports.supplierPurchaseHistory = catchAsync(async (req, res) => {
+  const { supplierId, startDate, endDate } = req.query;
+
+  const where = {};
+  if (supplierId) where.supplierId = supplierId;
+  if (startDate && endDate) where.createdAt = buildDateFilter(startDate, endDate);
+
+  const purchases = await Purchase.findAll({
+    where,
     include: [
       {
-        model: Purchase,
-        required: false,
-        where: { createdAt: getDateFilter(startDate, endDate) },
-        include: [{ model: PurchaseReturn, include: [PurchaseReturnItem] }]
+        model: Supplier,
+        as: 'supplier',
+        attributes: ['id', 'name', 'phone']
+      },
+      {
+        model: PurchaseItem,
+        as: 'items'
       }
-    ]
+    ],
+    order: [['createdAt', 'DESC']]
   });
 
-  const summary = suppliers.map(s => {
-    const totalPurchases = s.Purchases.reduce((sum, p) => sum + p.totalAmount, 0);
-    const totalPurchaseReturns = s.Purchases.reduce((sum, p) =>
-      sum + p.PurchaseReturns.reduce((rSum, r) => rSum + r.totalAmount, 0), 0
-    );
-    const paidAmount = s.Purchases.reduce((sum, p) => sum + p.paidAmount, 0);
-    const dueAmount = totalPurchases - paidAmount;
+  res.status(200).json({
+    status: 1,
+    count: purchases.length,
+    data: purchases
+  });
+});
+
+exports.supplierPaymentReport = catchAsync(async (req, res) => {
+  const { startDate, endDate } = req.query;
+
+  const where = {};
+  if (startDate && endDate) where.createdAt = buildDateFilter(startDate, endDate);
+
+  const suppliers = await Supplier.findAll({
+    include: [{
+      model: Purchase,
+      as: 'purchases',
+      required: false,
+      where
+    }]
+  });
+
+  const data = suppliers.map(s => {
+    const purchases = s.purchases || [];
 
     return {
       supplierId: s.id,
       name: s.name,
-      phone: s.phone,
-      totalPurchases,
-      totalPurchaseReturns,
-      paidAmount,
-      dueAmount
+      totalPurchases: purchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0),
+      totalPaid: purchases.reduce((sum, p) => sum + (p.paidAmount || 0), 0),
+      totalDue: purchases.reduce((sum, p) => sum + (p.dueAmount || 0), 0)
     };
-  }).sort((a, b) => b.totalPurchases - a.totalPurchases).slice(0, top);
+  });
 
-  res.status(200).json({ status: 1, data: summary });
+  res.status(200).json({
+    status: 1,
+    data
+  });
 });
 
-// Supplier Detailed Report
-exports.getSupplierDetail = catchAsync(async (req, res) => {
+exports.supplierDueReport = catchAsync(async (req, res) => {
+
+  const suppliers = await Supplier.findAll({
+    attributes: ['id', 'name', 'phone', 'totalPurchaseDue']
+  });
+
+  const data = suppliers
+    .map(s => ({
+      supplierId: s.id,
+      name: s.name,
+      phone: s.phone,
+      totalDue: s.totalPurchaseDue
+    }))
+    .filter(s => s.totalDue > 0);
+
+  res.status(200).json({
+    status: 1,
+    count: data.length,
+    data
+  });
+});
+
+exports.supplierReturnReport = catchAsync(async (req, res) => {
   const { supplierId, startDate, endDate } = req.query;
 
   const where = {};
-  if (supplierId) where.id = supplierId;
+  if (supplierId) where.supplierId = supplierId;
+  if (startDate && endDate) {
+    where.createdAt = buildDateFilter(startDate, endDate);
+  }
 
-  const suppliers = await Supplier.findAll({
+  const returns = await PurchaseReturn.findAll({
     where,
     include: [
       {
-        model: Purchase,
-        include: [
-          {
-            model: PurchaseReturn,
-            include: [PurchaseReturnItem]
-          }
-        ],
-        required: false,
-        where: { createdAt: getDateFilter(startDate, endDate) }
+        model: Supplier,
+        as: 'supplier',
+        attributes: ['id', 'name']
+      },
+      {
+        model: PurchaseReturnItem,
+        as: 'items'
       }
-    ]
+    ],
+    order: [['createdAt', 'DESC']]
   });
 
-  const details = suppliers.map(s => ({
-    supplierId: s.id,
-    name: s.name,
-    phone: s.phone,
-    purchases: s.Purchases.map(p => ({
-      purchaseId: p.id,
-      totalAmount: p.totalAmount,
-      paidAmount: p.paidAmount,
-      dueAmount: p.totalAmount - p.paidAmount,
-      status: p.status,
-      purchaseReturns: p.PurchaseReturns.map(r => ({
-        id: r.id,
-        totalAmount: r.totalAmount,
-        reason: r.reason,
-        items: r.PurchaseReturnItems.map(i => ({
-          productId: i.productId,
-          quantity: i.quantity,
-          total: i.total
-        }))
-      }))
-    }))
-  }));
+  const totalReturnedAmount = returns.reduce(
+    (sum, r) => sum + (r.totalAmount || 0),
+    0
+  );
 
-  res.status(200).json({ status: 1, data: details });
+  res.status(200).json({
+    status: 1,
+    count: returns.length,
+    summary: { totalReturnedAmount },
+    data: returns
+  });
+});
+
+exports.topSuppliers = catchAsync(async (req, res) => {
+  const { startDate, endDate, top = 10 } = req.query;
+
+  const where = {};
+  if (startDate && endDate) {
+    where.createdAt = buildDateFilter(startDate, endDate);
+  }
+
+  const suppliers = await Supplier.findAll({
+    include: [{
+      model: Purchase,
+      as: 'purchases',
+      required: false,
+      where
+    }]
+  });
+
+  const data = suppliers.map(s => {
+    const purchases = s.purchases || [];
+
+    return {
+      supplierId: s.id,
+      name: s.name,
+      totalAmount: purchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0)
+    };
+  })
+  .sort((a, b) => b.totalAmount - a.totalAmount)
+  .slice(0, parseInt(top));
+
+  res.status(200).json({
+    status: 1,
+    count: data.length,
+    data
+  });
 });

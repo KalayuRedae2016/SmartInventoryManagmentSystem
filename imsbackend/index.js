@@ -38,8 +38,6 @@ const saleReturnRouter=require('./routes/saleReturnRoutes')
 
 const stockAdjustmentRouter = require('./routes/stockAdjustmentRoutes');
 const stocktransferRouter = require('./routes/stockTransferRoutes');
-const stockRouter = require('./routes/stockRoutes');
-const stockTransactionRouter = require('./routes/stockTransactionRoutes');
 
 const stockRouter=require("./routes/stockRoutes")
 const transactionRouter = require('./routes/stockTransactionRoutes');
@@ -100,11 +98,6 @@ app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, 'views'));
 
 // #1 Global Middlwares
-// Implement CORS
-// Postman usually sets null as the origin unless specified otherwise. 
-// This may cause your server to reject requests if null is not included in the origin list.
-
-
 const corsOptions = process.env.NODE_ENV === "production"
   ? { origin: ["http://localhost:5173","https://grandinventory.com"], methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"], credentials: true }
   : { origin: ["*"], methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"] };
@@ -114,8 +107,7 @@ app.options(/.*/, cors());//allow preflight requests
 
 // Serving static files
 // app.use(express.static(path.join(__dirname, 'uploads')));
-app.use(
-  '/uploads',
+app.use('/uploads',
   express.static(path.join(__dirname, 'uploads'), {
     setHeaders: (res) => {
       // Allow frontend app (different origin/port) to display uploaded images.
@@ -126,8 +118,7 @@ app.use(
 
 
 // Security HTTP Headers
-app.use(
-  helmet({
+app.use( helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' }
   })
 );

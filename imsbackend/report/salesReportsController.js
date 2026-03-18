@@ -1,204 +1,234 @@
 'use strict';
 
-const { Op } = require('sequelize');
-const catchAsync = require('../../utils/catchAsync');
-const AppError = require('../../utils/appError');
-const QueryHelper = require('../../utils/queryHelper');
+const { Op, Sequelize } = require('sequelize');
+const catchAsync = require('../utils/catchAsync');
+const AppError = require('../utils/appError');
 
-const { Sale, SaleItem, SaleReturn, SaleReturnItem, Customer, Warehouse, Product, User } = require('../../models');
+const {Sale,SaleItem,SaleReturn,SaleReturnItem,Customer,Warehouse,Product,User} = require('../models');
 
-const getDateFilter = (startDate, endDate) => {
-  if (startDate && endDate) return { [Op.between]: [new Date(startDate), new Date(endDate)] };
-  return {};
+
+const buildFilters = ({ startDate, endDate, warehouseId, customerId, status }) => {
+  const where = {};
+
+  if (startDate && endDate) {
+    where.saleDate = {
+      [Op.between]: [new Date(startDate), new Date(endDate)]
+    };
+  }
+
+  if (warehouseId) where.warehouseId = warehouseId;
+  if (customerId) where.customerId = customerId;
+  if (status) where.status = status;
+
+  return where;
 };
 
-/**
- * 1️⃣ Sales Summary Report
- */
-exports.summary = catchAsync(async (req, res) => {
-  const { startDate, endDate, warehouseId } = req.query;
+exports.salesSummary = catchAsync(async (req, res) => {
+  const where = buildFilters(req.query);
 
-  const whereSale = {};
-  if (startDate && endDate) whereSale.saleDate = getDateFilter(startDate, endDate);
-  if (warehouseId) whereSale.warehouseId = warehouseId;
-
-  const sales = await Sale.findAll({ where: whereSale });
-  const totalSales = sales.length;
-  const totalAmount = sales.reduce((sum, s) => sum + s.totalAmount, 0);
-  const totalPaid = sales.reduce((sum, s) => sum + s.paidAmount, 0);
-  const totalDue = totalAmount - totalPaid;
+  const result = await Sale.findAll({
+    attributes: [
+      [Sequelize.fn('COUNT', Sequelize.col('id')), 'totalInvoices'],
+      [Sequelize.fn('SUM', Sequelize.col('totalAmount')), 'totalSales'],
+      [Sequelize.fn('SUM', Sequelize.col('paidAmount')), 'totalPaid'],
+      [Sequelize.fn('SUM', Sequelize.col('dueAmount')), 'totalDue']
+    ],
+    where,
+    raw: true
+  });
 
   res.status(200).json({
     status: 1,
-    data: { totalSales, totalAmount, totalPaid, totalDue }
+    data: result[0]
   });
 });
 
-/**
- * 2️⃣ Sales Detailed Report
- */
-exports.detailed = catchAsync(async (req, res) => {
-  const { startDate, endDate, warehouseId, customerId } = req.query;
-
-  const whereSale = {};
-  if (startDate && endDate) whereSale.saleDate = getDateFilter(startDate, endDate);
-  if (warehouseId) whereSale.warehouseId = warehouseId;
-  if (customerId) whereSale.customerId = customerId;
+exports.salesDetailed = catchAsync(async (req, res) => {
+  const where = buildFilters(req.query);
 
   const sales = await Sale.findAll({
-    where: whereSale,
+    where,
     include: [
-      { model: Customer, attributes: ['id', 'name', 'phone', 'email'] },
-      { model: Warehouse, attributes: ['id', 'name'] },
-      { model: SaleItem, include: [{ model: Product, attributes: ['id', 'name', 'code', 'cost'] }] }
-    ]
-  });
-
-  const data = sales.map(s => ({
-    saleId: s.id,
-    invoice: s.invoiceNumber,
-    saleDate: s.saleDate,
-    warehouse: s.Warehouse.name,
-    customer: s.Customer.name,
-    totalAmount: s.totalAmount,
-    paid: s.paidAmount,
-    due: s.due,
-    items: s.SaleItems.map(i => ({
-      productId: i.Product.id,
-      productName: i.Product.name,
-      quantity: i.quantity,
-      unitPrice: i.unitPrice,
-      total: i.total,
-      cost: i.Product.cost,
-      profit: i.total - (i.quantity * i.Product.cost)
-    }))
-  }));
-
-  res.status(200).json({ status: 1, data });
-});
-
-/**
- * 3️⃣ Sales By Product Report
- */
-exports.byProduct = catchAsync(async (req, res) => {
-  const { startDate, endDate, warehouseId } = req.query;
-
-  const whereSale = {};
-  if (startDate && endDate) whereSale.saleDate = getDateFilter(startDate, endDate);
-  if (warehouseId) whereSale.warehouseId = warehouseId;
-
-  const results = await SaleItem.findAll({
-    include: [
-      { model: Sale, where: whereSale, attributes: [] },
-      { model: Product, attributes: ['id', 'name', 'code', 'category', 'cost'] }
+      { model: Customer,as:"customer", attributes: ['id', 'name'] },
+      { model: Warehouse,as:"warehouse",attributes: ['id', 'name'] }
     ],
-    attributes: [
-      'productId',
-      [db.Sequelize.fn('SUM', db.Sequelize.col('quantity')), 'totalSoldQty'],
-      [db.Sequelize.fn('SUM', db.Sequelize.literal('quantity * price')), 'totalRevenue'],
-      [db.Sequelize.fn('SUM', db.Sequelize.literal('quantity * Product.cost')), 'totalCost']
-    ],
-    group: ['productId', 'Product.id'],
-    order: [[db.Sequelize.literal('totalRevenue'), 'DESC']]
+    order: [['saleDate', 'DESC']]
   });
 
-  const formatted = results.map(r => {
-    const revenue = parseFloat(r.get('totalRevenue')) || 0;
-    const cost = parseFloat(r.get('totalCost')) || 0;
-    const profit = revenue - cost;
-
-    return {
-      productId: r.Product.id,
-      productName: r.Product.name,
-      category: r.Product.category,
-      totalSoldQty: parseInt(r.get('totalSoldQty')),
-      totalRevenue: revenue,
-      totalCost: cost,
-      totalProfit: profit,
-      marginPercent: revenue === 0 ? 0 : ((profit / revenue) * 100).toFixed(2)
-    };
-  });
+  
+  const totalAmount = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+  const totalPaid = sales.reduce((sum, s) => sum + s.paidAmount, 0);
+  const totalDue = sales.reduce((sum, s) => sum + s.dueAmount, 0);
 
   res.status(200).json({
     status: 1,
     summary: {
-      totalProducts: formatted.length,
-      totalRevenue: formatted.reduce((s, p) => s + p.totalRevenue, 0),
-      totalProfit: formatted.reduce((s, p) => s + p.totalProfit, 0)
+      totalRecords: sales.length,
+      totalAmount,
+      totalPaid,
+      totalDue
     },
-    data: formatted
+    data: sales
   });
 });
 
-/**
- * 4️⃣ Sales By Status Report
- */
-exports.byStatus = catchAsync(async (req, res) => {
-  const { startDate, endDate, warehouseId } = req.query;
+exports.salesByProduct = catchAsync(async (req, res) => {
+  const where = buildFilters(req.query);
 
-  const whereSale = {};
-  if (startDate && endDate) whereSale.saleDate = getDateFilter(startDate, endDate);
-  if (warehouseId) whereSale.warehouseId = warehouseId;
-
-  const sales = await Sale.findAll({ where: whereSale });
-
-  const summary = sales.reduce((acc, s) => {
-    acc[s.status] = (acc[s.status] || 0) + 1;
-    return acc;
-  }, {});
-
-  res.status(200).json({ status: 1, data: summary });
-});
-
-/**
- * 5️⃣ Sales Returns Report
- */
-exports.returns = catchAsync(async (req, res) => {
-  const { startDate, endDate, warehouseId } = req.query;
-
-  const whereReturn = {};
-  if (startDate && endDate) whereReturn.returnDate = getDateFilter(startDate, endDate);
-  if (warehouseId) whereReturn.warehouseId = warehouseId;
-
-  const returns = await SaleReturn.findAll({
-    where: whereReturn,
+  const results = await SaleItem.findAll({
     include: [
-      { model: Customer, attributes: ['id', 'name'] },
-      { model: SaleReturnItem, include: [{ model: Product, attributes: ['id', 'name', 'code'] }] }
-    ]
+      { model: Sale,as:"sale", where, attributes: [] },
+      { model: Product,as:"product", attributes: ['id', 'name',] }
+    ],
+    attributes: [
+      'productId',
+      [Sequelize.fn('SUM', Sequelize.col('quantity')), 'totalQty'],
+      [Sequelize.fn('SUM', Sequelize.col('total')), 'totalSales']
+    ],
+    group: ['productId', 'Product.id'],
+    order: [[Sequelize.literal('totalSales'), 'DESC']]
   });
 
-  const data = returns.map(r => ({
-    returnId: r.id,
-    customer: r.Customer.name,
-    returnDate: r.returnDate,
-    totalAmount: r.totalAmount,
-    items: r.SaleReturnItems.map(i => ({
-      productId: i.Product.id,
-      productName: i.Product.name,
-      quantity: i.quantity,
-      unitPrice: i.unitPrice,
-      total: i.total
-    }))
-  }));
+  
+  const totalRevenue = results.reduce(
+    (sum, r) => sum + Number(r.get('totalSales') || 0),
+    0
+  );
 
-  res.status(200).json({ status: 1, data });
+  res.status(200).json({
+    status: 1,
+    summary: {
+      totalProducts: results.length,
+      totalRevenue
+    },
+    data: results
+  });
 });
 
-/**
- * 6️⃣ Customer Sales Summary (Top Customers)
- */
-exports.topCustomers = catchAsync(async (req, res) => {
-  const { startDate, endDate } = req.query;
+exports.salesByCustomer = catchAsync(async (req, res) => {
+  const where = buildFilters(req.query);
 
-  const customers = await Customer.findAll({
-    include: [{ model: Sale, where: { saleDate: getDateFilter(startDate, endDate) }, required: false }]
+  const results = await Sale.findAll({
+    where,
+    attributes: [
+      'customerId',
+      [Sequelize.fn('SUM', Sequelize.col('totalAmount')), 'totalSpent']
+    ],
+    include: [{ model: Customer,as:"customer", attributes: ['name'] }],
+    group: ['customerId', 'Customer.id'],
+    order: [[Sequelize.literal('totalSpent'), 'DESC']]
   });
 
-  const report = customers.map(c => {
-    const totalAmount = c.Sales.reduce((sum, s) => sum + s.totalAmount, 0);
-    return { customerId: c.id, name: c.name, totalSales: c.Sales.length, totalAmount };
-  }).sort((a, b) => b.totalAmount - a.totalAmount);
+  res.status(200).json({
+    status: 1,
+    data: results
+  });
+});
 
-  res.status(200).json({ status: 1, data: report });
+exports.salesByStatus = catchAsync(async (req, res) => {
+  const where = buildFilters(req.query);
+
+  const results = await Sale.findAll({
+    where,
+    attributes: [
+      'status',
+      [Sequelize.fn('COUNT', Sequelize.col('id')), 'count'],
+      [Sequelize.fn('SUM', Sequelize.col('totalAmount')), 'total']
+    ],
+    group: ['status']
+  });
+
+  res.status(200).json({
+    status: 1,
+    data: results
+  });
+});
+
+exports.topProducts = catchAsync(async (req, res) => {
+  const where = buildFilters(req.query);
+
+  const results = await SaleItem.findAll({
+    include: [
+      { model: Sale,as:"sale", where, attributes: [] },
+      { model: Product,as:"product", attributes: ['name'] }
+    ],
+    attributes: [
+      'productId',
+      [Sequelize.fn('SUM', Sequelize.col('quantity')), 'totalSold']
+    ],
+    group: ['productId', 'Product.id'],
+    order: [[Sequelize.literal('totalSold'), 'DESC']],
+    limit: 10
+  });
+
+  res.status(200).json({
+    status: 1,
+    data: results
+  });
+});
+
+exports.topCustomers = catchAsync(async (req, res) => {
+  const where = buildFilters(req.query);
+
+  const results = await Sale.findAll({
+    where,
+    attributes: [
+      'customerId',
+      [Sequelize.fn('SUM', Sequelize.col('totalAmount')), 'totalSpent']
+    ],
+    include: [{ model: Customer,as:"customer", attributes: ['name'] }],
+    group: ['customerId', 'Customer.id'],
+    order: [[Sequelize.literal('totalSpent'), 'DESC']],
+    limit: 10
+  });
+
+  res.status(200).json({
+    status: 1,
+    data: results
+  });
+});
+
+exports.salesReturns = catchAsync(async (req, res) => {
+  const where = {};
+
+  if (req.query.startDate && req.query.endDate) {
+    where.returnDate = {
+      [Op.between]: [
+        new Date(req.query.startDate),
+        new Date(req.query.endDate)
+      ]
+    };
+  }
+
+  const result = await SaleReturn.findAll({
+    where,
+    attributes: [
+      [Sequelize.fn('COUNT', Sequelize.col('id')), 'totalReturns'],
+      [Sequelize.fn('SUM', Sequelize.col('totalAmount')), 'totalReturned']
+    ],
+    raw: true
+  });
+
+  res.status(200).json({
+    status: 1,
+    data: result[0]
+  });
+});
+
+exports.salesByPaymentMethod = catchAsync(async (req, res) => {
+  const where = buildFilters(req.query);
+
+  const results = await Sale.findAll({
+    where,
+    attributes: [
+      'paymentMethod',
+      [Sequelize.fn('SUM', Sequelize.col('totalAmount')), 'total']
+    ],
+    group: ['paymentMethod']
+  });
+
+  res.status(200).json({
+    status: 1,
+    data: results
+  });
 });
