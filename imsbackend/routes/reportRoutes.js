@@ -15,6 +15,9 @@ const customerReport=require("../report/customersReportsController")
 const supplierReport=require("../report/suppliersReportsController")
 
 const userReport=require("../report/usersReportsController")
+const warehouseReport=require("../report/wharehousesReportsController")
+
+const financialReport=require("../report/finanicialReportsController")
 
 router.use(authenticationJwt)
 
@@ -78,13 +81,16 @@ router.get('/user/summary',requirePermission('report:view'),userReport.getUserSu
 // router.get('/user/inactive',requirePermission('report:view'),userReport.inactiveUsers);
 // router.get('/user/login',requirePermission('report:view'),userReport.loginReport);
 
-
+// ================= Product Reports=================
 router.get('/product',requirePermission('report:view'),productReport.getProductReport);
 
 // // ================= FINANCIAL =================
-// router.get('/financial/profit-loss', requirePermission('report:view'), reportController.profitLoss);
-// router.get('/financial/receivable', requirePermission('report:view'), reportController.receivableReport);
-// router.get('/financial/payable', requirePermission('report:view'), reportController.payableReport);
+router.get('/financial', financialReport.getFinancialReport);
 
+// ================= Warehouse Reports=================
+router.get('/warehouse/summary', warehouseReport.getWarehouseSummary);
+router.get('/warehouse/detail', warehouseReport.getWarehouseDetail);
+router.get('/warehouse/value', warehouseReport.getWarehouseStockValue);
+router.get('/warehouse/transfers', warehouseReport.getWarehouseTransfers);
 
 module.exports = router;

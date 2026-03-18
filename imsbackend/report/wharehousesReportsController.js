@@ -1,113 +1,182 @@
-const { db } = require('../models');
 const catchAsync = require('../utils/catchAsync');
-const { Op } = require('sequelize');
-const { getDateFilter, getPagination, getSorting } = require('../utils/reportHelpers');
+const { Op,Sequelize } = require('sequelize');
 
-const Warehouse = db.Warehouse;
-const Product = db.Product;
-const Stock = db.Stock;
+const {Warehouse,Product,Stock,StockTransfer}= require('../models');
 
+const buildDateFilter = (startDate, endDate) => {
+  if (startDate && endDate) {
+    return {
+      createdAt: {
+        [Op.between]: [new Date(startDate), new Date(endDate)]
+      }
+    };
+  }
+  return {};// No filter → return empty (get all users)
+};
 
-// # 8️⃣ Warehouse Reports
-// From **Warehouse + Stock**
-
-// 1. Stock by Warehouse
-// 2. Warehouse Stock Value
-// 3. Warehouse Transfer Report
-
-// Warehouse Summary
 exports.getWarehouseSummary = catchAsync(async (req, res) => {
   const { startDate, endDate } = req.query;
 
-  const warehouses = await Warehouse.findAll({
-    where: { isActive: true },
+  const stocks = await Stock.findAll({
     include: [
       {
+        model: Warehouse,
+        as: 'warehouse',
+        attributes: ['id', 'name'],
+        where: { isActive: true }
+      },
+      {
         model: Product,
-        as: 'products',
-        required: false,
-        include: [
-          {
-            model: Stock,
-            as: 'stocks',
-            required: false,
-            where: { createdAt: getDateFilter(startDate, endDate) },
-          }
+        as: 'product',
+        attributes: ['id', 'name', 'minimumStock']
+      }
+    ],
+    where: buildDateFilter(startDate, endDate)
+  });
+
+  const map = {};
+
+  stocks.forEach(s => {
+    const wid = s.warehouse.id;
+
+    if (!map[wid]) {
+      map[wid] = {
+        warehouseId: wid,
+        warehouseName: s.warehouse.name,
+        totalProducts: new Set(),
+        totalStockQuantity: 0,
+        lowStock: 0,
+        outOfStock: 0
+      };
+    }
+
+    const qty = s.quantity;
+    const min = s.product.minimumStock || 0;
+
+    map[wid].totalProducts.add(s.product.id);
+    map[wid].totalStockQuantity += qty;
+
+    if (qty === 0) map[wid].outOfStock++;
+    if (qty <= min) map[wid].lowStock++;
+  });
+
+  const result = Object.values(map).map(w => ({
+    ...w,
+    totalProducts: w.totalProducts.size
+  }));
+
+  res.json({ status: 1, data: result });
+});
+
+exports.getWarehouseDetail = catchAsync(async (req, res) => {
+  const { warehouseId, startDate, endDate, page, limit } = req.query;
+
+  const where = {};
+  if (warehouseId) where.warehouseId = warehouseId;
+
+  const stocks = await Stock.findAll({
+    where: {
+      ...where,
+      ...buildDateFilter(startDate, endDate)
+    },
+    include: [
+      {
+        model: Warehouse,
+        as: 'warehouse',
+        attributes: ['id', 'name']
+      },
+      {
+        model: Product,
+        as: 'product',
+        attributes: [
+          'id',
+          'name',
+          'sku',
+          'defaultCostPrice',
+          'defaultSellingPrice'
         ]
+      }
+    ],
+    // ...getPagination(page, limit)
+  });
+
+  const grouped = {};
+
+  stocks.forEach(s => {
+    const wid = s.warehouse.id;
+
+    if (!grouped[wid]) {
+      grouped[wid] = {
+        warehouseId: wid,
+        warehouseName: s.warehouse.name,
+        products: []
+      };
+    }
+
+    grouped[wid].products.push({
+      productId: s.product.id,
+      productName: s.product.name,
+      sku: s.product.sku,
+      quantity: s.quantity,
+      costPrice: s.product.defaultCostPrice,
+      sellingPrice: s.product.defaultSellingPrice
+    });
+  });
+
+  res.json({
+    status: 1,
+    data: Object.values(grouped)
+  });
+});
+
+exports.getWarehouseStockValue = catchAsync(async (req, res) => {
+  const stocks = await Stock.findAll({
+    include: [
+      {
+        model: Warehouse,
+        as: 'warehouse',
+        attributes: ['id', 'name']
+      },
+      {
+        model: Product,
+        as: 'product',
+        attributes: ['defaultCostPrice']
       }
     ]
   });
 
-  const summary = warehouses.map(w => {
-    const totalProducts = w.products.length;
-    const totalStockQuantity = w.products.reduce((sum, p) =>
-      sum + (p.stocks?.reduce((s, stock) => s + stock.quantity, 0) || 0), 0
-    );
+  const result = {};
 
-    const lowStock = w.products.filter(p =>
-      (p.stocks?.reduce((s, stock) => s + stock.quantity, 0) || 0) < (p.minimumStock || 1)
-    ).length;
+  stocks.forEach(s => {
+    const wid = s.warehouse.id;
 
-    const outOfStock = w.products.filter(p =>
-      (p.stocks?.reduce((s, stock) => s + stock.quantity, 0) || 0) === 0
-    ).length;
+    if (!result[wid]) {
+      result[wid] = {
+        warehouseId: wid,
+        warehouseName: s.warehouse.name,
+        totalValue: 0
+      };
+    }
 
-    return {
-      warehouseId: w.id,
-      warehouseName: w.name,
-      totalProducts,
-      totalStockQuantity,
-      lowStock,
-      outOfStock
-    };
+    result[wid].totalValue += s.quantity * s.product.defaultCostPrice;
   });
 
-  res.status(200).json({ status: 1, data: summary });
+  res.json({
+    status: 1,
+    data: Object.values(result)
+  });
 });
 
-// Warehouse Detailed Report
-exports.getWarehouseDetail = catchAsync(async (req, res) => {
-  const { warehouseId, startDate, endDate, page, limit, sortBy, order } = req.query;
+exports.getWarehouseTransfers = catchAsync(async (req, res) => {
+  const { startDate, endDate } = req.query;
 
-  const where = {};
-  if (warehouseId) where.id = warehouseId;
-
-  const warehouses = await Warehouse.findAll({
-    where,
+  const transfers = await StockTransfer.findAll({
+    where: buildDateFilter(startDate, endDate),
     include: [
-      {
-        model: Product,
-        as: 'products',
-        required: false,
-        include: [
-          {
-            model: Stock,
-            as: 'stocks',
-            required: false,
-            where: { createdAt: getDateFilter(startDate, endDate) },
-          }
-        ]
-      }
-    ],
-    ...getPagination(page, limit),
-    ...getSorting(sortBy, order)
+      { model: Warehouse, as: 'fromWarehouse' },
+      { model: Warehouse, as: 'toWarehouse' }
+    ]
   });
 
-  const details = warehouses.map(w => ({
-    warehouseId: w.id,
-    warehouseName: w.name,
-    products: w.products.map(p => {
-      const stockQty = p.stocks?.reduce((s, stock) => s + stock.quantity, 0) || 0;
-      return {
-        productId: p.id,
-        productName: p.name,
-        sku: p.sku,
-        quantity: stockQty,
-        costPrice: p.defaultCostPrice,
-        sellingPrice: p.defaultSellingPrice
-      };
-    })
-  }));
-
-  res.status(200).json({ status: 1, data: details });
+  res.json({ status: 1, data: transfers });
 });
