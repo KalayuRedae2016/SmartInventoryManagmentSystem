@@ -45,15 +45,24 @@ const options = {
 
 const swaggerSpec = swaggerJSDoc(options);
 
+// module.exports = (app) => {
+//   // Make sure this comes **after your routes** are mounted
+//   app.use(
+//     '/api-docs',
+//     swaggerUi.serve,
+//     swaggerUi.setup(swaggerSpec, {
+//       swaggerOptions: {
+//         persistAuthorization: true,
+//       },
+//     })
+//   );
+// };
+
 module.exports = (app) => {
-  // Make sure this comes **after your routes** are mounted
   app.use(
     '/api-docs',
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec, {
-      swaggerOptions: {
-        persistAuthorization: true,
-      },
-    })
-  );
+     swaggerUi.serve, (req, res) => {
+    const swaggerSpec = swaggerJSDoc(options); // regenerate on each request
+    swaggerUi.setup(swaggerSpec)(req, res);
+  });
 };
