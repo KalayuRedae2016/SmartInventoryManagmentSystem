@@ -758,3 +758,69 @@ Endpoints:
     POST   /stock-transactions/import
     GET    /stock-transactions/export/excel
     GET    /stock-transactions/export/pdf
+# Reports
+Sales Reports
+GET    /report/sales/summary
+GET    /report/sales/detailed
+GET    /report/sales/by-product
+GET    /report/sales/by-customer
+GET    /report/sales/by-status
+GET    /report/sales/top-products
+GET    /report/sales/top-customers
+GET    /report/sales/returns
+GET    /report/sales/payment-methods
+
+GET    /report/sales/summary
+GET    /report/sales/detailed
+GET    /report/sales/by-product
+GET    /report/sales/by-customer
+GET    /report/sales/by-status
+GET    /report/sales/top-products
+GET    /report/sales/top-customers
+GET    /report/sales/returns
+GET    /report/sales/payment-methods
+
+GET    /report/purchase/summary
+GET    /report/purchase/detailed
+GET    /report/purchase/by-product
+GET    /report/purchase/by-supplier
+GET    /report/purchase/by-status
+GET    /report/purchase/top-suppliers
+GET    /report/purchase/returns
+GET    /report/purchase/payment-method
+
+GET    /report/stock/current
+GET    /report/stock/low
+GET    /report/stock/dead
+GET    /report/stock/fast-moving
+GET    /report/stock/slow-moving
+GET    /report/stock/valuation
+GET    /report/stock/transfer-summary
+GET    /report/stock/adjustment-summary
+POST   /report/stock/import
+GET    /report/stock/export/excel
+GET    /report/stock/export/pdf
+
+GET    /report/supplier/purchase-history
+GET    /report/supplier/payment
+GET    /report/supplier/due
+GET    /report/supplier/returns
+GET    /report/supplier/top
+
+GET    /report/user/summary
+<!-- GET    /report/user/detail
+GET    /report/user/activity
+GET    /report/user/inactive
+GET    /report/user/login -->
+
+GET    /report/product
+
+GET    /report/financial?type=profit
+GET    /report/financial?type=revenue
+GET    /report/financial?type=expense
+GET    /report/financial?type=collection
+
+GET    /report/warehouse/summary
+GET    /report/warehouse/detail
+GET    /report/warehouse/value
+GET    /report/warehouse/transfers
