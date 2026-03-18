@@ -5,7 +5,9 @@
 
     <section class="login-card">
       <header class="login-header">
-        <h1>Welcome Back</h1>
+        <h1>
+          <span class="welcome-main">Welcome</span>
+        </h1>
         <p>Sign in to your account</p>
       </header>
 
@@ -181,16 +183,22 @@ async function submitLogin() {
 
 .login-header h1 {
   margin: 0;
-  font-size: 2rem;
-  line-height: 1.15;
-  font-weight: 800;
-  letter-spacing: 0.01em;
+  font-size: 2.2rem;
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: 0.03em;
 }
 
 .login-header p {
   margin: 8px 0 0;
   color: #3a2367;
   font-size: 0.95rem;
+}
+
+.welcome-main {
+  display: inline-block;
+  color: var(--brand-color);
+  text-shadow: 0 8px 26px rgba(26, 11, 54, 0.28);
 }
 
 .login-form {
